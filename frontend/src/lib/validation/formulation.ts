@@ -2,7 +2,7 @@ import type { FormulationLine, ValidationResult } from "@/types";
 
 /**
  * Client-side mirror of the backend formulation rules, used for instant
- * feedback and while the API is mocked. The backend `/validate` result is
+ * feedback before the first save. The backend `/validate` result is
  * authoritative whenever it is available.
  */
 export const TOTAL_TOLERANCE = 0.01;

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
-import { MockProvider } from "@/components/mock-provider";
 import { PreferencesHydrator } from "@/components/preferences-hydrator";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -35,14 +34,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="flex min-h-full flex-col">
         <ThemeProvider>
           <TooltipProvider>
-            <MockProvider>
-              <QueryProvider>
-                <JobInvalidator />
-                {children}
-                <Toaster />
-                <PreferencesHydrator />
-              </QueryProvider>
-            </MockProvider>
+            <QueryProvider>
+              <JobInvalidator />
+              {children}
+              <Toaster />
+              <PreferencesHydrator />
+            </QueryProvider>
           </TooltipProvider>
         </ThemeProvider>
       </body>

@@ -332,32 +332,3 @@ export interface ModelDetail extends ModelMeta {
   training_sources?: unknown[];
   is_test_model?: boolean;
 }
-
-/** Job history record shape consumed by the mock fixtures and job views. */
-export interface JobRecord {
-  id: string;
-  type: JobType;
-  status: JobStatus;
-  formulation_id: string | null;
-  stage: string | null;
-  stage_label: string | null;
-  progress_percent: number | null;
-  message: string | null;
-  candidate_ids: string[];
-  started_at: string;
-  finished_at: string | null;
-  duration_ms: number | null;
-}
-
-/** Model registry record shape consumed by the mock fixtures. */
-export interface ModelRecord {
-  id: string;
-  target: string;
-  algorithm: string;
-  version: string;
-  training_set_size: number;
-  holdout_metric: { name: string; value: number } | null;
-  dataset_version: string;
-  limitations: string[];
-  created_at: string;
-}

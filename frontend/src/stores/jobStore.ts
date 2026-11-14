@@ -2,8 +2,8 @@ import { create } from "zustand";
 import type { JobEvent, JobStatus, JobType } from "@/types";
 
 /**
- * Active job state. Written only by the SSE client / job REST calls (and the
- * dev-only mock scenario player). The scene and timeline read from here.
+ * Active job state. Written only by the SSE client / job REST calls. The scene
+ * and timeline read from here.
  *
  * Integrity rules (frontend guide §7):
  * - ignore events for a different job_id
