@@ -1,0 +1,63 @@
+source_id: fao-protein-quality-2013
+source_title: Dietary protein quality evaluation in human nutrition
+source_year: 2013
+source_url: https://www.fao.org/4/i3124e/i3124e.pdf
+unit: mg_per_g_protein
+default_pattern_id: null
+amino_acid_keys:
+  - histidine
+  - isoleucine
+  - leucine
+  - lysine
+  - sulfur_amino_acids_methionine_cysteine
+  - aromatic_amino_acids_phenylalanine_tyrosine
+  - threonine
+  - tryptophan
+  - valine
+
+# FAO Table 5: three recommended scoring patterns for dietary protein quality.
+recommended_patterns:
+  - id: fao2013_infant_breast_milk
+    label: Infant, birth to 6 months (human milk pattern)
+    age_group: birth_to_6_months
+    values: [21, 55, 96, 69, 33, 94, 44, 17, 55]
+  - id: fao2013_child_6_months_to_3_years
+    label: Child, 6 months to 3 years
+    age_group: 6_months_to_3_years
+    values: [20, 32, 66, 57, 27, 52, 31, 8.5, 43]
+  - id: fao2013_older_child_adolescent_adult
+    label: Older child, adolescent, adult
+    age_group: 3_years_and_older
+    values: [16, 30, 61, 48, 23, 41, 25, 6.6, 40]
+
+# FAO Table 3: the corrected age-specific requirement scoring patterns.
+age_specific_patterns:
+  - id: fao2013_age_0_5_year
+    label: 0.5 year
+    age_group: 0_5_year
+    values: [20, 32, 66, 57, 27, 52, 31, 8.5, 43]
+  - id: fao2013_age_1_2_years
+    label: 1 to 2 years
+    age_group: 1_to_2_years
+    values: [18, 31, 63, 52, 25, 46, 27, 7, 41]
+  - id: fao2013_age_3_10_years
+    label: 3 to 10 years
+    age_group: 3_to_10_years
+    values: [16, 30, 61, 48, 23, 41, 25, 6.6, 40]
+  - id: fao2013_age_11_14_years
+    label: 11 to 14 years
+    age_group: 11_to_14_years
+    values: [16, 30, 61, 48, 23, 41, 25, 6.6, 40]
+  - id: fao2013_age_15_18_years
+    label: 15 to 18 years
+    age_group: 15_to_18_years
+    values: [16, 30, 60, 47, 23, 40, 24, 6.3, 40]
+  - id: fao2013_age_over_18_years
+    label: Over 18 years
+    age_group: over_18_years
+    values: [15, 30, 59, 45, 22, 38, 23, 6, 39]
+
+notes:
+  - Values follow amino_acid_keys in order; SAA and AAA are grouped amino acids as defined by FAO.
+  - Table 5 is the report's recommended grouping; Table 3 provides age-specific values.
+  - Do not use these patterns to label a result DIAAS without digestibility data for each amino acid.

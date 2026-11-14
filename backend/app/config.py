@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     stream_token_ttl_seconds: int = 60
     git_sha: str = "dev"
     log_level: str = "INFO"
+    nvidia_api_key: str | None = None
+    nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
+    nvidia_model: str | None = None
 
     @field_validator("cors_allowed_origins", mode="before")
     @classmethod

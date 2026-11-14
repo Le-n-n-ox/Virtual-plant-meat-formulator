@@ -1,0 +1,123 @@
+schema_version: 1
+retrieved_on: 2026-11-14
+amino_acid_default_pattern: null
+pricing_defaults:
+  market: Nairobi Wakulima Market
+  county: Nairobi
+  price_type: wholesale
+  currency: KES
+  unit_basis: kg
+sources:
+  - id: kfct-2018
+    name: Kenya Food Composition Tables 2018
+    publisher: Government of Kenya and FAO
+    version: "2018"
+    urls:
+      - https://www.fao.org/food-composition/tables-and-databases/detail/kenya-food-composition-tables/en
+      - https://nutrition.health.go.ke/programmes/healthy-diets-physical/food-composition-tables/
+      - https://familyhealth.go.ke/wp-content/uploads/2019/05/Final-Food-compostion-book-2018.pdf
+    pdf_local_file: raw/kenya_food_composition_tables_2018.pdf
+    workbook_local_file: raw/Kenya Food Composition Tables Excel files 2018.xlsx
+    workbook_sha256: c9be0519f23c6a8f703251a2844a228a2ba297fad9be6f812e65159b90589273
+    expected_food_count: 522
+    expected_recipe_count: 142
+    license_status: noncommercial_research_with_acknowledgement
+    import_status: workbook_imported_review_required_count_discrepancy
+    notes: >-
+      The workbook copyright notice permits copying, downloading, and printing
+      for private study, research, teaching, and non-commercial products or
+      services with appropriate acknowledgement. Resale and other commercial
+      use require FAO permission. The import found 517 food rows and 139 recipe
+      rows, versus the published 522 plus 142; reconcile before activation.
+      Generated output is a review candidate, not validated production data.
+
+  - id: kfct-recipes-2018
+    name: Kenya Recipe Book 2018: A Recipe Book of Common Mixed Dishes with Nutrient Values
+    publisher: Government of Kenya and FAO
+    version: "2018"
+    urls:
+      - https://www.nutritionhealth.or.ke/wp-content/uploads/Downloads/Kenya%20Recipe%20Book%202018.pdf
+      - https://www.fao.org/3/i9056en/I9056EN.pdf
+      - https://www.b4fn.org/resources/publications/publication-item/kenyan-food-recipes-2018/
+    local_file: raw/kenya_recipe_book_2018.pdf
+    sha256: ef87c0d5748732fbaf10c0a56018d4ce8c332cb8966347b00ce33a57a369a17b
+    license_status: review_notice_in_downloaded_copy
+    import_status: text_inventory_extracted_142_records_structuring_and_review_required
+    notes: >-
+      pypdf extracted 141 narrative headings plus one appendix-only record
+      (142 total, matching the published count). The ignored JSONL retains
+      recipe section text and PDF pages; it does not structure ingredients,
+      instructions, or nutrients. PDF font/layout artifacts need review.
+      Codes 15050, 15066(r), and 15135 are outside the workbook nutrient rows.
+      Code 15066 occurs twice (rice suffix r and stew). Workbook-only code
+      15021 is named Hard boiled eggs and may be a food/type code mismatch.
+      See data/README.md and generated summary before activation.
+
+  - id: usda-fooddata-central
+    name: USDA FoodData Central
+    publisher: USDA Agricultural Research Service
+    urls:
+      - https://fdc.nal.usda.gov/api-guide/
+      - https://fdc.nal.usda.gov/download-datasets/
+    license_status: cc0_1_0
+    import_status: not_imported_supplementary_only
+    notes: >-
+      Supplementary source only; preserve FDC IDs and release metadata. A
+      data.gov API key is required for API access. Do not treat US records as
+      exact matches for Kenyan varieties or preparation states.
+
+  - id: csiro-low-moisture-extrusion-2026
+    name: Low Moisture Extrusion Dataset for Six Plant Protein Isolates and Binary Blends
+    publisher: CSIRO
+    version: "2026-10"
+    doi: 10.25919/AG1F-AY33
+    url: https://doi.org/10.25919/AG1F-AY33
+    license_status: cc_by_nc_sa_4_0
+    import_status: downloaded_research_only_local_importer_added
+    local_files:
+      - path: raw/csiro_low_moisture_2026/6Proteins_ProcessConditions.csv
+        sha256: 5f7134ea33bcb7f7a123e37bdfc0b546fc88f8c2a91ff2648347a70341a6aecb
+        records: 56
+      - path: raw/csiro_low_moisture_2026/6Proteins_Texture_recomputed.csv
+        sha256: a76f9f7c4b2e8c9bc3a702250ba454dc45860337bd53578c5b4d7406d9618378
+        records: 299
+    notes: >-
+      Includes 56 process-condition runs and 299 per-piece texture records.
+      Files are downloaded locally and normalized by
+      app/ingestion/import_csiro_texture.py. CC BY-NC-SA 4.0 requires
+      attribution, share-alike for adaptations, and non-commercial use.
+
+  - id: hemp-oat-high-moisture-extrusion-2025
+    name: High-moisture extrusion of hemp seed and oat press cakes
+    publisher: Zenodo
+    version: "2025-03-27"
+    doi: 10.5281/zenodo.15098471
+    url: https://doi.org/10.5281/zenodo.15098471
+    license_status: unknown
+    import_status: review_rights_before_use
+    notes: >-
+      Record offers an Excel dataset but does not identify a reuse licence.
+
+  - id: fao-protein-quality-2013
+    name: Dietary protein quality evaluation in human nutrition
+    publisher: FAO
+    version: "2013"
+    url: https://www.fao.org/4/i3124e/i3124e.pdf
+    license_status: review_publication_terms
+    import_status: transcribed_to_reference_yaml_expert_review_required
+    notes: >-
+      Contains multiple age-specific amino-acid scoring patterns. Store
+      patterns as separate versioned records and leave the default unset.
+
+  - id: kamis-kenya-market-prices
+    name: Kenya Agricultural Market Information System
+    publisher: Kenya Ministry of Agriculture and Livestock Development
+    url: https://kamis.kilimo.go.ke/
+    license_status: unknown
+    import_status: public_market_pages_found_reuse_terms_unverified
+    notes: >-
+      The prototype target is Nairobi Wakulima Market, wholesale, KES/kg.
+      KAMIS exposes dated market observations and an Excel export, but a
+      stable API and data reuse terms for this use were not confirmed. Only
+      use fresh observations that match the chosen market, price type, and
+      unit; otherwise keep cost optimization unavailable.
