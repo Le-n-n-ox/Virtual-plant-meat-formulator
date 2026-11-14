@@ -11,12 +11,8 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.execute(
-        "ALTER FUNCTION public.vpmf_block_mutation() SET search_path = pg_catalog"
-    )
+    op.execute("ALTER FUNCTION public.vpmf_block_mutation() SET search_path = pg_catalog")
 
 
 def downgrade() -> None:
-    op.execute(
-        "ALTER FUNCTION public.vpmf_block_mutation() RESET search_path"
-    )
+    op.execute("ALTER FUNCTION public.vpmf_block_mutation() RESET search_path")

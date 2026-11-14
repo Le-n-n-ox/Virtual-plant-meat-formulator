@@ -77,6 +77,4 @@ def downgrade() -> None:
         "data_sources",
         "amino_acid_reference_patterns",
     ):
-        op.execute(
-            f"DROP POLICY IF EXISTS api_read_shared_catalog ON public.{table}"
-        )
+        op.execute(f"DROP POLICY IF EXISTS api_read_shared_catalog ON public.{table}")
