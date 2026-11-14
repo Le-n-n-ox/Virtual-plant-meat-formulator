@@ -46,7 +46,7 @@ services:
     command: ["sh", "-c", "alembic upgrade head && python -m app.seed --dev-users --kfct && python -m app.mlops.train --bootstrap"]
     environment: &backend-environment
       ENV: development
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-vpmf}:${POSTGRES_PASSWORD:-devpassword}@db:5432/${POSTGRES_DB:-virtual_plant_meat_formulator}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://vpmf:devpassword@db:5432/virtual_plant_meat_formulator}
       REDIS_URL: redis://redis:6379/0
       JOB_RUNNER: celery
       EVENT_BUS: redis

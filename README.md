@@ -40,6 +40,12 @@ On start, the `migrate` service runs `alembic upgrade head`, loads reference dat
 
 Development users (local auth, `AUTH_MODE=local`): `admin@vpmf.local`, `curator@vpmf.local`, `scientist@vpmf.local` and `viewer@vpmf.local`, all with password `DEV_USER_PASSWORD` (default `devpassword123`). Sign in with `POST /api/auth/login`. Never use these in production.
 
+### Share a development database with a teammate
+
+The default setup uses a local Docker PostgreSQL database. To share the same catalogue, formulations, jobs and users, create a Supabase project, open **Connect**, choose **Session pooler**, and put its connection URI in your ignored `.env` as `DATABASE_URL`. Use the pooler values exactly as supplied, change the URI scheme from `postgresql://` to `postgresql+psycopg://`, and add `?sslmode=require` (or `&sslmode=require` if the URI already has query parameters). URL-encode reserved characters in the database password. Keep this URI private: it grants direct database access. Do not put it in Git or expose it in frontend variables.
+
+Run `docker compose up --build`; the migration service applies the schema and seeds the database from the data available in `backend/data`. A teammate using the same Supabase project sets the same `DATABASE_URL` in their own `.env` and runs the stack. The ignored KFCT import file must also be supplied to each checkout (see [data acquisition](backend/data/README.md)); otherwise the shared database will start without those ingredient rows. This is a development sharing setup; keep `AUTH_MODE=local` for now—Supabase Auth is a separate integration.
+
 Verify every endpoint against a running stack:
 
 ```sh
