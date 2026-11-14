@@ -1,0 +1,14 @@
+node_modules/
+.next/
+.git/
+.npm-cache/
+.cache/
+.vitest/
+.env
+.env.*
+!.env.example
+coverage/
+test-results/
+playwright-report/
+.vitest/
+*.log
