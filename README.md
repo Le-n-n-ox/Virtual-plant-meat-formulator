@@ -36,15 +36,15 @@ docker compose up --build
 - API health: <http://localhost:8000/api/health>
 - API docs: <http://localhost:8000/docs>
 
-On start, the `migrate` service runs `alembic upgrade head`, loads reference data, KFCT 2018 and literature samples (`python -m app.seed --dev-users --kfct`), and registers literature texture models as **candidates** (`python -m app.mlops.train --bootstrap`). Candidates do not serve predictions until an admin approves them (`POST /api/admin/models/{id}/approve`, or `python -m app.mlops.train --target hardness --approve --approver <user_id>`).
+Before starting, copy `.env.example` to `.env` and set `DATABASE_URL` to the Supabase Session pooler URI. Docker Compose requires this value and does not start a local PostgreSQL container. On start, the `migrate` service runs `alembic upgrade head`; it does not reseed or retrain the already migrated shared database. Redis remains local for the API and Celery worker.
 
 Development users (local auth, `AUTH_MODE=local`): `admin@vpmf.local`, `curator@vpmf.local`, `scientist@vpmf.local` and `viewer@vpmf.local`, all with password `DEV_USER_PASSWORD` (default `devpassword123`). Sign in with `POST /api/auth/login`. Never use these in production.
 
-### Share a development database with a teammate
+### Supabase database
 
-The default setup uses a local Docker PostgreSQL database. To share the same catalogue, formulations, jobs and users, create a Supabase project, open **Connect**, choose **Session pooler**, and put its connection URI in your ignored `.env` as `DATABASE_URL`. Use the pooler values exactly as supplied, change the URI scheme from `postgresql://` to `postgresql+psycopg://`, and add `?sslmode=require` (or `&sslmode=require` if the URI already has query parameters). URL-encode reserved characters in the database password. Keep this URI private: it grants direct database access. Do not put it in Git or expose it in frontend variables.
+Open **Connect** in Supabase, choose **Session pooler**, and put its connection URI in your ignored `.env` as `DATABASE_URL`. Use the pooler values exactly as supplied, change the URI scheme from `postgresql://` to `postgresql+psycopg://`, and add `?sslmode=require` (or `&sslmode=require` if the URI already has query parameters). URL-encode reserved characters in the database password. Keep this URI private: it grants direct database access. Do not put it in Git or expose it in frontend variables.
 
-Run `docker compose up --build`; the migration service applies the schema and seeds the database from the data available in `backend/data`. A teammate using the same Supabase project sets the same `DATABASE_URL` in their own `.env` and runs the stack. The ignored KFCT import file must also be supplied to each checkout (see [data acquisition](backend/data/README.md)); otherwise the shared database will start without those ingredient rows. This is a development sharing setup; keep `AUTH_MODE=local` for now—Supabase Auth is a separate integration.
+Run `docker compose up --build`. The migration service applies schema updates only; data seeding and model training must be run explicitly when needed. The stack currently keeps `AUTH_MODE=local`; Supabase Auth is a separate integration.
 
 Verify every endpoint against a running stack:
 
@@ -61,7 +61,7 @@ docker compose exec api python -m app.seed.purge --all-activity  # also all form
 
 Add `--dry-run` to see the counts first. The purge never deletes real reference data: KFCT ingredients, literature samples and non-retired models.
 
-The dashboard shows a backend status indicator driven by the API health endpoint. The database, Redis, API, worker, and frontend use development-only defaults when no `.env` file is present.
+The dashboard shows a backend status indicator driven by the API health endpoint. Redis, API, worker, and frontend use development defaults; Docker Compose refuses to start unless a Supabase `DATABASE_URL` is set in `.env`.
 
 Stop the services and keep the database volume:
 
@@ -81,7 +81,6 @@ docker compose down -v
 | --- | ---: | ---: | --- |
 | Frontend | `FRONTEND_PORT` (3000) | 3000 | Next.js standalone server |
 | API | `API_PORT` (8000) | 8000 | FastAPI and OpenAPI docs |
-| PostgreSQL | `DB_PORT` (5432), localhost only | 5432 | Development database |
 | Redis | `REDIS_PORT` (6379), localhost only | 6379 | Celery broker and event bus |
 | Worker | — | — | Celery worker, no tasks yet |
 | Migrate | — | — | Runs Alembic migrations before API startup |
@@ -120,7 +119,8 @@ Backend tests run against in-memory SQLite (`uv run pytest`). PyTorch and BoTorc
 
 ## Troubleshooting
 
-- **Port in use:** set `FRONTEND_PORT`, `API_PORT`, `DB_PORT`, or `REDIS_PORT` in `.env` and retry.
+- **Port in use:** set `FRONTEND_PORT`, `API_PORT`, or `REDIS_PORT` in `.env` and retry.
+- **Database connection:** verify that `DATABASE_URL` in `.env` contains the Supabase Session pooler URI and `sslmode=require`.
 - **Docker not running:** start Docker Desktop and verify `docker info` succeeds.
 - **Dependency changes:** rebuild without cached layers with `docker compose build --no-cache`.
 - **Windows line endings:** `.gitattributes` enforces LF; if scripts still fail after checkout, run `git add --renormalize .` and rebuild.
