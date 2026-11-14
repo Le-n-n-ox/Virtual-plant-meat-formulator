@@ -21,6 +21,30 @@ export interface Ingredient {
   };
 }
 
+export interface IngredientListItem {
+  id: string;
+  scientific_name: string;
+  common_name: string;
+  variety?: string;
+  form: string;
+  origin?: string;
+  moisture_basis: string;
+  source: {
+    id?: string;
+    name: string;
+  };
+  quality_flag?: string;
+  protein_g_per_100g: number | null;
+  has_amino_acids: boolean;
+}
+
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 export interface NutrientValue {
   key: string; // e.g. "protein", "lysine"
   value: number | null; // null = not reported, never 0
