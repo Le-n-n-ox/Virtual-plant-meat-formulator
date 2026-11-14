@@ -9,13 +9,16 @@ import {
   OctagonXIcon,
   Loader2Icon,
 } from "lucide-react";
+import { getTheme } from "@/lib/themes";
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+  const { resolvedTheme } = useTheme();
+  // Sonner only knows light/dark; map the six named themes to their mode.
+  const mode: ToasterProps["theme"] = getTheme(resolvedTheme).mode;
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={mode}
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,
