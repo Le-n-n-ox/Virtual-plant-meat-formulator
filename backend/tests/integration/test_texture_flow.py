@@ -4,6 +4,7 @@ Out-of-domain blends get NO number (only nearest published evidence); in-domain 
 a value with an interval. The optimizer only searches inside the models' training range.
 """
 
+import shutil
 from decimal import Decimal
 from pathlib import Path
 
@@ -152,11 +153,20 @@ def test_in_domain_prediction_has_value_and_interval(  # type: ignore[no-untyped
 
 
 def test_out_of_domain_gives_no_number_only_nearest_evidence(  # type: ignore[no-untyped-def]
-    client, headers, approved_hardness, blends, db
+    client, headers, approved_hardness, blends, db, tmp_path
 ):
     from app.seed.catalog import seed_literature_experiments
 
-    seed_literature_experiments(db, Path(get_settings().data_dir))
+    # Exercise the fresh-checkout path: CI does not have ignored processed imports.
+    reference_dir = tmp_path / "data" / "reference"
+    reference_dir.mkdir(parents=True)
+    tracked_reference_dir = Path(__file__).resolve().parents[2] / "data" / "reference"
+    for filename in (
+        "foodml_texture_prediction_2023.csv",
+        "foodml_ferawati_2021_crosswalk.csv",
+    ):
+        shutil.copyfile(tracked_reference_dir / filename, reference_dir / filename)
+    seed_literature_experiments(db, tmp_path / "data")
     db.commit()
     job_id, status = _run(
         client, headers, "frm_out", {"process": {"moisture_percent": 60}, "targets": ["hardness"]}

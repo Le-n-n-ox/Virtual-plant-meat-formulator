@@ -12,6 +12,7 @@ import re
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 import yaml
@@ -32,6 +33,7 @@ from app.db.models import (
     Sample,
 )
 from app.db.repositories.ingredients import replace_nutrients
+from app.ingestion.import_foodml_texture_2023 import import_dataset as import_foodml_dataset
 
 KFCT_DATASET_VERSION = "kfct2018.1"
 KFCT_SOURCE_ID = "kfct-2018"
@@ -439,28 +441,18 @@ def _foodml_records(data_dir: Path) -> list[dict[str, Any]]:
     csv_path = Path(data_dir) / "reference" / "foodml_texture_prediction_2023.csv"
     if not csv_path.exists():
         return []
-    records = []
-    for r in _read_csv(csv_path):
-        keys = ("protein", "target moisture", "moisture", "ash", "carbs", "fat", "fiber")
-        records.append(
-            {
-                "identifiers": {
-                    "sample_id": f"foodml2023-{r['no']}",
-                    "source_study_id": r["Study_ID"],
-                    "source_group_id": r["Group_ID"],
-                    "source_study_label": r.get("") or r["Study_ID"],
-                },
-                "processing": {"regime": "high_moisture_extrusion", "source_study": None},
-                "values": {
-                    k: {"value": float(r[k]), "unit": "% wet basis"} for k in keys if r.get(k)
-                },
-                "targets": {
-                    "hardness": {"value": float(r["Hardness"]), "unit": "N"},
-                    "chewiness": {"value": float(r["Chewiness"]), "unit": "N (as reported)"},
-                },
-            }
+    reference_dir = Path(data_dir) / "reference"
+    crosswalk_path = reference_dir / "foodml_ferawati_2021_crosswalk.csv"
+    with TemporaryDirectory(prefix="vpmf-foodml-seed-") as temporary_dir:
+        output_path = Path(temporary_dir) / "foodml.jsonl"
+        import_foodml_dataset(
+            input_path=csv_path,
+            output_path=output_path,
+            summary_path=Path(temporary_dir) / "summary.json",
+            crosswalk_path=crosswalk_path,
         )
-    return records
+        with output_path.open(encoding="utf-8") as handle:
+            return [json.loads(line) for line in handle if line.strip()]
 
 
 def seed_literature_experiments(session: Session, data_dir: Path) -> dict[str, int]:
