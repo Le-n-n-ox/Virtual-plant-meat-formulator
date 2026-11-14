@@ -1,12 +1,8 @@
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import type { Metadata } from "next";
+import { IngredientCatalogue } from "@/components/ingredients/ingredient-catalogue";
+
+export const metadata: Metadata = { title: "Ingredients" };
 
 export default function IngredientsPage() {
-  return (
-    <PlaceholderPage
-      title="Ingredient catalogue"
-      pageNumber={3}
-      owner="Steve"
-      phase="F1"
-    />
-  );
+  return <IngredientCatalogue />;
 }

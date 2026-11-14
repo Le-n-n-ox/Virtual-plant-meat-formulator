@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
       POSTGRES_DB: ${POSTGRES_DB:-virtual_plant_meat_formulator}
     ports:
-      - "127.0.0.1:${DB_PORT:-5432}:5432"
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:
@@ -42,10 +42,11 @@ services:
     image: virtual-plant-meat-formulator-backend:0.1.0
     build:
       context: ./backend
-    command: ["alembic", "upgrade", "head"]
+    # Migrate, then load reference data and literature model candidates (idempotent).
+    command: ["sh", "-c", "alembic upgrade head && python -m app.seed --dev-users --kfct && python -m app.mlops.train --bootstrap"]
     environment: &backend-environment
       ENV: development
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-vpmf}:${POSTGRES_PASSWORD:-devpassword}@db:5432/${POSTGRES_DB:-virtual_plant_meat_formulator}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://vpmf:devpassword@db:5432/virtual_plant_meat_formulator}
       REDIS_URL: redis://redis:6379/0
       JOB_RUNNER: celery
       EVENT_BUS: redis
@@ -54,6 +55,21 @@ services:
       STREAM_TOKEN_TTL_SECONDS: ${STREAM_TOKEN_TTL_SECONDS:-60}
       GIT_SHA: ${GIT_SHA:-dev}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      NVIDIA_BASE_URL: ${NVIDIA_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      NVIDIA_MODEL: ${NVIDIA_MODEL:-}
+      AUTH_MODE: ${AUTH_MODE:-local}
+      LOCAL_JWT_SECRET: ${LOCAL_JWT_SECRET:-dev-only-local-jwt-secret-not-for-production}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_JWT_AUDIENCE: ${SUPABASE_JWT_AUDIENCE:-authenticated}
+      DEV_USER_PASSWORD: ${DEV_USER_PASSWORD:-devpassword123}
+      MODEL_ARTIFACT_DIR: /app/artifacts/models
+      EXPORT_DIR: /app/artifacts/exports
+      DATA_DIR: /app/data
+    volumes: &backend-volumes
+      - model-artifacts:/app/artifacts
+      # Read-only view of curated datasets (processed/ stays local and git-ignored)
+      - ./backend/data:/app/data:ro
     depends_on:
       db:
         condition: service_healthy
@@ -65,6 +81,7 @@ services:
       context: ./backend
     restart: unless-stopped
     environment: *backend-environment
+    volumes: *backend-volumes
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -90,6 +107,7 @@ services:
     command: ["celery", "-A", "app.jobs.celery_app:celery_app", "worker", "--loglevel=${LOG_LEVEL:-INFO}", "--concurrency=1"]
     restart: unless-stopped
     environment: *backend-environment
+    volumes: *backend-volumes
     depends_on:
       redis:
         condition: service_healthy
@@ -114,7 +132,6 @@ services:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:${API_PORT:-8000}}
-        NEXT_PUBLIC_USE_MOCKS: ${NEXT_PUBLIC_USE_MOCKS:-false}
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
@@ -128,3 +145,4 @@ services:
 
 volumes:
   postgres-data:
+  model-artifacts:

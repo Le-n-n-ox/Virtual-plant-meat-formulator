@@ -1,0 +1,1 @@
+record_id,commodity_name,commodity_variety,commodity_form,grade,market_name,market_id,county,price_type,observed_on,quoted_price,quoted_currency,quoted_unit,quoted_quantity,normalized_price_per_kg,normalization_method,source_name,source_url,source_file,source_row,reuse_permission_basis,collector,notes

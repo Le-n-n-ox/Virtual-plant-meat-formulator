@@ -1,19 +1,25 @@
 FROM ghcr.io/astral-sh/uv:0.13.8 AS uv
 FROM python:3.15.2-slim-bookworm AS build
 COPY --from=uv /uv /uvx /bin/
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/opt/venv
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_HTTP_TIMEOUT=300 UV_CONCURRENT_DOWNLOADS=4
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY alembic.ini ./
-RUN uv sync --frozen --no-dev --no-install-project
+# The cache mount is shared by the migrate/api/worker builds and survives
+# failed builds, so large wheels (numpy, scipy, scikit-learn) download once.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
 COPY app ./app
+COPY data/reference ./data/reference
 
 FROM python:3.15.2-slim-bookworm AS runtime
 ENV PATH="/opt/venv/bin:$PATH" PYTHONUNBUFFERED=1
 WORKDIR /app
-RUN groupadd --system app && useradd --system --gid app --create-home app
+RUN groupadd --system app && useradd --system --gid app --create-home app     && mkdir -p /app/artifacts/models /app/artifacts/exports && chown -R app:app /app/artifacts
 COPY --from=build --chown=app:app /opt/venv /opt/venv
 COPY --from=build --chown=app:app /app/app ./app
+COPY --from=build --chown=app:app /app/data/reference ./data/reference
 COPY --from=build --chown=app:app /app/alembic.ini ./alembic.ini
 USER app
 EXPOSE 8000

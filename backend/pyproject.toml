@@ -14,7 +14,9 @@ dependencies = [
     "psycopg[binary]>=3.3.9",
     "pydantic>=2.14.3",
     "pydantic-settings>=2.16.3",
+    "pyjwt[crypto]>=2.10.1",
     "redis>=8.1.0",
+    "reportlab>=4.4.0",
     "scikit-learn>=1.9.1",
     "scipy>=1.18.1",
     "sqlalchemy>=2.1.8",
@@ -26,6 +28,7 @@ package = false
 
 [dependency-groups]
 dev = [
+    "hypothesis>=6.130.0",
     "mypy>=2.4.1",
     "pre-commit>=4.7.0",
     "pytest>=9.2.0",
@@ -52,7 +55,7 @@ plugins = ["pydantic.mypy"]
 exclude = ["app/db/migrations/versions"]
 
 [[tool.mypy.overrides]]
-module = ["celery.*"]
+module = ["celery.*", "reportlab.*", "joblib.*", "sklearn.*", "scipy.*", "pandas.*", "mlflow.*", "yaml.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

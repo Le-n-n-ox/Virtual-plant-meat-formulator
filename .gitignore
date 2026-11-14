@@ -32,6 +32,11 @@ build/
 .uv-cache/
 .uv-python/
 .cache/
+graphify-out/
+
+# Source datasets stay local until their licence permits redistribution
+backend/data/raw/*
+backend/data/processed/*
 
 # Database / Docker data
 postgres-data/
@@ -45,3 +50,6 @@ redis-data/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Trained model artifacts and generated exports
+backend/artifacts/

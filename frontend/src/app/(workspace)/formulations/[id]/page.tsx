@@ -1,12 +1,11 @@
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import { Suspense } from "react";
+import { FormulationEditor } from "@/components/formulation/formulation-editor";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function FormulationWorkspacePage() {
   return (
-    <PlaceholderPage
-      title="Formulation workspace"
-      pageNumber={6}
-      owner="Both"
-      phase="F2, F3"
-    />
+    <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+      <FormulationEditor />
+    </Suspense>
   );
 }

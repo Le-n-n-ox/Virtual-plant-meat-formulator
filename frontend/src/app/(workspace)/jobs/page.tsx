@@ -1,12 +1,8 @@
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import type { Metadata } from "next";
+import { JobList } from "@/components/jobs/job-list";
+
+export const metadata: Metadata = { title: "Jobs" };
 
 export default function JobsPage() {
-  return (
-    <PlaceholderPage
-      title="Job history"
-      pageNumber={14}
-      owner="Lennox"
-      phase="F4"
-    />
-  );
+  return <JobList />;
 }
