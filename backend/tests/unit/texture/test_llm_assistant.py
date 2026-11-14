@@ -100,3 +100,25 @@ def test_endpoint_503_when_unconfigured(app_client, headers, db):
     r = app_client.post("/api/jobs/job_2/explain", headers=headers["scientist"])
     assert r.status_code == 503
     assert r.json()["error"]["details"] == {"dependency": "nvidia_llm"}
+
+
+def test_numbers_check_accepts_unicode_minus() -> None:
+    from app.services.llm import check_numbers
+
+    context = {"r2_pooled": -0.42, "rmse": 6.35}
+    assert check_numbers("Pooled R² is \u22120.42 and RMSE 6.35.", context)["passed"]
+    assert not check_numbers("R² is \u22129.9.", context)["passed"]
+
+
+def test_numbers_check_flags_wrong_interval_level() -> None:
+    from app.services.llm import check_numbers
+
+    context = {
+        "predictions": [{"value": 63.64, "interval": [47.5, 79.78], "interval_level": 0.9}],
+        "domain": {"percentile": 95},
+    }
+    bad = check_numbers("Hardness 63.64 N (95 % interval 47.5 to 79.78 N).", context)
+    assert not bad["passed"] and "95%" in bad["unverified_numbers"]
+    assert check_numbers("Hardness 63.64 N (90% prediction interval 47.5-79.78).", context)[
+        "passed"
+    ]

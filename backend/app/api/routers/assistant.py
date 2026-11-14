@@ -26,12 +26,30 @@ def get_explainer(settings: SettingsDep) -> EvidenceExplainer:
 ExplainerDep = Annotated[EvidenceExplainer, Depends(get_explainer)]
 
 
+def _llm_model_detail(row: ModelRegistry) -> dict[str, Any]:
+    """Model metadata for the explainer, without misleading per-fold R².
+
+    With leave-one-group-out CV each held-out group is tiny, so the mean of per-fold R²
+    is dominated by near-zero-variance folds and is meaningless; only the pooled
+    out-of-fold R² is passed on.
+    """
+    detail = model_detail(row)
+    metrics = dict(detail.get("holdout_metrics") or {})
+    if "r2_pooled" in metrics:
+        metrics.pop("r2", None)
+    for candidate in (metrics.get("baselines") or {}).values():
+        if isinstance(candidate, dict) and "r2_pooled" in candidate:
+            candidate.pop("r2", None)
+    detail["holdout_metrics"] = metrics
+    return detail
+
+
 def _models_context(session: Session, model_ids: list[str] | None) -> list[dict[str, Any]]:
     details = []
     for model_id in model_ids or []:
         row = session.get(ModelRegistry, model_id)
         if row is not None:
-            details.append(model_detail(row))
+            details.append(_llm_model_detail(row))
     return details
 
 
@@ -151,7 +169,7 @@ def explain_model(
     row = session.get(ModelRegistry, model_id)
     if row is None:
         raise ApiError(404, "not_found", "Model not found.")
-    context = {"model": model_detail(row)}
+    context = {"model": _llm_model_detail(row)}
     question = (body.question if body else None) or (
         "Explain this model's limitations, validation metrics and permitted uses."
     )

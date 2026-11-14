@@ -1,5 +1,6 @@
 "use client";
 
+import { ExplainPanel } from "@/components/assistant/explain-panel";
 import { useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Badge } from "@/components/ui/badge";
@@ -219,6 +220,10 @@ function ModelCard({
               <p className="text-xs">{limitations || "none recorded"}</p>
             )}
           </div>
+          <ExplainPanel
+            target={{ kind: "model", id: model.id }}
+            label="Explain this model"
+          />
           {isAdmin && (
             <div className="flex gap-2">
               {model.status !== "approved" && (

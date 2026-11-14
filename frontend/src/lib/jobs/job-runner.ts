@@ -47,13 +47,13 @@ async function finishJob(
     try {
       if (type === "nutrition") {
         const nutrition = await getNutrition(formulationId, version);
-        if (current()) results.setNutrition(nutrition, version);
+        if (current()) results.setNutrition(nutrition, version, jobId);
       } else if (type === "texture_prediction") {
         const raw = await getJobResult<{
           payload?: TextureResult & { evidence_basis?: string };
         }>(jobId);
         const payload = raw.payload ?? (raw as unknown as TextureResult);
-        if (current()) results.setTexture(payload, version);
+        if (current()) results.setTexture(payload, version, jobId);
       } else if (current()) {
         results.setLoading(false);
       }

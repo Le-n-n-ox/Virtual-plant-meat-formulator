@@ -29,12 +29,19 @@ SYSTEM_PROMPT = (
     "State uncertainty, prediction intervals and any out-of-domain or missing-feature "
     "warnings prominently, and say that texture values are literature-derived estimates "
     "not validated on local formulations. If the context does not contain the answer, say "
-    "so. Say 'AAS' (amino acid score), never DIAAS. Be concise."
+    "so. Say 'AAS' (amino acid score), never DIAAS. A prediction interval's level is the "
+    "interval_level field (0.9 means a 90 % interval); never describe it as any other level. "
+    "Be concise."
 )
 
 _NUMBER = re.compile(r"(?<![\w.])-?\d+(?:\.\d+)?")
 _ID = re.compile(r"\b[a-z]{2,5}_[0-9A-Za-z]{8,}\b")
 _LIST_MARKER = re.compile(r"(?m)^\s*\d+[.)]\s")
+_MINUS_SIGNS = str.maketrans({"−": "-", "–": "-", "‒": "-", "﹣": "-", "－": "-"})
+_INTERVAL_CLAIM = re.compile(
+    r"(\d+(?:\.\d+)?)\s*%\s*(?:prediction\s+|confidence\s+|predictive\s+)?interval",
+    re.IGNORECASE,
+)
 _THINK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 MAX_CONTEXT_CHARS = 30000
 
@@ -78,6 +85,8 @@ def check_numbers(reply: str, context: Any, extra_text: str = "") -> dict[str, A
     _context_numbers(context, known)
     known.update(_numbers_in(extra_text))
     known.update({k * 100 for k in list(known)})  # 0.9 interval level quoted as 90%
+    # Models often write negatives with a Unicode minus or dash; normalise before parsing.
+    reply = reply.translate(_MINUS_SIGNS)
     cleaned = _LIST_MARKER.sub(" ", _ID.sub(" ", reply))
     unverified: list[str] = []
     for raw in _NUMBER.findall(cleaned):
@@ -86,7 +95,27 @@ def check_numbers(reply: str, context: Any, extra_text: str = "") -> dict[str, A
         tol = 0.5 * 10 ** (-decimals) + 1e-9
         if not any(abs(value - k) <= tol for k in known) and raw not in unverified:
             unverified.append(raw)
+    # An interval's stated level must match a stored interval_level, even if the same
+    # number happens to appear elsewhere in the context (e.g. a 95th percentile).
+    levels = {round(level * 100, 6) for level in _interval_levels(context)}
+    for raw in _INTERVAL_CLAIM.findall(reply):
+        if levels and round(float(raw), 6) not in levels and f"{raw}%" not in unverified:
+            unverified.append(f"{raw}%")
     return {"unverified_numbers": unverified, "passed": not unverified}
+
+
+def _interval_levels(node: Any) -> list[float]:
+    found: list[float] = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "interval_level" and isinstance(value, (int, float)):
+                found.append(float(value))
+            else:
+                found.extend(_interval_levels(value))
+    elif isinstance(node, list):
+        for item in node:
+            found.extend(_interval_levels(item))
+    return found
 
 
 class EvidenceExplainer:

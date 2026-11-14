@@ -14,6 +14,7 @@ import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { IngredientPicker } from "@/components/formulation/ingredient-picker";
 import { TextureDialog } from "@/components/formulation/texture-dialog";
+import { ExplainPanel } from "@/components/assistant/explain-panel";
 import { NutritionResults } from "@/components/results/nutrition-results";
 import { TextureResults } from "@/components/results/texture-results";
 import { Badge } from "@/components/ui/badge";
@@ -484,10 +485,20 @@ function JobSection({
 }
 
 function Results() {
-  const { nutrition, texture, loading, error, version } = useResultStore(
+  const {
+    nutrition,
+    texture,
+    nutritionJobId,
+    textureJobId,
+    loading,
+    error,
+    version,
+  } = useResultStore(
     useShallow((s) => ({
       nutrition: s.nutrition,
       texture: s.texture,
+      nutritionJobId: s.nutritionJobId,
+      textureJobId: s.textureJobId,
       loading: s.loading,
       error: s.error,
       version: s.version,
@@ -506,7 +517,19 @@ function Results() {
   return (
     <>
       {nutrition && <NutritionResults result={nutrition} />}
+      {nutrition && nutritionJobId && (
+        <ExplainPanel
+          target={{ kind: "job", id: nutritionJobId }}
+          label="Explain nutrition"
+        />
+      )}
       {texture && <TextureResults result={texture} />}
+      {texture && textureJobId && (
+        <ExplainPanel
+          target={{ kind: "job", id: textureJobId }}
+          label="Explain texture prediction"
+        />
+      )}
     </>
   );
 }
