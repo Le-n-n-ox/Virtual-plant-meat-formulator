@@ -1,22 +1,42 @@
 import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
+import { PreferencesHydrator } from "@/components/preferences-hydrator";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
+const geistSans = Geist({ subsets: ["latin"], variable: "--font-sans" });
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+});
+
 export const metadata: Metadata = {
-  title: "Virtual Plant-Meat Formulator",
-  description: "Project skeleton for the Virtual Plant-Meat Formulator.",
+  title: {
+    default: "Virtual Plant-Meat Formulator",
+    template: "%s · Virtual Plant-Meat Formulator",
+  },
+  description:
+    "A scientific formulation workspace for plant-based meat from indigenous Kenyan crops: traceable nutrition, validated predictions and a live 3D process view.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">
-        <TooltipProvider>
-          {children}
-          <Toaster />
-        </TooltipProvider>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <body className="flex min-h-full flex-col">
+        <ThemeProvider>
+          <TooltipProvider>
+            {children}
+            <Toaster />
+            <PreferencesHydrator />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
