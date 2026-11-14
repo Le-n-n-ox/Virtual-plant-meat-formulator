@@ -1,11 +1,15 @@
 FROM ghcr.io/astral-sh/uv:0.13.8 AS uv
 FROM python:3.15.2-slim-bookworm AS build
 COPY --from=uv /uv /uvx /bin/
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/opt/venv
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_HTTP_TIMEOUT=300 UV_CONCURRENT_DOWNLOADS=4
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY alembic.ini ./
-RUN uv sync --frozen --no-dev --no-install-project
+# The cache mount is shared by the migrate/api/worker builds and survives
+# failed builds, so large wheels (numpy, scipy, scikit-learn) download once.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
 COPY app ./app
 COPY data/reference/foodml_texture_prediction_2023.csv ./data/reference/foodml_texture_prediction_2023.csv
 COPY data/reference/foodml_ferawati_2021_crosswalk.csv ./data/reference/foodml_ferawati_2021_crosswalk.csv
