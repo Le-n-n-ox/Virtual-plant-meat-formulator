@@ -112,7 +112,7 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-wrap gap-3">
                 <Link
-                  href="/formulations/demo"
+                  href="/formulations"
                   className={cn(buttonVariants({ size: "lg" }), "h-10 px-4")}
                 >
                   <FlaskConicalIcon aria-hidden /> Try the 3D workspace

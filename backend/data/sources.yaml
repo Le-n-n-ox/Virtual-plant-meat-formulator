@@ -2,11 +2,96 @@ schema_version: 1
 retrieved_on: 2026-11-14
 amino_acid_default_pattern: null
 pricing_defaults:
-  market: Nairobi Wakulima Market
+  market: null
   county: Nairobi
-  price_type: wholesale
+  preferred_exact_market: Wakulima (Nairobi)
+  price_type: null
   currency: KES
-  unit_basis: kg
+  exact_form_product_fallback:
+    max_record_age_days: 30
+    require_same_crop_identity: true
+    require_same_ingredient_form: true
+    require_explicit_net_mass: true
+    derive_unit_price_only_from_listed_pack_price_and_net_mass: true
+    display_label: packaged retail product reference
+    use_as_bulk_or_wholesale_price: false
+    use_for_raw_crop_input_estimate: false
+    distribution_status: local_research_reference_only_until_terms_reviewed
+    precedence: before_raw_crop_market_proxies_for_same_ingredient_form
+    note: >-
+      Prefer a current, direct retailer listing with the same crop identity and
+      ingredient form when its net pack mass and listed price are explicit.
+      Preserve the product brand, origin, pack size, and retailer. Report it as
+      a packaged retail reference, not a generic, bulk, or wholesale price.
+      It may include brand, processing, packaging, and retail premiums.
+  unit_basis: price_per_kg_only_when_derived_from_an_explicit_mass_unit
+  exact_market_max_age_days: 90
+  other_nairobi_market_fallback:
+    source_ids:
+      - wfp-kenya-market-prices
+      - kamis-kenya-market-prices
+    geography: named_market_in_Nairobi
+    source_rules:
+      - source_id: wfp-kenya-market-prices
+        max_record_age_days: 90
+        require_price_flag: actual
+        require_price_type: Wholesale
+        display_label_template: raw-crop wholesale estimate from {market_name}, Nairobi
+      - source_id: kamis-kenya-market-prices
+        require_observation_month: current_calendar_month
+        require_price_type: Retail
+        require_named_market: true
+        display_label_template: raw-crop retail estimate from {market_name}, Nairobi ({observation_period})
+        research_prototype_only_until_reuse_terms_are_confirmed: true
+    display_label_template: raw-crop input estimate from {market_name}, Nairobi
+    may_be_reported_as_wakulima_quote: false
+    scope_note: >-
+      Use a matching actual wholesale WFP observation from another explicitly
+      named Nairobi market, or a matching current-month KAMIS retail observation
+      from a named Nairobi market via SAFIC AgriIntel, only when no fresh exact
+      Wakulima record exists. Preserve the source, price level, market name,
+      and observation period; never relabel them as Wakulima or a county average.
+  form_proxy:
+    allow_raw_crop_input_estimate_for_processed_forms: true
+    eligible_ingredient_forms:
+      - flour
+      - soaked
+      - cooked
+    display_label: raw-crop input cost estimate
+    require_source_form_to_be_disclosed: false
+    preserve_source_form_uncertainty: true
+    includes_processing_yield_or_losses: false
+    includes_milling_cooking_or_other_processing_costs: false
+    require_same_crop_identity: true
+    note: >-
+      A crop commodity price may be shown against a processed ingredient only
+      as a raw-crop input cost estimate. Preserve whether the source form was
+      actually stated; do not describe it as the purchase price of flour,
+      soaked, or cooked ingredient. No yield adjustment, processing losses,
+      or processing costs are included.
+  fallback:
+    source_id: kenya-agri-atlas-market-prices
+    geography: Nairobi county average
+    display_label: Nairobi county average estimate
+    max_record_age_days: 42
+    price_basis: wholesale_where_available_otherwise_retail_as_published
+    require_proxy_label: true
+    may_be_reported_as_wakulima_quote: false
+  selection_note: >-
+    Prefer an exact crop-and-form product listing no older than 30 days when
+    its listed pack price and net mass are explicit; report it as a packaged
+    retail product reference. It is not a bulk/raw-material price. Otherwise
+    prefer a matching actual wholesale Wakulima (Nairobi) WFP record no older
+    than 90 days. If none exists, use a matching actual wholesale WFP record
+    from another named Nairobi market no older than 90 days. If no such WFP
+    record exists, a matching current-month named-market KAMIS retail record
+    may be used for the non-commercial research prototype, labelled retail
+    with the market and month; source reuse rights remain unconfirmed. If
+    neither is available, use a matching Nairobi county average from Kenya
+    Agri Atlas no older than 42 days, labelled as a county estimate and
+    preserving its published price basis. Never present another market or a
+    county proxy as a Wakulima quote. If no fresh source match or comparable
+    unit exists, leave cost unavailable.
 sources:
   - id: kfct-2018
     name: Kenya Food Composition Tables 2018
@@ -23,6 +108,8 @@ sources:
     expected_recipe_count: 142
     license_status: noncommercial_research_with_acknowledgement
     import_status: workbook_imported_review_required_count_discrepancy
+    demo_ingredient_crosswalk_file: processed/kfct2018_demo_ingredient_crosswalk_2026-11-14.csv
+    demo_ingredient_crosswalk_status: exact_and_near_match_food_records_reviewed
     notes: >-
       The workbook copyright notice permits copying, downloading, and printing
       for private study, research, teaching, and non-commercial products or
@@ -32,6 +119,19 @@ sources:
       one recipe row remain unexplained against the published 522 plus 142;
       reconcile before activation.
       Generated output is a review candidate, not validated production data.
+      The local demo crosswalk finds exact crop/form records for amaranth flour
+      (1002) and finger-millet flour (1026). Sorghum flour is available only
+      as separate red (1038) and white (1040) entries; there is no generic
+      sorghum profile. Cowpea and Bambara flour have dry/raw crop entries only.
+      The generic green-gram flour lacks an exact record: KFCT's Gram, Flour
+      entry (3018) is Vigna mungo (black gram), whereas its green gram entry
+      (3019) is Vigna radiata dry/raw. KFCT has soaked-and-boiled pigeon-pea
+      entries but not a soaked-uncooked standalone entry. It has no standalone
+      cooked lablab food row; Njahi recipes 15059 and 15062 are mixed dishes.
+      None of the selected numeric amino-acid fields is present in the listed
+      exact/near-match ingredient records, even though selected amino acids
+      exist for other foods in the full table. Preserve the matches, gaps, and
+      variety/form distinctions; do not fill missing nutrient values with 0.
 
   - id: kfct-recipes-2018
     name: Kenya Recipe Book 2018: A Recipe Book of Common Mixed Dishes with Nutrient Values
@@ -59,15 +159,67 @@ sources:
   - id: usda-fooddata-central
     name: USDA FoodData Central
     publisher: USDA Agricultural Research Service
+    versions:
+      - Foundation Foods 2026-10-29
+      - SR Legacy final release 2018-04
     urls:
       - https://fdc.nal.usda.gov/api-guide/
       - https://fdc.nal.usda.gov/download-datasets/
     license_status: cc0_1_0
-    import_status: not_imported_supplementary_only
+    import_status: imported_13_sr_legacy_food_records_with_nutrients_and_amino_acid_derivatives
+    retrieved_on: 2026-11-14
+    raw_files:
+      - raw/fdc_foundation_foods_2026-10.zip
+      - raw/fdc_sr_legacy_2018-04.zip
+    processed_files:
+      - processed/usda_sr_legacy_demo_food_crosswalk_2026-11-14.csv
+      - processed/usda_sr_legacy_demo_nutrients_2026-11-14.csv
+      - processed/usda_sr_legacy_demo_amino_acids_mg_per_g_protein_2026-11-14.csv
+    imported_food_record_count: 13
+    imported_numeric_nutrient_value_count: 1001
+    derived_numeric_amino_acid_value_count: 144
+    exact_or_form_matched_external_references:
+      - fdc_id: "168943"
+        description: Sorghum flour, whole-grain
+        numeric_nutrient_count: 118
+        selected_amino_acid_count: 12
+      - fdc_id: "173262"
+        description: Sorghum flour, refined, unenriched
+        numeric_nutrient_count: 45
+        selected_amino_acid_count: 0
+      - fdc_id: "175211"
+        description: Hyacinth beans, mature seeds, cooked, boiled, without salt
+        numeric_nutrient_count: 58
+        selected_amino_acid_count: 12
     notes: >-
-      Supplementary source only; preserve FDC IDs and release metadata. A
-      data.gov API key is required for API access. Do not treat US records as
-      exact matches for Kenyan varieties or preparation states.
+      Supplementary reference only; preserve FDC IDs, release, nutrient units,
+      and preparation state. The 13 imported SR Legacy rows contain 1001
+      numeric nutrient values. The separately derived file contains 144
+      amino-acid values normalized to mg/g protein using the source amino-acid
+      and protein values; the formula and source value columns are retained.
+      Whole-grain and refined sorghum flours are kept separate. USDA SR Legacy
+      hyacinth beans were crosswalked to Lablab purpureus using USDA ARS GRIN;
+      its cooked rows are external cooked-bean references, not Kenyan lot
+      measurements. Raw/cooked cowpea, mung bean, pigeon pea, and amaranth
+      records remain form-specific references and are not flour or soaked-food
+      substitutes. USDA Foundation Foods includes exact record FDC ID 2512371
+      for amaranth flour, but its nutrient values were not imported in this
+      pass after the API request was rate-limited; the local KFCT exact flour
+      record remains the composition source. A data.gov API key is required
+      for API access. USDA values do not validate Kenyan formulations.
+
+  - id: usda-ars-grin-lablab-identity
+    name: USDA GRIN-Global Lablab purpureus identity crosswalk
+    publisher: USDA Agricultural Research Service, National Plant Germplasm System
+    url: https://npgsweb.ars-grin.gov/gringlobal/accessiondetail?id=1238740
+    license_status: cited_taxonomic_identity_record
+    import_status: manual_species_crosswalk_only
+    notes: >-
+      USDA accession PI 321080 identifies Njahi collected in Kenya as Lablab
+      purpureus. USDA GRIN also lists hyacinth bean as a common name for that
+      species. This supports mapping the USDA SR Legacy food description
+      “Hyacinth beans” to the lablab species, but does not establish the same
+      cultivar, growing conditions, or local preparation process.
 
   - id: csiro-low-moisture-extrusion-2026
     name: Low Moisture Extrusion Dataset for Six Plant Protein Isolates and Binary Blends
@@ -89,6 +241,29 @@ sources:
       Files are downloaded locally and normalized by
       app/ingestion/import_csiro_texture.py. CC BY-NC-SA 4.0 requires
       attribution, share-alike for adaptations, and non-commercial use.
+
+  - id: dinali-legume-flour-low-moisture-tvp-2026
+    name: "Structural and functional characterisation of texturized mung bean, cowpea, soy flours, and soy protein isolates for meat analogue applications"
+    publisher: Food Structure (Elsevier)
+    version: "2026"
+    doi: 10.1016/j.foostr.2026.100528
+    url: https://www.sciencedirect.com/science/article/pii/S2213329126000298
+    license_status: cc_by_4_0
+    import_status: 2_flour_low_moisture_table_summaries_imported_hme_ineligible
+    local_file: reference/dinali_2026_low_moisture_flour_tvp_table1_table3.csv
+    attribution_file: reference/dinali_2026_low_moisture_tvp_SOURCE.md
+    normalized_file: processed/dinali_2026_low_moisture_flour_tvp_review.jsonl
+    retrieved_on: 2026-11-14
+    imported_record_count: 2
+    notes: >-
+      Table 1 and Table 3 summaries for mung bean flour and cowpea flour TVPs
+      were transcribed with their process, product-state, unit, replicate, and
+      uncertainty metadata. Raw seed materials originated in Sri Lanka; the
+      flours were soaked, dried, milled, then processed by low-moisture
+      extrusion. Chewiness has no unit stated in Table 3 and remains unitless.
+      The article is CC BY 4.0. These two literature references are useful for
+      a separate low-moisture route, but are not HME records, Kenyan
+      measurements, or validation data. No raw replicate file was published.
 
   - id: foodml-texture-prediction-2023
     name: Predicting the Textural Properties of Plant-Based Meat Analogs with Machine Learning
@@ -226,6 +401,24 @@ sources:
       and Table 4 chewiness unit N are retained as printed. This narrow study
       is not evidence for Kenyan whole-food formulations or other equipment.
 
+  - id: seetapan-mungbean-flour-hme-2023
+    name: "High moisture extrusion of meat analogues using mung bean protein and flour blends: investigations on morphology, texture and rheology"
+    publisher: International Journal of Food Science and Technology (Oxford University Press)
+    version: "2023"
+    doi: 10.1111/ijfs.16334
+    url: https://academic.oup.com/ijfst/article/58/4/1922/7807413
+    license_status: no_open_reuse_license_found
+    import_status: referenced_only_data_available_from_corresponding_author_on_request
+    notes: >-
+      This is an HME study of three mung-bean protein-isolate: mung-bean-flour
+      blends (90:10, 80:20, and 70:30) at one fixed process condition. The flour
+      was milled from dehulled Thai mung beans and the isolate was imported.
+      The publisher's data availability statement says supporting data can be
+      made available by the corresponding author on request; no public raw
+      dataset or open reuse license was found. Do not redistribute a derived
+      table dataset without rights confirmation. It does not validate whole
+      Kenyan green-gram flour formulations.
+
   - id: bulgaru-et-al-hme-analogues-2025
     name: Qualitative and Antioxidant Evaluation of High-Moisture Plant-Based Meat Analogs Obtained by Extrusion
     publisher: Foods (MDPI)
@@ -305,23 +498,336 @@ sources:
       Contains multiple age-specific amino-acid scoring patterns. Store
       patterns as separate versioned records and leave the default unset.
 
+  - id: wfp-kenya-market-prices
+    name: WFP Food Prices - Kenya
+    publisher: World Food Programme via the Humanitarian Data Exchange
+    version: live
+    urls:
+      - https://data.humdata.org/dataset/wfp-food-prices-for-kenya
+      - https://hdx-hapi.readthedocs.io/en/latest/data_usage_guides/food_security_nutrition_and_poverty/
+      - https://hdx-hapi.readthedocs.io/en/latest/getting-started/
+    api_endpoint: https://hapi.humdata.org/api/v2/food-security-nutrition-poverty/food-prices-market-monitor
+    license_status: cc_by_igo_3_0
+    import_status: imported_24703_records_51_commodities_227_markets
+    processed_file: processed/wfp_kenya_market_prices.csv
+    retrieved_on: 2026-11-14
+    imported_record_count: 24703
+    normalized_price_record_count: 20665
+    distinct_commodity_count: 51
+    distinct_market_count: 227
+    exact_market_coverage:
+      market_name: Wakulima (Nairobi)
+      market_code: "5698"
+      record_count: 142
+      commodity_count: 13
+      price_type: Wholesale
+      price_flag: actual
+      currency: KES
+      latest_reference_period_end: 2025-07-14
+    other_nairobi_market_coverage:
+      price_flag: actual
+      price_type: Wholesale
+      maximum_age_days_for_cost_proxy: 90
+      observations:
+        - commodity_name: Cowpeas
+          market_name: Kangemi (Nairobi)
+          latest_reference_period_end: 2026-09-14
+          latest_source_price: 7499.7
+          source_unit: 90 KG
+          normalized_price_per_kg: 83.33
+        - commodity_name: Beans (dolichos)
+          market_name: Kangemi (Nairobi)
+          latest_reference_period_end: 2026-10-14
+          latest_source_price: 8000
+          source_unit: 90 KG
+          normalized_price_per_kg: 88.89
+    notes: >-
+      Use the live HDX HAPI endpoint filtered to Kenya (KEN). The importer
+      paginates all available Kenya price records and preserves the source
+      commodity, market, admin areas, date range, price, currency, unit, price
+      type, and price flag. WFP price flags such as actual and aggregate must
+      remain distinguishable. These are monthly market-reported prices, not
+      buyer receipts; coverage varies by food and market. The exact Nairobi
+      Wakulima subset has 142 actual wholesale records for 13 commodities, but
+      the latest period ended 2025-07-14, so it is not a current-price quote.
+      The wider Kenya feed also includes newer actual wholesale observations
+      for cowpeas and dolichos at Kangemi (Nairobi). These may be used as
+      named-market proxies under the configured age limit; preserve the market
+      name and never call them Wakulima quotes. Do not impute absent ingredients
+      or silently substitute an unlabelled market.
+      The importer derives normalized_price_per_kg only for units that state a
+      mass basis (including plain KG); it preserves every original field and
+      unit, and leaves the normalized value blank for non-mass or ambiguous
+      units. The
+      endpoint requires an HDX HAPI app identifier in
+      HDX_HAPI_APP_IDENTIFIER; it is an application identifier, not a secret
+      API key. Attribute WFP via HDX and retain the retrieval date and resource
+      identifier.
+
+  - id: husfarm-nairobi-market-quotes
+    name: Husfarm Nairobi Market wholesale quotes
+    publisher: Husfarm
+    version: 2026-11-14
+    urls:
+      - https://husfarm.com/prices/quotes/nairobi-market/finger-millet/
+      - https://husfarm.com/methodology/
+      - https://husfarm.com/data/
+    license_status: cc_by_4_0
+    import_status: one_manual_nairobi_quote_captured_stale_not_cost_eligible
+    processed_file: processed/husfarm_nairobi_finger_millet_quote_2026-11-14.csv
+    retrieved_on: 2026-11-14
+    observation:
+      commodity_name: Finger millet
+      market_name: Nairobi Market
+      price_level: Wholesale
+      quote_date: 2026-10-19
+      price_min: 85
+      price_max: 85
+      currency: KES
+      source_unit: 1 kg
+      normalized_price_per_kg: 85
+      source_staleness: stale
+      eligible_for_current_cost_estimate: false
+    notes: >-
+      The source lists a Nairobi Market wholesale finger millet quote of
+      85 KES/kg dated 2026-10-19. Husfarm marks a quote stale when it is more
+      than two of that market's publication intervals old; its page marked
+      this series stale when retrieved on 2026-11-14. Preserve it as dated
+      reference evidence only, not a current cost estimate. The quote's
+      physical form and grade are not separately disclosed. Husfarm data is
+      licensed CC BY 4.0; attribution must link to the quote page and disclose
+      modifications.
+
+  - id: kenya-agri-atlas-market-prices
+    name: Kenya Agri Atlas market prices
+    publisher: Strathmore Agri-Food Innovation Center (SAFIC)
+    version: live
+    urls:
+      - https://saficagriatlas.strathmore.edu/agristatistics/markets
+      - https://saficagriatlas.strathmore.edu/sources
+    license_status: cc_by_4_0_atlas_output_underlying_source_terms_apply
+    import_status: 11_row_manual_nairobi_proxy_snapshot_local_only
+    processed_file: processed/kenya_agri_atlas_nairobi_price_proxies_2026-11-14.csv
+    retrieved_on: 2026-11-14
+    snapshot_record_count: 11
+    current_as_of: 2026-11-14
+    freshness_limit_days: 42
+    snapshot_distribution: ignored_local_file
+    price_form: commodity_form_not_disclosed_on_each_row
+    permitted_use: raw_crop_input_cost_estimate_only_for_matching_crop_identity
+    processing_costs_included: false
+    notes: >-
+      Publishes dated county-level commodity price figures with common units;
+      the displayed county figure uses wholesale prices where available and
+      otherwise retail, and can be a county average rather than a specific
+      market quote. An eleven-row manual snapshot is stored in the ignored local
+      processed file and covers cowpeas, Bambara groundnut, Dolichos lablab, Rosecoco beans,
+      pigeon peas, green grams, pearl rush millet, white sorghum, dry maize,
+      ground nuts, and yellow-green beans. It includes source page, observed
+      date, match caveat, and county-proxy marker for every row. Use only rows
+      at most 42 days old, label them as Nairobi county average estimates, and
+      never present them as Wakulima quotes. Dry maize is not confirmed as
+      white maize, and yellow-green beans are not equivalent to generic yellow
+      beans. The public pages do not expose a verified bulk endpoint in this
+      project. Atlas output is described as CC BY 4.0, but underlying source
+      terms continue to apply and are not identified on the price pages; keep
+      the snapshot local and do not redistribute it until those terms are
+      clarified. Some pages' map widgets conflict with their county tables, so
+      retain the quality note and recheck the table when refreshing.
+
   - id: kamis-kenya-market-prices
     name: Kenya Agricultural Market Information System
     publisher: Kenya Ministry of Agriculture and Livestock Development
     urls:
       - https://kamis.kilimo.go.ke/site/market/1280
+      - https://saficai.strathmore.edu/prices/millet/nairobi
+      - https://saficai.strathmore.edu/terms
       - https://kilimo.go.ke/wp-content/uploads/2024/12/Kilimo-Bulletin-Issue-II-December.pdf
       - https://kilimo.go.ke/wp-content/uploads/2025/02/DATA_GOVERNANCE_FRAMEWORK_TODATE_REVISED_8.10.241-edited.pdf
     license_status: reuse_terms_not_confirmed
-    import_status: excel_export_available_exact_market_row_and_reuse_terms_unverified
+    import_status: two_local_manual_nairobi_retail_observations_via_safic_agriintel_upstream_reuse_terms_unconfirmed
+    processed_file: processed/kamis_nairobi_market_price_observations_2026-11.csv
+    observations:
+      - commodity_name: Finger Millet
+        market_name: Kawangware
+        observation_period: 2026-11
+        reported_price: 120
+        currency: KES
+        reported_unit: per kg
+        price_type: Retail
+        report_source: KAMIS (Ministry of Agriculture), displayed by SAFIC AgriIntel
+        source_page_last_read: 2026-11-12
+        form_or_grade_disclosed: false
+        current_month_record: true
+        eligible_for_noncommercial_research_prototype: true
+        eligible_for_redistribution: false
+      - commodity_name: Red Sorghum
+        market_name: Kawangware
+        observation_period: 2026-11
+        reported_price: 75
+        currency: KES
+        reported_unit: per kg
+        price_type: Retail
+        report_source: KAMIS (Ministry of Agriculture), displayed by SAFIC AgriIntel
+        source_page_last_read: 2026-11-11
+        variety_match: narrower_than_generic_sorghum_demo
+        eligible_for_generic_sorghum_demo: false
+        eligible_for_red_sorghum_ingredient: true
+        user_decision: exclude_red_variety_quote_from_generic_demo
+        eligible_for_redistribution: false
     notes: >-
-      The prototype target is Nairobi Wakulima Market, wholesale, KES/kg.
-      The public market page provides an Excel export with commodity,
-      classification, grade, market, wholesale/retail, supply volume, county,
-      and date fields. Unit is embedded in each price string (for example,
-      /Kg), and currency has no separate field; retain the raw string and do
-      not assume a currency until the source documents it. The Ministry
-      bulletin describes daily, weekly, and monthly updates, but a current
-      Nairobi Wakulima row has not been verified. No official API documentation
-      or dataset-specific license was found. Keep cost optimization unavailable
-      until a fresh matching export is reviewed and reuse terms are established.
+      SAFIC AgriIntel public price pages display two KAMIS-reported Kawangware
+      retail observations for November 2026: finger millet at 120 KES/kg and
+      red sorghum at 75 KES/kg. The finger millet observation is a direct crop
+      match for the demo; the user chose to keep the sorghum fixture generic,
+      so the red-sorghum observation is excluded from its price. The pages say
+      retail prices are collected monthly and sack/tin prices may be converted
+      to KES/kg; the original KAMIS unit is not shown for these observations.
+      Their physical form is not disclosed. The finger millet row may be used
+      as a clearly labelled current-month retail raw-crop estimate in the
+      non-commercial research prototype. SAFIC AgriIntel terms allow use of
+      answers in one's own work with citations, but source data belong to
+      publishers; KAMIS reuse rights for broader distribution remain
+      unconfirmed. Do not scrape, crawl, bulk-download, or systematically
+      extract the service, and do not redistribute these rows until terms are
+      clarified. WFP/HDX remains the active bulk source. KAMIS's user-facing
+      export requires a name filter and is cumbersome for broad ingredient
+      coverage; its Excel export has commodity, classification, grade, market,
+      wholesale/retail, supply volume, county, and date fields. Unit is
+      embedded in each price string and currency is not a separate field. The
+      Ministry bulletin describes daily, weekly, and monthly updates. A current
+      Nairobi Wakulima row and dataset-specific reuse terms remain unverified.
+      Never label another market as Wakulima.
+
+  - id: carrefour-amaranth-flour-retail
+    name: Carrefour Kenya amaranth flour product listing
+    publisher: Carrefour Kenya
+    version: 2026-11-14 capture
+    urls:
+      - https://www.carrefour.ke/mafken/en/diet-food/live-life-well-amaranth-flour-750g/p/91142
+    license_status: retailer_terms_not_reviewed_local_reference_only
+    import_status: one_manual_exact_form_product_price_captured
+    processed_file: processed/retail_product_price_observations_2026-11-14.csv
+    retrieved_on: 2026-11-14
+    observations:
+      - product_name: LIVE LIFE WELL AMARANTH FLOUR 750G
+        brand: LIVE LIFE WELL
+        ingredient_key: amaranth
+        ingredient_match_status: exact_crop_and_flour_form; whole_grain_single_ingredient
+        origin: Kenya
+        retailer: Carrefour
+        geography_level: Kenya_online_retailer
+        listed_price: 499
+        pack_net_mass_g: 750
+        currency: KES
+        price_type: Retail
+        normalized_price_per_kg: 665.333333
+        observation_date: 2026-11-14
+        eligible_as_packaged_retail_reference: true
+        eligible_as_bulk_or_wholesale_price: false
+        redistribution_eligible: false
+    notes: >-
+      The retailer listing names a 750 g amaranth flour product at KES 499,
+      identifies Kenya as origin, and describes it as single-ingredient whole-
+      grain flour. The per-kg value is derived only from the listed pack price
+      and net mass. Use as a branded packaged retail product reference for the
+      demo amaranth-flour form; it is not an unbranded market average or bulk
+      ingredient price. It may include organic, brand, processing, packaging,
+      and retailer premiums. Availability and price can change. Retailer terms
+      have not been reviewed for redistribution; keep the captured row local.
+
+  - id: ncuku-cereals-retailer-listings
+    name: Ncuku Cereals product listings
+    publisher: Ncuku Cereals
+    version: 2026-11-14 capture
+    urls:
+      - https://ncukucereals.duka.africa/product/pure-mtama-sorghum-flour
+      - https://ncukucereals.duka.africa/product/wimbi-finger-millet
+    license_status: retailer_terms_not_reviewed_local_reference_only
+    import_status: two_manual_exact_form_flour_prices_captured
+    processed_file: processed/retail_product_price_observations_2026-11-14.csv
+    retrieved_on: 2026-11-14
+    observations:
+      - product_name: Pure Mtama/Sorghum flour
+        ingredient_key: sorghum
+        ingredient_match_status: generic_sorghum_flour_exact_form_variety_not_stated
+        retailer_location: Ruaka-Muchatha Road near Quickmart Banana Road
+        listed_price: 150
+        pack_net_mass_g: 1000
+        currency: KES
+        source_form: brown porridge flour
+        listing_status: in_stock
+        normalized_price_per_kg: 150
+        eligible_as_packaged_retail_reference: true
+      - product_name: Wimbi/Finger Millet
+        ingredient_key: finger_millet
+        ingredient_match_status: finger_millet_flour_exact_form
+        retailer_location: Ruaka-Muchatha Road near Quickmart Banana Road
+        listed_price: 180
+        pack_net_mass_g: 1000
+        currency: KES
+        source_form: uji flour
+        listing_status: in_stock
+        normalized_price_per_kg: 180
+        eligible_as_packaged_retail_reference: true
+    notes: >-
+      Both product pages identify a single flour crop, state a 1 kg pack, show
+      a price, and were listed in stock at retrieval. The seller location is
+      Ruaka-Muchatha Road near Quickmart Banana Road, outside Nairobi County;
+      do not label these as Nairobi market prices. The generic mtama/sorghum
+      listing does not specify a sorghum variety, so it can serve as a direct
+      generic-flour packaged retail reference without using the red KAMIS or
+      white Atlas raw-crop observations. Preserve the uji/porridge flour form.
+      Prices and stock can change; retailer terms have not been reviewed for
+      redistribution, so keep the manually captured rows local.
+
+  - id: naivas-ready-to-eat-legume-retail-listings
+    name: Naivas Online Cherubet ready-to-eat legumes
+    publisher: Naivas
+    version: 2026-11-14 capture
+    urls:
+      - https://www.naivas.online/canned-frozen-meals/frozen-foods?brand=Cherubet
+      - https://www.naivas.online/cherubet-ready-to-eat-njahi-500g
+      - https://www.naivas.online/cherubet-ready-to-eat-njahi-1kg
+      - https://www.naivas.online/cherubet-ready-to-eat-mbaazi-pigeon-peas-500g
+      - https://www.naivas.online/cherubet-ready-to-eat-mbaazi-pigeon-peas-1kg
+    license_status: retailer_terms_not_reviewed_local_reference_only
+    import_status: two_pack_sizes_each_for_cooked_lablab_and_pigeon_pea_captured
+    processed_file: processed/retail_product_price_observations_2026-11-14.csv
+    retrieved_on: 2026-11-14
+    observations:
+      - product_name: Cherubet Ready To Eat Njahi
+        ingredient_key: lablab
+        ingredient_match_status: njahi_lablab_ready_to_eat_cooked_frozen
+        price_by_pack:
+          - pack_net_mass_g: 500
+            listed_price: 150
+            normalized_price_per_kg: 300
+          - pack_net_mass_g: 1000
+            listed_price: 280
+            normalized_price_per_kg: 280
+        currency: KES
+        eligible_as_packaged_retail_reference: true
+        source_form: ready-to-eat cooked frozen product
+      - product_name: Cherubet Ready To Eat Mbaazi (Pigeon Peas)
+        ingredient_key: pigeon_pea
+        ingredient_match_status: cooked_frozen_form_does_not_match_soaked_uncooked_demo
+        price_by_pack:
+          - pack_net_mass_g: 500
+            listed_price: 125
+            normalized_price_per_kg: 250
+          - pack_net_mass_g: 1000
+            listed_price: 210
+            normalized_price_per_kg: 210
+        currency: KES
+        eligible_as_packaged_retail_reference_for_soaked_demo: false
+        source_form: ready-to-eat cooked frozen product
+    notes: >-
+      The online retailer lists ready-to-eat Cherubet Njahi (lablab) at 150 KES
+      per 500 g and 280 KES per 1 kg; use only as a prepared, frozen retail
+      reference and preserve its storage/preparation state. It also lists
+      ready-to-eat frozen pigeon peas at 125 KES per 500 g and 210 KES per 1 kg;
+      those values are not prices for the demo's soaked-but-uncooked form and
+      must not be mapped to that ingredient. Listings show delivery configured
+      to Nairobi, but availability can vary by address. Retailer terms have
+      not been reviewed for redistribution; keep the captured rows local.

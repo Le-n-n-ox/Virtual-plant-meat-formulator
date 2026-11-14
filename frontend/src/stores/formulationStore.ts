@@ -23,6 +23,11 @@ interface FormulationState {
   formulationId: string | null;
   name: string;
   version: number;
+  description: string | null;
+  /** Lines of the last saved version, used to detect unsaved edits. */
+  savedLines: FormulationLine[];
+  loadState: "idle" | "loading" | "ready" | "error";
+  loadError: string | null;
   /** Ingredient records referenced by the draft, keyed by id. */
   catalog: Record<string, Ingredient>;
   draft: FormulationLine[];
@@ -34,6 +39,16 @@ interface FormulationState {
     formulation: Formulation,
     ingredients: Ingredient[],
   ) => void;
+  setLoadState: (
+    state: "idle" | "loading" | "ready" | "error",
+    error?: string | null,
+  ) => void;
+  /** Records a successful save without touching the draft being edited. */
+  markSaved: (formulation: Formulation) => void;
+  reset: () => void;
+  /** Bumped to make the session reload the formulation from the API. */
+  reloadNonce: number;
+  requestReload: () => void;
   addIngredient: (ingredient: Ingredient, percent?: number) => void;
   removeIngredient: (ingredientId: string) => void;
   setPercent: (ingredientId: string, percent: number) => void;
@@ -45,20 +60,46 @@ interface FormulationState {
   ) => boolean;
 }
 
-export const useFormulationStore = create<FormulationState>((set, get) => ({
+const INITIAL = {
   formulationId: null,
   name: "",
   version: 0,
-  catalog: {},
-  draft: [],
+  description: null,
+  savedLines: [] as FormulationLine[],
+  loadState: "idle" as const,
+  loadError: null,
+  catalog: {} as Record<string, Ingredient>,
+  draft: [] as FormulationLine[],
   draftRevision: 0,
   validated: null,
+};
+
+export const useFormulationStore = create<FormulationState>((set, get) => ({
+  ...INITIAL,
+  reloadNonce: 0,
+  requestReload: () => set((s) => ({ reloadNonce: s.reloadNonce + 1 })),
+
+  setLoadState: (loadState, loadError = null) => set({ loadState, loadError }),
+
+  reset: () => set(INITIAL),
+
+  markSaved: (formulation) =>
+    set({
+      version: formulation.version,
+      name: formulation.name,
+      description: formulation.description ?? null,
+      savedLines: formulation.lines,
+    }),
 
   loadFormulation: (formulation, ingredients) =>
     set({
       formulationId: formulation.id,
       name: formulation.name,
       version: formulation.version,
+      description: formulation.description ?? null,
+      savedLines: formulation.lines,
+      loadState: "ready",
+      loadError: null,
       catalog: Object.fromEntries(ingredients.map((i) => [i.id, i])),
       draft: formulation.lines,
       draftRevision: 0,

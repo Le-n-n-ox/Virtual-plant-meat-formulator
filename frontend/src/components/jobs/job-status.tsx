@@ -57,6 +57,23 @@ export function JobStatusChip({ className }: { className?: string }) {
   );
 }
 
+/** Static status badge for a known job status (lists, detail pages). */
+export function JobStatusBadge({
+  status,
+  className,
+}: {
+  status: JobStatus;
+  className?: string;
+}) {
+  const meta = STATUS_META[status] ?? STATUS_META.idle;
+  return (
+    <Badge variant="outline" className={cn("gap-1", className)}>
+      <meta.icon className={meta.className} aria-hidden />
+      <span>{meta.label}</span>
+    </Badge>
+  );
+}
+
 /**
  * Current stage + progress. A bar with a percentage appears only when the
  * worker reported a measurable value; otherwise an indeterminate indicator.
