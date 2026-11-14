@@ -1,6 +1,8 @@
+import { z } from "zod";
 import type { HealthResponse } from "@/types";
+import { healthResponseSchema } from "@/lib/validation/schemas";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 export class ApiError extends Error {
   constructor(
@@ -48,6 +50,46 @@ export async function requestJson<T>(
   return (await response.json()) as T;
 }
 
+/**
+ * Fetch and validate. A response that does not match the contract becomes an
+ * ApiError (502 invalid_response) instead of a silently mistyped value.
+ */
+export async function requestValidated<S extends z.ZodTypeAny>(
+  path: string,
+  schema: S,
+  init?: RequestInit,
+): Promise<z.infer<S>> {
+  const data = await requestJson<unknown>(path, init);
+  const parsed = schema.safeParse(data);
+  if (!parsed.success) {
+    throw new ApiError(
+      "The server response did not match the expected shape.",
+      502,
+      "invalid_response",
+      {
+        path,
+        issues: parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      },
+    );
+  }
+  return parsed.data;
+}
+
+/** Serialize query params, dropping undefined and empty values. */
+export function buildQuery(
+  params: Record<string, string | number | boolean | undefined>,
+): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") search.set(key, String(value));
+  }
+  const query = search.toString();
+  return query ? `?${query}` : "";
+}
+
 export function getHealth(): Promise<HealthResponse> {
-  return requestJson<HealthResponse>("/api/health");
+  return requestValidated("/api/health", healthResponseSchema);
 }

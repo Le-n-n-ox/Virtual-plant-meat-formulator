@@ -4,10 +4,10 @@ import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { type InstancedMesh, Object3D } from "three";
 
-const COUNT = 26;
-const DURATION = 1.4;
+const COUNT = 34;
+const DURATION = 1.3;
 const dummy = new Object3D();
-const OFFSETS = Array.from({ length: COUNT }, (_, i) => (i / COUNT) * 0.45);
+const OFFSETS = Array.from({ length: COUNT }, (_, i) => (i / COUNT) * 0.5);
 
 interface IngredientFlowProps {
   from: [number, number, number];
@@ -37,16 +37,16 @@ export function IngredientFlow({
     for (let i = 0; i < COUNT; i++) {
       const t = Math.min(
         1,
-        Math.max(0, (elapsed.current / DURATION - OFFSETS[i]) / 0.55),
+        Math.max(0, (elapsed.current / DURATION - OFFSETS[i]) / 0.5),
       );
       const x = from[0] + (to[0] - from[0]) * t;
       const z = from[2] + (to[2] - from[2]) * t;
-      const y = 1.4 + Math.sin(Math.PI * t) * 1.3 - t * 0.4;
-      const s = t <= 0 || t >= 1 ? 0 : 0.09;
+      const y = 1.5 + Math.sin(Math.PI * t) * 1.5 - t * 0.5;
+      const s = t <= 0 || t >= 1 ? 0 : 0.055 + 0.05 * Math.sin(Math.PI * t);
       dummy.position.set(
-        x + Math.sin(i * 12.9) * 0.08,
+        x + Math.sin(i * 12.9) * 0.1,
         y,
-        z + Math.cos(i * 7.3) * 0.08,
+        z + Math.cos(i * 7.3) * 0.1,
       );
       dummy.scale.setScalar(s);
       dummy.updateMatrix();

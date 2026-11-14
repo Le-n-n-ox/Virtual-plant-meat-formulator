@@ -23,7 +23,7 @@ interface FormulationState {
   formulationId: string | null;
   name: string;
   version: number;
-  /** Ingredient records referenced by the draft, keyed by id. */
+  /** Known ingredient records, keyed by id (draft plus draggable catalogue). */
   catalog: Record<string, Ingredient>;
   draft: FormulationLine[];
   /** Increments on every draft edit; used to drop stale validation responses. */
@@ -34,7 +34,11 @@ interface FormulationState {
     formulation: Formulation,
     ingredients: Ingredient[],
   ) => void;
+  /** Merge ingredient records so they can be dragged without joining the draft. */
+  registerCatalog: (ingredients: Ingredient[]) => void;
   addIngredient: (ingredient: Ingredient, percent?: number) => void;
+  /** Add by id when the record is already known. Returns false if unknown. */
+  addIngredientById: (ingredientId: string, percent?: number) => boolean;
   removeIngredient: (ingredientId: string) => void;
   setPercent: (ingredientId: string, percent: number) => void;
   /** Applies a validation result if it still matches the current draft revision. */
@@ -65,6 +69,14 @@ export const useFormulationStore = create<FormulationState>((set, get) => ({
       validated: null,
     }),
 
+  registerCatalog: (ingredients) =>
+    set((s) => ({
+      catalog: {
+        ...s.catalog,
+        ...Object.fromEntries(ingredients.map((i) => [i.id, i])),
+      },
+    })),
+
   addIngredient: (ingredient, percent = 0) => {
     if (get().draft.some((l) => l.ingredient_id === ingredient.id)) return;
     set((s) => ({
@@ -72,6 +84,13 @@ export const useFormulationStore = create<FormulationState>((set, get) => ({
       draft: [...s.draft, { ingredient_id: ingredient.id, percent }],
       draftRevision: s.draftRevision + 1,
     }));
+  },
+
+  addIngredientById: (ingredientId, percent = 0) => {
+    const ingredient = get().catalog[ingredientId];
+    if (!ingredient) return false;
+    get().addIngredient(ingredient, percent);
+    return true;
   },
 
   removeIngredient: (ingredientId) =>

@@ -17,6 +17,11 @@ const STATUS_FILL: Record<StageStatus | "idle", string> = {
   cancelled: "var(--scene-idle)",
 };
 
+const BIN_W = 96;
+const BIN_H = 176;
+const BIN_GAP = 16;
+const BIN_TOP = 70;
+
 /**
  * 2D schematic equivalent of the 3D scene: same data, same selection, same
  * stage status. Used when WebGL is unavailable, reduced motion is on, or the
@@ -28,18 +33,24 @@ export function Workspace2D() {
   const [selectedId, selectIngredient] = useSelectionStore(
     useShallow((s) => [s.selectedIngredientId, s.selectIngredient]),
   );
-  const { stages, candidateIds } = useJobStore(
-    useShallow((s) => ({ stages: s.stages, candidateIds: s.candidateIds })),
+  const { stages, status, candidateIds } = useJobStore(
+    useShallow((s) => ({
+      stages: s.stages,
+      status: s.status,
+      candidateIds: s.candidateIds,
+    })),
   );
   const selectedCandidate = useSelectionStore((s) => s.selectedCandidateId);
   const candidateId = selectedCandidate ?? candidateIds.at(-1) ?? null;
 
   const lines = validated?.lines ?? [];
   const invalid = new Set(validated?.result.issues.map((i) => i.ingredient_id));
-  const binW = 64;
-  const gap = 14;
-  const binsWidth = Math.max(1, lines.length) * (binW + gap) - gap;
-  const binsX = Math.max(20, 220 - binsWidth / 2);
+  const binsX = 40;
+  const running = status === "running" || status === "queued";
+  const total = lines.reduce(
+    (sum, l) => sum + (Number.isFinite(l.percent) ? l.percent : 0),
+    0,
+  );
 
   const onKey = (id: string) => (e: KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -48,32 +59,117 @@ export function Workspace2D() {
     }
   };
 
+  // Stacked composition bar geometry (percent of mass, validated).
+  const barX = 60;
+  const barW = 680;
+  const { segments, cursor } = lines.reduce(
+    (acc, line, i) => {
+      const w = (Math.max(0, line.percent) / 100) * barW;
+      acc.segments.push({ x: acc.cursor, w, i, line });
+      acc.cursor += w;
+      return acc;
+    },
+    {
+      segments: [] as {
+        x: number;
+        w: number;
+        i: number;
+        line: (typeof lines)[number];
+      }[],
+      cursor: barX,
+    },
+  );
+  const remainder = Math.max(0, barX + barW - cursor);
+
   return (
     <svg
-      viewBox="0 0 880 360"
-      className="h-full w-full"
-      style={{ background: "var(--scene-bg)" }}
+      viewBox="0 0 800 760"
+      className="scene-panel h-full w-full"
       role="group"
       aria-label="2D process schematic"
+      preserveAspectRatio="xMidYMid meet"
     >
+      <defs>
+        <pattern
+          id="scene-grid"
+          width="36"
+          height="36"
+          patternUnits="userSpaceOnUse"
+        >
+          <path
+            d="M 36 0 L 0 0 0 36"
+            fill="none"
+            stroke="var(--scene-line)"
+            strokeWidth="1"
+          />
+        </pattern>
+        <linearGradient id="scene-floor" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--scene-floor)" />
+          <stop offset="100%" stopColor="var(--scene-bg-2)" />
+        </linearGradient>
+      </defs>
+
       <rect
-        x="10"
-        y="300"
-        width="860"
-        height="40"
-        rx="10"
-        fill="var(--scene-floor)"
+        x="0"
+        y="0"
+        width="800"
+        height="760"
+        fill="url(#scene-grid)"
+        opacity="0.5"
       />
+
+      {/* Caption + legend */}
+      <text
+        x="40"
+        y="34"
+        fontSize="13"
+        fontWeight="600"
+        fill="var(--foreground)"
+      >
+        Process schematic
+      </text>
+      <text x="40" y="52" fontSize="11" fill="var(--muted-foreground)">
+        Illustrative · driven by validated formulation state
+      </text>
+      <g aria-hidden>
+        {(
+          [
+            ["active", "Running"],
+            ["complete", "Complete"],
+            ["warning", "Warning"],
+            ["failed", "Failed"],
+          ] as const
+        ).map(([key, label], i) => {
+          const x = 520 + (i % 2) * 130;
+          const y = 30 + Math.floor(i / 2) * 22;
+          return (
+            <g key={key}>
+              <circle cx={x} cy={y - 4} r="5" fill={STATUS_FILL[key]} />
+              <text
+                x={x + 12}
+                y={y}
+                fontSize="11"
+                fill="var(--muted-foreground)"
+              >
+                {label}
+              </text>
+            </g>
+          );
+        })}
+      </g>
 
       {/* Ingredient bins */}
       {lines.map((line, i) => {
-        const x = binsX + i * (binW + gap);
-        const h = 110;
-        const fillH = Math.max(3, (h - 8) * Math.min(1, line.percent / 100));
+        const x = binsX + i * (BIN_W + BIN_GAP);
+        const fillH = Math.max(
+          3,
+          (BIN_H - 12) * Math.min(1, line.percent / 100),
+        );
         const selected = selectedId === line.ingredient_id;
         const bad = invalid.has(line.ingredient_id);
         const name =
           catalog[line.ingredient_id]?.common_name ?? line.ingredient_id;
+        const clipId = `bin-clip-${line.ingredient_id}`;
         return (
           <g
             key={line.ingredient_id}
@@ -85,65 +181,96 @@ export function Workspace2D() {
               selectIngredient(selected ? null : line.ingredient_id)
             }
             onKeyDown={onKey(line.ingredient_id)}
-            className="cursor-pointer outline-none [&:focus-visible>rect:first-child]:stroke-[var(--ring)]"
+            className="cursor-pointer outline-none"
           >
+            <defs>
+              <clipPath id={clipId}>
+                <rect
+                  x={x + 5}
+                  y={BIN_TOP + 5}
+                  width={BIN_W - 10}
+                  height={BIN_H - 10}
+                  rx="9"
+                />
+              </clipPath>
+            </defs>
+
+            {/* Feed pipe to the vessel */}
+            <path
+              d={`M ${x + BIN_W / 2} ${BIN_TOP + BIN_H + 6} C ${x + BIN_W / 2} 320, 420 220, 452 200`}
+              fill="none"
+              stroke={
+                selected ? "var(--scene-accent)" : "var(--scene-grid-strong)"
+              }
+              strokeWidth={selected ? 4 : 2.5}
+              className={selected || running ? "scene-flow-dash" : undefined}
+            />
+
             <rect
               x={x}
-              y={60}
-              width={binW}
-              height={h}
-              rx="8"
+              y={BIN_TOP}
+              width={BIN_W}
+              height={BIN_H}
+              rx="12"
               fill="var(--scene-metal)"
+              fillOpacity="0.25"
               stroke={
                 bad
                   ? "var(--scene-failed)"
                   : selected
                     ? "var(--scene-accent)"
-                    : "transparent"
+                    : "var(--scene-line)"
               }
-              strokeWidth="4"
+              strokeWidth={bad || selected ? 3.5 : 1.5}
             />
-            <rect
-              x={x + 4}
-              y={60 + h - 4 - fillH}
-              width={binW - 8}
-              height={fillH}
-              rx="5"
-              fill={cropVar(i)}
-            />
+            <g clipPath={`url(#${clipId})`}>
+              <rect
+                x={x + 5}
+                y={BIN_TOP + BIN_H - 5 - fillH}
+                width={BIN_W - 10}
+                height={fillH}
+                fill={cropVar(i)}
+                style={{ transition: "y 0.5s ease, height 0.5s ease" }}
+              />
+            </g>
+            {[0.33, 0.66].map((t) => (
+              <line
+                key={t}
+                x1={x + 10}
+                x2={x + BIN_W - 10}
+                y1={BIN_TOP + BIN_H * t}
+                y2={BIN_TOP + BIN_H * t}
+                stroke="var(--scene-line)"
+                strokeWidth="1"
+              />
+            ))}
             <text
-              x={x + binW / 2}
-              y={190}
+              x={x + BIN_W / 2}
+              y={BIN_TOP + BIN_H + 28}
               textAnchor="middle"
               fontSize="12"
               fill="var(--foreground)"
             >
-              {name.length > 11 ? `${name.slice(0, 10)}…` : name}
+              {name.length > 14 ? `${name.slice(0, 13)}…` : name}
             </text>
             <text
-              x={x + binW / 2}
-              y={206}
+              x={x + BIN_W / 2}
+              y={BIN_TOP + BIN_H + 46}
               textAnchor="middle"
-              fontSize="11"
+              fontSize="12"
               fill="var(--muted-foreground)"
             >
               {line.percent}%
             </text>
-            <path
-              d={`M ${x + binW / 2} 214 Q ${x + binW / 2} 250 ${430} 250`}
-              fill="none"
-              stroke="var(--scene-grid)"
-              strokeDasharray="4 4"
-            />
           </g>
         );
       })}
       {lines.length === 0 && (
         <text
-          x="220"
-          y="130"
+          x="200"
+          y="180"
           textAnchor="middle"
-          fontSize="13"
+          fontSize="14"
           fill="var(--muted-foreground)"
         >
           No validated ingredients yet
@@ -156,69 +283,151 @@ export function Workspace2D() {
         role="img"
       >
         <path
-          d="M 410 230 L 420 296 L 500 296 L 510 230 Z"
+          d="M 550 380 C 610 380, 590 470, 640 470"
+          fill="none"
+          stroke="var(--scene-grid-strong)"
+          strokeWidth="3"
+          className={running ? "scene-flow-dash" : undefined}
+        />
+        <path
+          d="M 430 170 L 452 400 L 528 400 L 550 170 Z"
           fill="var(--scene-metal)"
+          fillOpacity="0.45"
           stroke={
             stages.mixing
               ? STATUS_FILL[stages.mixing]
               : validated && !validated.result.valid
                 ? "var(--scene-warning)"
-                : STATUS_FILL.idle
+                : "var(--scene-line)"
           }
           strokeWidth="4"
         />
+        <g
+          style={{
+            transformBox: "view-box",
+            transformOrigin: "490px 300px",
+            animation: running
+              ? "scene-spin-slow 5s linear infinite"
+              : undefined,
+          }}
+        >
+          <line
+            x1="490"
+            y1="220"
+            x2="490"
+            y2="380"
+            stroke="var(--scene-foreground)"
+            strokeWidth="4"
+          />
+          <line
+            x1="452"
+            y1="330"
+            x2="528"
+            y2="330"
+            stroke="var(--scene-foreground)"
+            strokeWidth="4"
+          />
+        </g>
+        <circle
+          cx="462"
+          cy="260"
+          r="4"
+          fill="var(--scene-foreground)"
+          opacity="0.4"
+        />
+        <circle
+          cx="516"
+          cy="248"
+          r="3"
+          fill="var(--scene-foreground)"
+          opacity="0.35"
+        />
         <text
-          x="460"
-          y="222"
+          x="490"
+          y="156"
           textAnchor="middle"
-          fontSize="12"
+          fontSize="13"
           fill="var(--foreground)"
         >
-          Mixing ·{" "}
-          {stages.mixing
-            ? STAGE_STATUS_TEXT[stages.mixing]
-            : validated && !validated.result.valid
-              ? "Check total"
-              : "Idle"}
+          Mixing · {STAGE_STATUS_TEXT[stages.mixing ?? "idle"]}
         </text>
       </g>
 
+      {/* Conveyor */}
+      <rect
+        x="60"
+        y="466"
+        width="680"
+        height="18"
+        rx="9"
+        fill="var(--scene-metal)"
+      />
+      <line
+        x1="70"
+        y1="475"
+        x2="730"
+        y2="475"
+        stroke="var(--scene-grid-strong)"
+        strokeWidth="4"
+        className={running ? "scene-flow-dash" : undefined}
+      />
+
       {/* Stations */}
       {PROCESS_STATIONS.filter((s) => s.id !== "mixing").map((station, i) => {
-        const status = stages[station.id];
-        const x = 540 + i * 95;
+        const st = stages[station.id];
+        const x = 110 + i * 200;
+        const active = st === "active";
         return (
           <g
             key={station.id}
             role="img"
-            aria-label={`${station.label}: ${STAGE_STATUS_TEXT[status ?? "idle"]}`}
+            aria-label={`${station.label}: ${STAGE_STATUS_TEXT[st ?? "idle"]}`}
           >
+            <circle
+              cx={x + 40}
+              cy={352}
+              r="6"
+              fill={STATUS_FILL[st ?? "idle"]}
+              className={active ? "scene-pulse" : undefined}
+            />
             <text
-              x={x + 42}
-              y={244}
+              x={x + 40}
+              y={338}
               textAnchor="middle"
-              fontSize="12"
+              fontSize="13"
               fill="var(--foreground)"
             >
               {station.label}
             </text>
             <rect
               x={x}
-              y={254}
-              width="84"
-              height="12"
-              rx="6"
-              fill={STATUS_FILL[status ?? "idle"]}
+              y={368}
+              width="80"
+              height="20"
+              rx="10"
+              fill={STATUS_FILL[st ?? "idle"]}
+              fillOpacity={st ? 0.9 : 0.5}
+              stroke={active ? "var(--scene-active)" : "transparent"}
+              strokeWidth="2"
             />
             <text
-              x={x + 42}
-              y={284}
+              x={x + 40}
+              y={424}
               textAnchor="middle"
-              fontSize="11"
+              fontSize="12"
               fill="var(--muted-foreground)"
             >
-              {STAGE_STATUS_TEXT[status ?? "idle"]}
+              {STAGE_STATUS_TEXT[st ?? "idle"]}
             </text>
+            <line
+              x1={x + 40}
+              y1={392}
+              x2={x + 40}
+              y2={462}
+              stroke="var(--scene-grid)"
+              strokeWidth="2"
+              className={active ? "scene-flow-dash" : undefined}
+            />
           </g>
         );
       })}
@@ -228,46 +437,143 @@ export function Workspace2D() {
         <g
           role="img"
           aria-label={`Candidate ${candidateId}, illustrative preview`}
+          style={{ transformBox: "fill-box", transformOrigin: "center" }}
+          className="scene-float"
         >
+          <path
+            d="M 700 470 C 770 470, 760 300, 726 250"
+            fill="none"
+            stroke="var(--scene-grid-strong)"
+            strokeWidth="3"
+            className="scene-flow-dash"
+          />
           <rect
-            x="760"
-            y="120"
-            width="100"
-            height="56"
-            rx="14"
+            x="640"
+            y="90"
+            width="110"
+            height="64"
+            rx="16"
             fill="var(--scene-product)"
           />
-          {[0, 1, 2, 3].map((k) => (
+          {[0, 1, 2, 3, 4].map((k) => (
             <line
               key={k}
-              x1="772"
-              x2="848"
-              y1={134 + k * 10}
-              y2={134 + k * 10}
+              x1="656"
+              x2="734"
+              y1={104 + k * 10}
+              y2={104 + k * 10}
               stroke="var(--background)"
               strokeOpacity="0.35"
             />
           ))}
           <text
-            x="810"
-            y="196"
+            x="695"
+            y="176"
             textAnchor="middle"
-            fontSize="11"
+            fontSize="12"
             fill="var(--foreground)"
           >
             {candidateId}
           </text>
           <text
-            x="810"
-            y="210"
+            x="695"
+            y="192"
             textAnchor="middle"
-            fontSize="10"
+            fontSize="11"
             fill="var(--muted-foreground)"
           >
             Illustrative
           </text>
         </g>
       )}
+
+      {/* Validated composition bar */}
+      {lines.length > 0 && (
+        <g aria-label={`Validated composition, total ${total} percent of mass`}>
+          <text
+            x="60"
+            y="560"
+            fontSize="13"
+            fontWeight="600"
+            fill="var(--foreground)"
+          >
+            Validated composition
+          </text>
+          <text
+            x="740"
+            y="560"
+            textAnchor="end"
+            fontSize="11"
+            fill="var(--muted-foreground)"
+          >
+            Total {Math.round(total * 100) / 100}% of mass
+          </text>
+          <rect
+            x={barX}
+            y={574}
+            width={barW}
+            height={28}
+            rx="9"
+            fill="var(--scene-metal)"
+            fillOpacity="0.3"
+          />
+          {segments.map(({ x, w, i, line }) => (
+            <rect
+              key={line.ingredient_id}
+              x={x}
+              y={574}
+              width={Math.max(0, w - 1)}
+              height={28}
+              fill={cropVar(i)}
+              stroke="var(--scene-bg)"
+              strokeWidth="1"
+            />
+          ))}
+          {remainder > 0.5 && (
+            <rect
+              x={cursor}
+              y={574}
+              width={remainder}
+              height={28}
+              rx="9"
+              fill="var(--scene-idle)"
+              fillOpacity="0.4"
+            />
+          )}
+          {segments
+            .filter(({ w }) => w > 46)
+            .map(({ x, w, line }) => (
+              <text
+                key={`label-${line.ingredient_id}`}
+                x={x + w / 2}
+                y={622}
+                textAnchor="middle"
+                fontSize="11"
+                fill="var(--foreground)"
+              >
+                {catalog[line.ingredient_id]?.common_name ?? line.ingredient_id}{" "}
+                {line.percent}%
+              </text>
+            ))}
+        </g>
+      )}
+
+      <rect
+        x="16"
+        y="660"
+        width="768"
+        height="70"
+        rx="12"
+        fill="url(#scene-floor)"
+        opacity="0.7"
+      />
+      <text x="40" y="690" fontSize="11" fill="var(--muted-foreground)">
+        3D view shows the same validated state in space. Switch with the 3D/2D
+        toggle above.
+      </text>
+      <text x="40" y="710" fontSize="11" fill="var(--muted-foreground)">
+        Animation is decorative; stage status comes from worker events only.
+      </text>
     </svg>
   );
 }

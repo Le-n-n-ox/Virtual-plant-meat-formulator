@@ -1,5 +1,10 @@
-import type { IngredientListItem, Paginated } from "@/types";
-import { requestJson } from "./client";
+import type { Ingredient, IngredientListItem, Paginated } from "@/types";
+import { requestValidated } from "./client";
+import {
+  ingredientDetailSchema,
+  ingredientListItemSchema,
+  paginatedSchema,
+} from "@/lib/validation/schemas";
 
 export type IngredientListParams = {
   q?: string;
@@ -25,7 +30,15 @@ export function getIngredients(
   }
 
   const query = searchParams.toString();
-  return requestJson<Paginated<IngredientListItem>>(
+  return requestValidated(
     `/api/ingredients${query ? `?${query}` : ""}`,
+    paginatedSchema(ingredientListItemSchema),
+  );
+}
+
+export function getIngredient(id: string): Promise<Ingredient> {
+  return requestValidated(
+    `/api/ingredients/${encodeURIComponent(id)}`,
+    ingredientDetailSchema,
   );
 }

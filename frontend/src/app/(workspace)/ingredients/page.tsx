@@ -23,12 +23,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ApiError } from "@/lib/api/client";
-import {
-  getIngredients,
-  type IngredientListParams,
-} from "@/lib/api/ingredients";
-import type { IngredientListItem, Paginated } from "@/types";
+import { ApiErrorState } from "@/components/api-error";
+import type { IngredientListParams } from "@/lib/api/ingredients";
+import { useIngredients } from "@/lib/query/hooks";
+import type { IngredientListItem } from "@/types";
 
 const forms = ["raw", "cooked", "soaked", "fermented", "roasted", "flour"];
 const pageSize = 25;
@@ -70,11 +68,6 @@ function IngredientsPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [result, setResult] = useState<Paginated<IngredientListItem> | null>(
-    null,
-  );
-  const [error, setError] = useState<Error | null>(null);
-  const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState("");
   const [cropInput, setCropInput] = useState("");
   const [sourceInput, setSourceInput] = useState("");
@@ -93,45 +86,7 @@ function IngredientsPageContent() {
     [searchParams],
   );
 
-  const loadIngredients = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setResult(await getIngredients(query));
-    } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught
-          : new Error("Unable to load ingredients."),
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [query]);
-
-  useEffect(() => {
-    let active = true;
-    getIngredients(query)
-      .then((data) => {
-        if (!active) return;
-        setResult(data);
-      })
-      .catch((caught: unknown) => {
-        if (!active) return;
-        setError(
-          caught instanceof Error
-            ? caught
-            : new Error("Unable to load ingredients."),
-        );
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [query]);
+  const { data: result, error, isLoading, refetch } = useIngredients(query);
 
   const updateQuery = useCallback(
     (updates: Record<string, string | number | undefined>) => {
@@ -190,11 +145,6 @@ function IngredientsPageContent() {
     query.source,
     query.flag,
   ].filter(Boolean).length;
-  const errorMessage =
-    error instanceof ApiError && error.status === 404
-      ? "The ingredient catalogue endpoint is not available yet."
-      : "We could not load the ingredient catalogue.";
-
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 md:p-8">
       <header className="flex flex-col gap-2">
@@ -304,16 +254,8 @@ function IngredientsPageContent() {
       </Card>
 
       {error ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-            <p className="font-medium">{errorMessage}</p>
-            <p className="text-sm text-muted-foreground">{error.message}</p>
-            <Button onClick={() => void loadIngredients()} variant="outline">
-              Try again
-            </Button>
-          </CardContent>
-        </Card>
-      ) : loading && !result ? (
+        <ApiErrorState error={error} onRetry={() => void refetch()} />
+      ) : isLoading && !result ? (
         <IngredientsLoadingState />
       ) : result?.items.length === 0 ? (
         <Card>

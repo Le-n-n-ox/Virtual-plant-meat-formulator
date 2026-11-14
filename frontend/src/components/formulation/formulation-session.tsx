@@ -33,6 +33,8 @@ export function FormulationSession() {
       DEMO_FORMULATION.lines.some((l) => l.ingredient_id === i.id),
     );
     load(DEMO_FORMULATION, ingredients);
+    // Keep every demo ingredient available so it can be dragged into the scene.
+    useFormulationStore.getState().registerCatalog(DEMO_INGREDIENTS);
     useSelectionStore.getState().clear();
     useJobStore.getState().reset();
   }, [id, load, loadedId]);

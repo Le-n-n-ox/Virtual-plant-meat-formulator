@@ -14,10 +14,15 @@ export interface SceneTheme {
   key: string;
   dark: boolean;
   bg: string;
+  bg2: string;
   floor: string;
   grid: string;
+  gridStrong: string;
   metal: string;
   glass: string;
+  surface: string;
+  line: string;
+  glow: string;
   accent: string;
   product: string;
   active: string;
@@ -32,10 +37,15 @@ export interface SceneTheme {
 
 const COLOR_TOKENS = {
   bg: "--scene-bg",
+  bg2: "--scene-bg-2",
   floor: "--scene-floor",
   grid: "--scene-grid",
+  gridStrong: "--scene-grid-strong",
   metal: "--scene-metal",
   glass: "--scene-glass",
+  surface: "--scene-surface",
+  line: "--scene-line",
+  glow: "--scene-glow",
   accent: "--scene-accent",
   product: "--scene-product",
   active: "--scene-active",
@@ -52,10 +62,15 @@ export const FALLBACK_SCENE_THEME: SceneTheme = {
   key: "fallback",
   dark: false,
   bg: "#eef2f5",
+  bg2: "#d7dfe6",
   floor: "#e6ebef",
   grid: "#b9c4cc",
+  gridStrong: "#9fabB5",
   metal: "#c5ccd3",
   glass: "#f2f7fa",
+  surface: "#ffffff",
+  line: "#dde3e8",
+  glow: "#13847b",
   accent: "#13847b",
   product: "#b98a5a",
   active: "#3a6fd8",

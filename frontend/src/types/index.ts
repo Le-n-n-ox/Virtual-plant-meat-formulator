@@ -108,7 +108,7 @@ export interface ModelMeta {
   algorithm: string;
   version: string;
   training_set_size: number;
-  holdout_metric?: { name: string; value: number };
+  holdout_metric?: { name: string; value: number } | null;
 }
 
 export interface Prediction {
@@ -122,4 +122,155 @@ export interface Prediction {
 export interface HealthResponse {
   status: "ok";
   version: string;
+}
+
+// ---- Auth ----
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name?: string;
+  created_at: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  user: AuthUser;
+  token?: string;
+  expires_at?: string;
+}
+
+export interface LogoutResponse {
+  ok: boolean;
+}
+
+// ---- Formulations ----
+
+export interface FormulationListItem {
+  id: string;
+  name: string;
+  version: number;
+  status: "draft" | "active" | "archived";
+  updated_at: string;
+  last_job_id: string | null;
+  last_job_status: JobStatus | null;
+}
+
+export interface CreateFormulationInput {
+  name: string;
+  description?: string;
+  template?: string;
+}
+
+export interface UpdateFormulationInput {
+  name?: string;
+  description?: string;
+  lines: FormulationLine[];
+  targets?: Record<string, number>;
+}
+
+export interface FormulationVersion {
+  version: number;
+  author: string;
+  created_at: string;
+  note?: string;
+  lines: FormulationLine[];
+}
+
+export interface FormulationVersionDiff {
+  from: number;
+  to: number;
+  added: FormulationLine[];
+  removed: FormulationLine[];
+  changed: { ingredient_id: string; from: number; to: number }[];
+}
+
+// ---- Jobs ----
+
+export interface JobRecord {
+  id: string;
+  type: JobType;
+  status: JobStatus;
+  formulation_id: string | null;
+  stage: string | null;
+  stage_label: string | null;
+  progress_percent: number | null;
+  message: string | null;
+  candidate_ids: string[];
+  started_at: string;
+  finished_at: string | null;
+  duration_ms: number | null;
+}
+
+// ---- Results ----
+
+export interface NutritionResult {
+  formulation_id: string;
+  per_basis: string;
+  moisture_basis: string;
+  nutrients: NutrientValue[];
+  amino_acids: NutrientValue[];
+  limiting_amino_acid: string | null;
+  calculation_version: string;
+  generated_at: string;
+}
+
+export interface TexturePredictionResult {
+  formulation_id: string;
+  predictions: Prediction[];
+  limitations: string[];
+  generated_at: string;
+}
+
+// ---- Candidates ----
+
+export interface Candidate {
+  id: string;
+  formulation_id: string;
+  name: string;
+  lines: FormulationLine[];
+  metrics: Record<string, number>;
+  cost_per_kg: number | null;
+  model: ModelMeta;
+  created_at: string;
+}
+
+export interface CandidateDetail extends Candidate {
+  nutrition: NutritionResult | null;
+  texture: TexturePredictionResult | null;
+}
+
+export interface CompareResponse {
+  ids: [string, string];
+  candidates: CandidateDetail[];
+  differences: Record<string, { a: number; b: number; delta: number }>;
+  reference: string | null;
+}
+
+// ---- Models ----
+
+export interface ModelRecord {
+  id: string;
+  target: string;
+  algorithm: string;
+  version: string;
+  training_set_size: number;
+  holdout_metric: { name: string; value: number } | null;
+  dataset_version: string;
+  limitations: string[];
+  created_at: string;
+}
+
+// ---- Exports ----
+
+export type ExportFormat = "pdf" | "csv";
+
+export interface JobResult {
+  job_id: string;
+  status: JobStatus;
+  result: NutritionResult | TexturePredictionResult | Candidate[] | null;
 }

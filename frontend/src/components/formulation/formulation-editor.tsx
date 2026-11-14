@@ -2,6 +2,7 @@
 
 import {
   CheckCircle2Icon,
+  GripVerticalIcon,
   PlayIcon,
   PlusIcon,
   SquareIcon,
@@ -11,6 +12,7 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useRef, useState } from "react";
+import { motion } from "motion/react";
 import { useShallow } from "zustand/react/shallow";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,7 @@ import { SCENARIOS, type ScenarioId, playScenario } from "@/mocks/scenarios";
 import { useFormulationStore } from "@/stores/formulationStore";
 import { isTerminal, useJobStore } from "@/stores/jobStore";
 import { useSelectionStore } from "@/stores/selectionStore";
+import { setIngredientDragData } from "@/lib/dnd";
 import { cropVar } from "@/scene/theme/sceneTheme";
 
 /**
@@ -80,96 +83,134 @@ export function FormulationEditor() {
         <Badge variant="outline" className="border-warning/60">
           Demo data · no nutrient values
         </Badge>
+        <span
+          className={cn(
+            "ml-auto flex items-center gap-1.5 text-xs",
+            revisionMatches ? "text-success" : "text-muted-foreground",
+          )}
+        >
+          <span
+            aria-hidden
+            className={cn(
+              "size-1.5 rounded-full",
+              revisionMatches ? "bg-success" : "bg-muted-foreground",
+            )}
+          />
+          {revisionMatches ? "Scene synced" : "Validating…"}
+        </span>
       </div>
 
       <section aria-label="Ingredients" className="flex flex-col gap-2">
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs text-muted-foreground">
-            <tr>
-              <th className="py-1 font-medium">Ingredient</th>
-              <th className="py-1 font-medium">Form</th>
-              <th className="w-28 py-1 font-medium">% of mass</th>
-              <th className="w-10 py-1">
-                <span className="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {draft.map((line, i) => {
-              const ing = catalog[line.ingredient_id];
-              const issue = result?.issues.find(
-                (x) => x.ingredient_id === line.ingredient_id,
-              );
-              const selected = selectedId === line.ingredient_id;
-              return (
-                <tr
-                  key={line.ingredient_id}
-                  className={cn("border-t", selected && "bg-accent/50")}
-                  onClick={() => selectIngredient(line.ingredient_id)}
-                >
-                  <td className="py-1.5">
-                    <span className="flex items-center gap-2">
-                      <span
-                        aria-hidden
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ background: cropVar(i) }}
+        <div className="overflow-hidden rounded-lg border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 font-medium">Ingredient</th>
+                <th className="px-3 py-2 font-medium">Form</th>
+                <th className="w-28 px-3 py-2 font-medium">% of mass</th>
+                <th className="w-10 px-3 py-2">
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {draft.map((line, i) => {
+                const ing = catalog[line.ingredient_id];
+                const issue = result?.issues.find(
+                  (x) => x.ingredient_id === line.ingredient_id,
+                );
+                const selected = selectedId === line.ingredient_id;
+                return (
+                  <tr
+                    key={line.ingredient_id}
+                    className={cn(
+                      "border-t transition-colors",
+                      selected ? "bg-accent/50" : "hover:bg-muted/40",
+                    )}
+                    onClick={() => selectIngredient(line.ingredient_id)}
+                  >
+                    <td className="px-3 py-1.5">
+                      <span className="flex items-center gap-2">
+                        <span
+                          aria-hidden
+                          className="size-2.5 shrink-0 rounded-full"
+                          style={{ background: cropVar(i) }}
+                        />
+                        {ing?.common_name ?? line.ingredient_id}
+                      </span>
+                    </td>
+                    <td className="px-3 py-1.5 text-muted-foreground">
+                      {ing?.form}
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={100}
+                        step={0.5}
+                        value={
+                          Number.isFinite(line.percent) ? line.percent : ""
+                        }
+                        aria-label={`Percentage of ${ing?.common_name ?? line.ingredient_id}`}
+                        aria-invalid={Boolean(issue)}
+                        onChange={(e) =>
+                          setPercent(
+                            line.ingredient_id,
+                            e.target.value === ""
+                              ? Number.NaN
+                              : Number(e.target.value),
+                          )
+                        }
+                        className="h-7 tabular-nums"
                       />
-                      {ing?.common_name ?? line.ingredient_id}
-                    </span>
-                  </td>
-                  <td className="py-1.5 text-muted-foreground">{ing?.form}</td>
-                  <td className="py-1.5">
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      max={100}
-                      step={0.5}
-                      value={Number.isFinite(line.percent) ? line.percent : ""}
-                      aria-label={`Percentage of ${ing?.common_name ?? line.ingredient_id}`}
-                      aria-invalid={Boolean(issue)}
-                      onChange={(e) =>
-                        setPercent(
-                          line.ingredient_id,
-                          e.target.value === ""
-                            ? Number.NaN
-                            : Number(e.target.value),
-                        )
-                      }
-                      className="h-7 tabular-nums"
-                    />
-                  </td>
-                  <td className="py-1.5 text-right">
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label={`Remove ${ing?.common_name ?? line.ingredient_id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeIngredient(line.ingredient_id);
-                      }}
-                    >
-                      <Trash2Icon />
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+                    <td className="px-3 py-1.5 text-right">
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label={`Remove ${ing?.common_name ?? line.ingredient_id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeIngredient(line.ingredient_id);
+                        }}
+                      >
+                        <Trash2Icon />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
 
         {available.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {available.map((ing) => (
-              <Button
-                key={ing.id}
-                size="xs"
-                variant="outline"
-                onClick={() => addIngredient(ing, 0)}
-              >
-                <PlusIcon aria-hidden /> {ing.common_name}
-              </Button>
-            ))}
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs text-muted-foreground">
+              Click to add, or drag a crop into the 3D view. Drop it on a bin to
+              replace that ingredient.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {available.map((ing) => (
+                <Button
+                  key={ing.id}
+                  size="xs"
+                  variant="outline"
+                  className="cursor-grab active:cursor-grabbing"
+                  draggable
+                  title={`Drag ${ing.common_name} into the 3D view`}
+                  onDragStart={(e) => setIngredientDragData(e, ing)}
+                  onClick={() => addIngredient(ing, 0)}
+                >
+                  <GripVerticalIcon
+                    aria-hidden
+                    className="size-3 text-muted-foreground"
+                  />
+                  <PlusIcon aria-hidden /> {ing.common_name}
+                </Button>
+              ))}
+            </div>
           </div>
         )}
       </section>
@@ -201,7 +242,7 @@ function TotalsBar({
   return (
     <div
       className={cn(
-        "rounded-lg border p-3 text-sm",
+        "rounded-lg border p-3 text-sm transition-colors",
         pending
           ? "border-border"
           : valid
@@ -231,12 +272,14 @@ function TotalsBar({
         className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
         aria-hidden
       >
-        <div
+        <motion.div
           className={cn(
             "h-full rounded-full",
             valid ? "bg-success" : "bg-warning",
           )}
-          style={{ width: `${Math.min(100, Math.max(0, rounded))}%` }}
+          initial={false}
+          animate={{ width: `${Math.min(100, Math.max(0, rounded))}%` }}
+          transition={{ type: "spring", stiffness: 200, damping: 30 }}
         />
       </div>
       {!pending && messages.length > 0 && (
@@ -269,7 +312,7 @@ function DemoJobs() {
   return (
     <section
       aria-label="Mock job events"
-      className="flex flex-col gap-2 rounded-lg border border-dashed p-3"
+      className="flex flex-col gap-2 rounded-lg border border-dashed bg-muted/20 p-3"
     >
       <div className="flex items-center gap-2">
         <h2 className="text-sm font-medium">Run a mock job</h2>

@@ -2,17 +2,29 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import { Color, DoubleSide, type Group, LatheGeometry, Vector2 } from "three";
+import {
+  Color,
+  DoubleSide,
+  type Group,
+  type InstancedMesh,
+  LatheGeometry,
+  Object3D,
+  Vector2,
+} from "three";
 import type { SceneTheme } from "../theme/sceneTheme";
 
-const PROFILE = [
-  [0, 0],
-  [1.0, 0],
-  [1.22, 0.18],
-  [1.35, 0.7],
-  [1.4, 1.25],
-  [1.48, 1.32],
+/** Outer glass silhouette of the vessel (local units, base at y=0). */
+const GLASS_PROFILE = [
+  [0.0, 0.0],
+  [1.02, 0.0],
+  [1.24, 0.22],
+  [1.34, 0.72],
+  [1.4, 1.18],
+  [1.5, 1.28],
 ].map(([x, y]) => new Vector2(x, y));
+
+const BUBBLES = 18;
+const dummy = new Object3D();
 
 export interface MixingVesselProps {
   /** Crop colours with validated weights; produces an illustrative blend colour. */
@@ -24,6 +36,10 @@ export interface MixingVesselProps {
   reducedMotion: boolean;
 }
 
+/**
+ * Schematic mixing vessel. The blend colour and level come from validated
+ * formulation weights; the paddle and bubbles are decorative motion cues only.
+ */
 export function MixingVessel({
   contents,
   working,
@@ -32,10 +48,14 @@ export function MixingVessel({
   reducedMotion,
 }: MixingVesselProps) {
   const paddle = useRef<Group>(null);
-  const geometry = useMemo(() => new LatheGeometry(PROFILE, 64), []);
+  const bubbles = useRef<InstancedMesh>(null);
+  const glass = useMemo(() => new LatheGeometry(GLASS_PROFILE, 72), []);
+
+  const total = contents.reduce((sum, c) => sum + Math.max(0, c.weight), 0);
+  const level = total > 0 ? Math.min(1, Math.max(0.08, total / 100)) : 0;
+  const fillHeight = 0.22 + level * 0.86;
 
   const blend = useMemo(() => {
-    const total = contents.reduce((sum, c) => sum + Math.max(0, c.weight), 0);
     if (total <= 0) return null;
     const out = new Color(0, 0, 0);
     const tmp = new Color();
@@ -43,58 +63,168 @@ export function MixingVessel({
       tmp.set(c.color).multiplyScalar(Math.max(0, c.weight) / total);
       out.add(tmp);
     }
+    // Lift the blend a little so the material reads inside tinted glass.
+    out.lerp(new Color("#ffffff"), 0.16);
     return `#${out.getHexString()}`;
-  }, [contents]);
+  }, [contents, total]);
+
+  const surfaceColor = useMemo(
+    () =>
+      blend ? `#${new Color(blend).offsetHSL(0, 0, 0.1).getHexString()}` : null,
+    [blend],
+  );
+
+  const seeds = useMemo(
+    () =>
+      Array.from({ length: BUBBLES }, (_, i) => {
+        const r = (n: number) => {
+          const x = Math.sin(i * 12.9898 + n * 78.233) * 43758.5453;
+          return x - Math.floor(x);
+        };
+        return {
+          angle: r(1) * Math.PI * 2,
+          radius: 0.25 + r(2) * 0.75,
+          speed: 0.35 + r(3) * 0.5,
+          offset: r(4),
+          size: 0.02 + r(5) * 0.035,
+        };
+      }),
+    [],
+  );
 
   // Decorative motion cue while the worker reports activity. Never a progress signal.
-  useFrame((_, delta) => {
+  useFrame(({ clock }, delta) => {
     if (paddle.current && working && !reducedMotion) {
-      paddle.current.rotation.y += delta * 1.6;
+      paddle.current.rotation.y += delta * 1.7;
     }
+    const m = bubbles.current;
+    if (!m) return;
+    const t = reducedMotion ? 0 : clock.elapsedTime;
+    for (let i = 0; i < seeds.length; i++) {
+      const s = seeds[i];
+      const cycle = (t * s.speed + s.offset) % 1;
+      const scale = working && !reducedMotion ? s.size * (0.5 + cycle) : 0;
+      dummy.position.set(
+        Math.cos(s.angle) * s.radius * 0.85,
+        0.36 + cycle * (fillHeight * 0.85),
+        Math.sin(s.angle) * s.radius * 0.85,
+      );
+      dummy.scale.setScalar(scale);
+      dummy.updateMatrix();
+      m.setMatrixAt(i, dummy.matrix);
+    }
+    m.instanceMatrix.needsUpdate = true;
   });
 
   return (
     <group>
-      <mesh geometry={geometry} castShadow receiveShadow>
+      {/* Metal base */}
+      <mesh position={[0, 0.16, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[1.16, 1.3, 0.32, 64]} />
         <meshStandardMaterial
           color={theme.metal}
           metalness={0.65}
-          roughness={0.28}
+          roughness={0.3}
+        />
+      </mesh>
+      <mesh position={[0, 0.33, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[1.2, 0.05, 12, 72]} />
+        <meshStandardMaterial
+          color={theme.metal}
+          metalness={0.7}
+          roughness={0.25}
+        />
+      </mesh>
+
+      {/* Glass body */}
+      <mesh geometry={glass} position={[0, 0.34, 0]} renderOrder={2}>
+        <meshStandardMaterial
+          color={theme.glass}
+          transparent
+          opacity={theme.dark ? 0.22 : 0.3}
+          roughness={0.08}
+          metalness={0.05}
+          envMapIntensity={1.4}
+          depthWrite={false}
           side={DoubleSide}
         />
       </mesh>
+
+      {/* Contents: illustrative blend, level follows the validated total */}
       {blend && (
-        <mesh position={[0, 0.55, 0]}>
-          <cylinderGeometry args={[1.28, 1.08, 0.9, 64]} />
-          <meshStandardMaterial color={blend} roughness={0.9} />
-        </mesh>
+        <>
+          <mesh position={[0, 0.36 + fillHeight / 2, 0]}>
+            <cylinderGeometry args={[1.22, 1.05, fillHeight, 64]} />
+            <meshStandardMaterial color={blend} roughness={0.88} />
+          </mesh>
+          <mesh
+            position={[0, 0.365 + fillHeight, 0]}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <circleGeometry args={[1.22, 64]} />
+            <meshStandardMaterial
+              color={surfaceColor ?? blend}
+              roughness={0.75}
+            />
+          </mesh>
+        </>
       )}
-      {/* Rim highlight reflects the reported stage status. */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 1.33, 0]}>
-        <ringGeometry args={[1.42, highlight ? 1.62 : 1.5, 64]} />
+
+      {/* Bubbles while working (decorative) */}
+      <instancedMesh
+        ref={bubbles}
+        args={[undefined, undefined, BUBBLES]}
+        frustumCulled={false}
+      >
+        <sphereGeometry args={[1, 10, 10]} />
+        <meshStandardMaterial
+          color={theme.glass}
+          transparent
+          opacity={0.55}
+          roughness={0.2}
+        />
+      </instancedMesh>
+
+      {/* Paddle */}
+      <group ref={paddle} position={[0, 0.36, 0]}>
+        <mesh position={[0, 0.55, 0]} castShadow>
+          <cylinderGeometry args={[0.055, 0.055, 1.3, 16]} />
+          <meshStandardMaterial
+            color={theme.metal}
+            metalness={0.75}
+            roughness={0.22}
+          />
+        </mesh>
+        {[0.18, 0.5].map((y) => (
+          <mesh key={y} position={[0, y, 0]} castShadow>
+            <boxGeometry args={[1.7, 0.14, 0.06]} />
+            <meshStandardMaterial
+              color={theme.metal}
+              metalness={0.75}
+              roughness={0.22}
+            />
+          </mesh>
+        ))}
+      </group>
+
+      {/* Rim highlight reflects the reported stage status */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 1.64, 0]}>
+        <ringGeometry args={[1.42, highlight ? 1.64 : 1.52, 72]} />
         <meshBasicMaterial
           color={highlight ?? theme.metal}
           toneMapped={false}
+          transparent
+          opacity={highlight ? 0.95 : 0.8}
         />
       </mesh>
-      <group ref={paddle} position={[0, 0.2, 0]}>
-        <mesh position={[0, 0.9, 0]} castShadow>
-          <cylinderGeometry args={[0.05, 0.05, 1.8, 12]} />
-          <meshStandardMaterial
-            color={theme.metal}
-            metalness={0.7}
-            roughness={0.25}
-          />
-        </mesh>
-        <mesh position={[0, 0.35, 0]} castShadow>
-          <boxGeometry args={[1.7, 0.18, 0.06]} />
-          <meshStandardMaterial
-            color={theme.metal}
-            metalness={0.7}
-            roughness={0.25}
-          />
-        </mesh>
-      </group>
+      <mesh position={[0, 1.62, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[1.5, 0.035, 12, 72]} />
+        <meshStandardMaterial
+          color={theme.metal}
+          metalness={0.7}
+          roughness={0.25}
+        />
+      </mesh>
     </group>
   );
 }

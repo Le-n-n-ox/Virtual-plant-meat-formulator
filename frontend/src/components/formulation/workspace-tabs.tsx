@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -32,13 +33,20 @@ export function WorkspaceTabs() {
             href={href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "border-b-2 px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:bg-muted",
+              "relative px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none focus-visible:bg-muted",
               active
-                ? "border-primary font-medium text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+                ? "font-medium text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {tab.label}
+            {active && (
+              <motion.span
+                layoutId="workspace-tab-underline"
+                className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary"
+                transition={{ type: "spring", stiffness: 500, damping: 40 }}
+              />
+            )}
           </Link>
         );
       })}

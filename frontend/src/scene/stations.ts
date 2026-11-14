@@ -47,9 +47,10 @@ export function binPosition(
   index: number,
   count: number,
 ): [number, number, number] {
-  const radius = 3.0;
-  const start = (115 * Math.PI) / 180;
-  const end = (245 * Math.PI) / 180;
+  // A tighter arc keeps every bin left of the vessel instead of behind it.
+  const radius = 3.1;
+  const start = (135 * Math.PI) / 180;
+  const end = (225 * Math.PI) / 180;
   const t = count <= 1 ? 0.5 : index / (count - 1);
   const a = start + (end - start) * t;
   return [Math.cos(a) * radius, 0, Math.sin(a) * radius];
@@ -64,9 +65,20 @@ export const STATION_X: Record<Exclude<StationId, "mixing">, number> = {
 export const PRODUCT_POSITION: [number, number, number] = [6.9, 0, 0];
 export const VESSEL_POSITION: [number, number, number] = [0, 0, 0];
 
+/** Height of the conveyor belt surface in the 3D scene. */
+export const BELT_Y = 0.42;
+/** Centre height of a processing-station barrel. */
+export const BARREL_Y = 0.95;
+/** Height of the status beacon above a station. */
+export const BEACON_Y = 1.95;
+/** Start of the processing line (just right of the vessel). */
+export const LINE_START = 1.6;
+/** End of the processing line (just left of the product). */
+export const LINE_END = 6.1;
+
 /** World-space anchor points for DOM labels. */
 export const LABEL_HEIGHT = {
-  bin: 1.65,
-  station: 1.75,
-  product: 1.55,
+  bin: 1.7,
+  station: 2.2,
+  product: 1.7,
 } as const;
