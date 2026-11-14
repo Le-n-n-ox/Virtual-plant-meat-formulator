@@ -63,16 +63,13 @@ export function WorkspaceScene({ className }: { className?: string }) {
     const id = getIngredientDragId(event);
     if (!id) return;
     const store = useFormulationStore.getState();
-    if (store.addIngredientById(id)) {
+    if (store.draft.some((line) => line.ingredient_id === id)) {
       setDropError(null);
       return;
     }
-    // Unknown to this workspace (for example a catalogue id): fetch then add.
     try {
-      const ingredient = await getIngredient(id);
-      const current = useFormulationStore.getState();
-      current.registerCatalog([ingredient]);
-      current.addIngredientById(id);
+      const ingredient = store.catalog[id] ?? (await getIngredient(id));
+      useFormulationStore.getState().addIngredient(ingredient);
       setDropError(null);
     } catch {
       setDropError("That ingredient could not be loaded.");
@@ -268,21 +265,22 @@ function SceneObjectList() {
     const id = getIngredientDragId(event);
     if (!id || id === currentId) return;
 
-    const apply = () => {
+    const apply = (ingredient: Awaited<ReturnType<typeof getIngredient>>) => {
       const store = useFormulationStore.getState();
+      const percent =
+        store.draft.find((line) => line.ingredient_id === currentId)?.percent ??
+        0;
       store.removeIngredient(currentId);
-      store.addIngredientById(id);
+      store.addIngredient(ingredient, percent);
     };
 
-    if (useFormulationStore.getState().catalog[id]) {
-      apply();
+    const knownIngredient = useFormulationStore.getState().catalog[id];
+    if (knownIngredient) {
+      apply(knownIngredient);
       return;
     }
     void getIngredient(id)
-      .then((ingredient) => {
-        useFormulationStore.getState().registerCatalog([ingredient]);
-        apply();
-      })
+      .then(apply)
       .catch(() => undefined);
   }
 

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { JobEvent, JobStatus, JobType } from "@/types";
 
 /**
- * Active job state. Written only by the SSE client / job REST calls. The scene
+ * Active job state. Written by the SSE client and job REST calls. The scene
  * and timeline read from here.
  *
  * Integrity rules (frontend guide §7):
