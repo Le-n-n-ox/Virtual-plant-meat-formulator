@@ -7,6 +7,9 @@ COPY pyproject.toml uv.lock ./
 COPY alembic.ini ./
 RUN uv sync --frozen --no-dev --no-install-project
 COPY app ./app
+COPY data/reference/foodml_texture_prediction_2023.csv ./data/reference/foodml_texture_prediction_2023.csv
+COPY data/reference/foodml_ferawati_2021_crosswalk.csv ./data/reference/foodml_ferawati_2021_crosswalk.csv
+COPY data/reference/foodml_texture_prediction_2023_SOURCE.md ./data/reference/foodml_texture_prediction_2023_SOURCE.md
 
 FROM python:3.15.2-slim-bookworm AS runtime
 ENV PATH="/opt/venv/bin:$PATH" PYTHONUNBUFFERED=1
@@ -14,6 +17,7 @@ WORKDIR /app
 RUN groupadd --system app && useradd --system --gid app --create-home app
 COPY --from=build --chown=app:app /opt/venv /opt/venv
 COPY --from=build --chown=app:app /app/app ./app
+COPY --from=build --chown=app:app /app/data/reference ./data/reference
 COPY --from=build --chown=app:app /app/alembic.ini ./alembic.ini
 USER app
 EXPOSE 8000

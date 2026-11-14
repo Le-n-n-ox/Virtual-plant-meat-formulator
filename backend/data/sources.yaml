@@ -27,8 +27,10 @@ sources:
       The workbook copyright notice permits copying, downloading, and printing
       for private study, research, teaching, and non-commercial products or
       services with appropriate acknowledgement. Resale and other commercial
-      use require FAO permission. The import found 517 food rows and 139 recipe
-      rows, versus the published 522 plus 142; reconcile before activation.
+      use require FAO permission. The corrected import finds 517 food rows and
+      141 recipe rows after preserving 15066r and 15066s. Five food rows and
+      one recipe row remain unexplained against the published 522 plus 142;
+      reconcile before activation.
       Generated output is a review candidate, not validated production data.
 
   - id: kfct-recipes-2018
@@ -47,11 +49,12 @@ sources:
       pypdf extracted 141 narrative headings plus one appendix-only record
       (142 total, matching the published count). The ignored JSONL retains
       recipe section text and PDF pages; it does not structure ingredients,
-      instructions, or nutrients. PDF font/layout artifacts need review.
-      Codes 15050, 15066(r), and 15135 are outside the workbook nutrient rows.
-      Code 15066 occurs twice (rice suffix r and stew). Workbook-only code
-      15021 is named Hard boiled eggs and may be a food/type code mismatch.
-      See data/README.md and generated summary before activation.
+      instructions, or nutrients. Rotated/table text layout needs review.
+      Codes 15050 and 15135 are in the recipe book but not the workbook
+      nutrient rows. Both workbook variants 15066r/15066s are retained and
+      reconciled to the book's rice/stew code usage. The workbook-only code
+      15021 is named Hard boiled eggs and was not found in extracted book text;
+      verify its page/code mapping. See data/README.md and summary.
 
   - id: usda-fooddata-central
     name: USDA FoodData Central
@@ -87,16 +90,209 @@ sources:
       app/ingestion/import_csiro_texture.py. CC BY-NC-SA 4.0 requires
       attribution, share-alike for adaptations, and non-commercial use.
 
+  - id: foodml-texture-prediction-2023
+    name: Predicting the Textural Properties of Plant-Based Meat Analogs with Machine Learning
+    publisher: Foods (MDPI) and authors' FoodML repository
+    version: "2023"
+    doi: 10.3390/foods12020344
+    urls:
+      - https://pmc.ncbi.nlm.nih.gov/articles/PMC9858592/
+      - https://github.com/sezinata/FoodML
+    local_file: reference/foodml_texture_prediction_2023.csv
+    sha256: 03ad4b42a70c9ab375a602c22a786b4367e616c0fac271ebab5cd7a805148efa
+    license_status: cc_by_4_0_article_and_supplement
+    import_status: 54_sample_review_imported_hme_and_mechanical_elongation_separated
+    normalized_file: processed/foodml_texture_prediction_2023_review.jsonl
+    notes: >-
+      The curated CSV has 54 sample rows: 42 high-moisture extrusion (30 pea/faba
+      isolate/concentrate and 12 soy/wheat-gluten) and 12 mechanical-elongation
+      samples. The importer preserves process mode, group/study IDs, seven
+      composition/moisture inputs, hardness and chewiness targets, source rows,
+      and the CSV checksum. A source-cited crosswalk adds Table A3/A4 process
+      settings to the 30 Ferawati rows in place; it adds no duplicate samples.
+      The row mapping is inferred because the papers provide no shared sample
+      IDs, the g-to-N factor is inferred from exact target agreement, and the
+      final FBI-local moisture value conflicts between Tables A3 and A4. The
+      article's reported Ridge errors (hardness
+      10.101 N RMSE / 22.9% MAPE; chewiness 6.035 N RMSE / 14.5% MAPE) are for
+      the mixed dataset and are not HME-only or Kenyan validation. The 30
+      pea/faba samples originate from Ferawati et al. (2021) and must not be
+      counted twice as separate rows. The paper and supplement are CC BY 4.0;
+      the repository MIT license applies to code.
+      Underlying source-study attribution is retained in every imported row.
+
+  - id: ferawati-pea-faba-hme-2021
+    name: High-Moisture Meat Analogues Produced from Yellow Pea and Faba Bean Protein Isolates/Concentrate: Effect of Raw Material Composition and Extrusion Parameters on Texture Properties
+    publisher: Foods (MDPI)
+    version: "2021"
+    doi: 10.3390/foods10040843
+    url: https://www.mdpi.com/2304-8158/10/4/843
+    license_status: cc_by_4_0
+    import_status: process_settings_crosswalked_to_30_foodml_rows_no_duplicate_records
+    crosswalk_file: reference/foodml_ferawati_2021_crosswalk.csv
+    crosswalk_sha256: 0a5078692d438583f07cbff8b2e85adbab43a96e22758ad131b514e03ac18364
+    normalized_records: processed/foodml_texture_prediction_2023_review.jsonl
+    notes: >-
+      Tables A3 and A4 supply process metadata and texture summaries for the
+      same 30 pea/faba records already included in FoodML. The crosswalk maps
+      FoodML sample numbers 25-54 to Table A4 IDs 1-30 using study/group,
+      material, target moisture, hardness, and chewiness; the articles do not
+      publish a shared sample ID. The conversion factor 0.0098 N per table-
+      reported g is inferred from exact target alignment. Table A3 gives the
+      FBI-local moisture range through 68%, while A4 row 30 and FoodML report
+      70%; the discrepancy is retained and flagged. Table A4 n=3 refers to
+      texture measurements; independent extrusion-batch replication is not
+      established. Do not add these records to FoodML a second time.
+
+  - id: kantanen-faba-hme-2022
+    name: Physical Properties of Extrudates with Fibrous Structures Made of Faba Bean Protein Ingredients Using High Moisture Extrusion
+    publisher: Foods (MDPI)
+    version: "2022"
+    doi: 10.3390/foods11091280
+    url: https://pmc.ncbi.nlm.nih.gov/articles/PMC9101016/
+    license_status: cc_by_4_0
+    import_status: 17_hme_trial_summaries_imported_review_candidate
+    local_file: reference/kantanen_2022_hme_table_A2_A3.csv
+    sha256: 461cd208235dcc8e20ea7c202ca568a782b95c9f1c56b121cf81deb6a9f690d0
+    normalized_file: processed/kantanen_faba_hme_2022_review.jsonl
+    notes: >-
+      Tables A2 and A3 provide 17 faba protein isolate/concentrate HME run
+      summaries, covering 15 distinct design settings and three center-point
+      repeats. The transcription preserves mean, standard deviation, methods,
+      and replicate counts. Process conditions are one extruder at fixed
+      settings. Suitable as source-linked faba-protein evidence; not Kenyan
+      whole-food validation.
+
+  - id: knaapila-whole-faba-hme-2024
+    name: Sensory and Physical Properties of Fibrous Meat Analogs Made from Faba Bean, Pea, and Oat Using High-Moisture Extrusion
+    publisher: Foods (MDPI)
+    version: "2024"
+    doi: 10.3390/foods13101444
+    url: https://pmc.ncbi.nlm.nih.gov/articles/PMC11119597/
+    license_status: cc_by_4_0
+    import_status: 6_whole_faba_formulation_summaries_imported_units_review_required_not_training_eligible
+    local_file: reference/knaapila_2024_whole_faba_hme_table1_table5.csv
+    sha256: 46fc9e5964c8281abc150a09eebe13934899ab795187f34894282c9fa21e17bf
+    normalized_file: processed/knaapila_whole_faba_hme_2024_review.jsonl
+    notes: >-
+      Table 1 gives dry-matter formulation and calculated protein composition;
+      Table 5 gives six HME formulation summaries. Mechanical target units are
+      omitted from the source table. The WAC method reports a g/g basis, but
+      Table 5's numeric scale is not reconciled with that basis. The importer
+      preserves these values without inferred units or rescaling, so they are
+      not training targets. Texture/cutting measurements have n=5 and WAC
+      n=3; repeated extrusion preparations are not reported. This is useful
+      for whole-faba analogy and coverage reporting, not Kenyan validation.
+
+  - id: jeon-full-fat-soy-hme-2023
+    name: Investigating the Potential of Full-Fat Soy as an Alternative Ingredient in the Manufacture of Low- and High-Moisture Meat Analogs
+    publisher: Foods (MDPI)
+    version: "2023"
+    doi: 10.3390/foods12051011
+    url: https://pmc.ncbi.nlm.nih.gov/articles/PMC10000498/
+    license_status: cc_by_4_0
+    import_status: 6_hmma_formulation_summaries_imported_comparative_evidence_only
+    local_file: reference/jeon_2023_full_fat_soy_hme_table1_table2.csv
+    sha256: b58f08ce4bf8022b76af25898dbf6b48b073f4476524e35e03be3cd4d578df9b
+    normalized_file: processed/jeon_full_fat_soy_hme_2023_review.jsonl
+    notes: >-
+      Six high-moisture formulations (0--50% full-fat soy) transcribed from
+      Tables 1 and 2, with fixed process settings and six measurement
+      replicates per texture response. Table 2 supplies springiness,
+      cohesiveness, chewiness, and two directional cutting-strength outcomes;
+      it does not report hardness. Formulation percentage basis and
+      independent extrusion-batch replication are not specified. Keep as
+      source-cited comparative evidence, not a generalized Kenyan predictor.
+
+  - id: mektun-mungbean-wg-hme-2026
+    name: Impact of Extrusion Parameters on Textural and Sensory Characteristics of High-Moisture Meat Analogue from Mung Bean Protein and Wheat Gluten
+    publisher: Polish Journal of Food and Nutrition Sciences
+    version: "2026"
+    doi: 10.31883/pjfns/221669
+    url: https://journal.pan.olsztyn.pl/Impact-of-Extrusion-Parameters-on-Textural-and-Sensory-Characteristics-of-High-Moisture%2C221669%2C0%2C2.html
+    license_status: cc_by_4_0
+    import_status: 9_condition_summaries_imported_review_candidate
+    local_file: reference/mektun_2026_mungbean_wg_hme_tables1_3_4.csv
+    sha256: 688c5b04a7f0ad737542cf73751240adacbb404e46f6abcfb21fae9eaef90a88
+    normalized_file: processed/mektun_mungbean_wg_hme_2026_review.jsonl
+    notes: >-
+      Nine central-composite design conditions for one 70:30 mung bean protein
+      isolate:wheat gluten blend, with hardness, chewiness, springiness,
+      cohesiveness, resilience, penetration firmness, and directional shear
+      summaries. The center condition was run in triplicate; texture tables
+      report n=10 measurements. Table 5 equations are preserved only as
+      unverified HTML text and are marked non-executable because the source
+      PDF typography could not be checked. The reported 72 mm barrel length
+      and Table 4 chewiness unit N are retained as printed. This narrow study
+      is not evidence for Kenyan whole-food formulations or other equipment.
+
+  - id: bulgaru-et-al-hme-analogues-2025
+    name: Qualitative and Antioxidant Evaluation of High-Moisture Plant-Based Meat Analogs Obtained by Extrusion
+    publisher: Foods (MDPI)
+    version: "2025"
+    doi: 10.3390/foods14172939
+    url: https://www.mdpi.com/2304-8158/14/17/2939
+    license_status: cc_by_4_0
+    import_status: 8_table_2_hme_condition_summaries_imported_comparative_evidence
+    local_file: reference/bulgaru_2025_soryz_hme_table2.csv
+    sha256: aa7967dbc266ce65c76bf8fa1e5f7819e021e7bf6c68d617993b45f18fad2525
+    normalized_file: processed/bulgaru_2025_soryz_hme_review.jsonl
+    notes: >-
+      Eight Table 2 condition summaries cover PPI controls and 1:1 dry-basis
+      blends with soryz flour, chickpea flour, or hazelnut meal at two
+      temperature profiles. Table 2 reports hardness, resilience, and chewiness
+      means and standard deviations; TPA n=12. Independent extrusion-batch
+      replication is not reported, and feed-moisture basis is unspecified.
+      These European/Turkish ingredients and two process profiles are narrow
+      analogs, not Kenyan validation or a standalone training set.
+
   - id: hemp-oat-high-moisture-extrusion-2025
     name: High-moisture extrusion of hemp seed and oat press cakes
     publisher: Zenodo
     version: "2025-03-27"
     doi: 10.5281/zenodo.15098471
     url: https://doi.org/10.5281/zenodo.15098471
-    license_status: unknown
-    import_status: review_rights_before_use
+    license_status: none_selected_on_record
+    import_status: public_file_rights_clarification_required_not_imported
     notes: >-
-      Record offers an Excel dataset but does not identify a reuse licence.
+      Zenodo record exposes an Excel dataset, but its License field is blank.
+      Do not ingest into a redistributed training set until the authors or
+      repository clarify reuse terms.
+
+  - id: kuleuven-soy-hme-2025
+    name: "Replication Data for: Impact of soy protein concentrate preparation method on structure formation during high moisture extrusion"
+    publisher: KU Leuven Research Data Repository
+    version: "1"
+    doi: 10.48804/TVBPM9
+    url: https://doi.org/10.48804/TVBPM9
+    license_status: cc_by_4_0
+    import_status: downloaded_checksum_verified_normalized_research_benchmark
+    local_directory: raw/kuleuven_hme_soy_2025/
+    local_files:
+      - path: raw/kuleuven_hme_soy_2025/00-README.txt
+        md5: c0f023ee86460c85fe4eb976d86b7ba0
+      - path: raw/kuleuven_hme_soy_2025/01-SPC composition_Table1.xlsx
+        md5: 3fe2386d235ad1bc65e35b90f0aef6a7
+      - path: raw/kuleuven_hme_soy_2025/02-Protein composition and thermal properties_Table2.xlsx
+        md5: e8b36dc650495ac45ded629e71b3f3b3
+      - path: raw/kuleuven_hme_soy_2025/03-Protein dispersibility and WHC_Figure2.xlsx
+        md5: e0fdfa50b5092debb8bbe4858b48a0ed
+      - path: raw/kuleuven_hme_soy_2025/04-Closed cavity rheometer results_Figure 3.xlsx
+        md5: ae9122082c4b5471660e448536a4fd3e
+      - path: raw/kuleuven_hme_soy_2025/05-Specific mechanical energy calculation_Figure4.xlsx
+        md5: 74d96b220161ea5d71e3c4b0815ca315
+      - path: raw/kuleuven_hme_soy_2025/06-X-ray computed tomography results_Figure5.xlsx
+        md5: 2f22f023fc1fe84c7e970db0965e391e
+      - path: raw/kuleuven_hme_soy_2025/07-Texture profile analysis_Figure6.xlsx
+        md5: cded953157c61fece15c5f611d0cc1e9
+    notes: >-
+      Eight files downloaded from the public KU Leuven Dataverse API and
+      verified against repository MD5 checksums. The CC BY 4.0 license allows
+      attribution-based reuse. Local importer retains raw metric rows and
+      source references. Four soy-protein treatment groups support an HME
+      research benchmark, not validation for Kenyan ingredients. Metrics in
+      separate spreadsheet columns do not have specimen IDs and are not
+      joined row-wise. See data/texture_data_readiness.md.
 
   - id: fao-protein-quality-2013
     name: Dietary protein quality evaluation in human nutrition
@@ -112,12 +308,20 @@ sources:
   - id: kamis-kenya-market-prices
     name: Kenya Agricultural Market Information System
     publisher: Kenya Ministry of Agriculture and Livestock Development
-    url: https://kamis.kilimo.go.ke/
-    license_status: unknown
-    import_status: public_market_pages_found_reuse_terms_unverified
+    urls:
+      - https://kamis.kilimo.go.ke/site/market/1280
+      - https://kilimo.go.ke/wp-content/uploads/2024/12/Kilimo-Bulletin-Issue-II-December.pdf
+      - https://kilimo.go.ke/wp-content/uploads/2025/02/DATA_GOVERNANCE_FRAMEWORK_TODATE_REVISED_8.10.241-edited.pdf
+    license_status: reuse_terms_not_confirmed
+    import_status: excel_export_available_exact_market_row_and_reuse_terms_unverified
     notes: >-
       The prototype target is Nairobi Wakulima Market, wholesale, KES/kg.
-      KAMIS exposes dated market observations and an Excel export, but a
-      stable API and data reuse terms for this use were not confirmed. Only
-      use fresh observations that match the chosen market, price type, and
-      unit; otherwise keep cost optimization unavailable.
+      The public market page provides an Excel export with commodity,
+      classification, grade, market, wholesale/retail, supply volume, county,
+      and date fields. Unit is embedded in each price string (for example,
+      /Kg), and currency has no separate field; retain the raw string and do
+      not assume a currency until the source documents it. The Ministry
+      bulletin describes daily, weekly, and monthly updates, but a current
+      Nairobi Wakulima row has not been verified. No official API documentation
+      or dataset-specific license was found. Keep cost optimization unavailable
+      until a fresh matching export is reviewed and reuse terms are established.

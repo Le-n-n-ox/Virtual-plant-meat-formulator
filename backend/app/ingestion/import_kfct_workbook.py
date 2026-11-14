@@ -269,7 +269,10 @@ def import_workbook(input_path: Path, output_path: Path) -> dict[str, Any]:
             if code_raw.isdigit() and 1 <= int(code_raw) <= 13 and name:
                 current_group_code = code_raw
                 continue
-            if not (code_raw.isdigit() and int(code_raw) >= 1000 and name):
+            # Recipe codes include letter suffixes (e.g. 15066r / 15066s)
+            # for distinct variants. Preserve those codes instead of silently
+            # dropping their nutrient rows as non-numeric identifiers.
+            if not (re.fullmatch(r"\d{4,5}[rs]?", code_raw, re.IGNORECASE) and name):
                 continue
 
             code = code_raw
@@ -375,11 +378,24 @@ def import_workbook(input_path: Path, output_path: Path) -> dict[str, Any]:
             "records_without_food_group": counts["without_food_group"],
             "expected_published_food_count": EXPECTED_FOOD_COUNT,
             "expected_published_recipe_count": EXPECTED_RECIPE_COUNT,
+            "published_food_count_claims": {
+                "foreword_count": {
+                    "count": 522,
+                    "source": "KFCT 2018 PDF, printed page v",
+                },
+                "foods_included_section_count": {
+                    "count": 509,
+                    "source": "KFCT 2018 PDF, printed page 2, section 2",
+                },
+                "workbook_coded_food_rows": counts["food"],
+                "status": "official_pdf_count_conflict_unresolved",
+            },
             "count_reconciliation_required": counts["food"] != EXPECTED_FOOD_COUNT
             or counts["recipe"] != EXPECTED_RECIPE_COUNT,
             "quality_notes": [
                 "The importer preserves source cells, row references, units, reported-value flags, sample counts, and missing-cell lists.",
                 "Blank nutrient cells remain missing; trace values are not converted to zero.",
+                "The official KFCT PDF gives conflicting food totals: 522 in the foreword (printed p. v) and 509 in section 2 (printed p. 2); this workbook contains the reported coded row count, without adding or dropping records to force either total.",
                 "This output is an import candidate for review and is not activated as validated product data.",
             ],
         }

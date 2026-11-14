@@ -106,6 +106,7 @@ def _record(
             "usage_scope": "non-commercial research only",
         },
         "record_type": record_type,
+        "processing": {"regime": "low_moisture_extrusion"},
         "identifiers": identifiers,
         "source_reference": {"file": source_file, "row": row_number},
         "values": values,
