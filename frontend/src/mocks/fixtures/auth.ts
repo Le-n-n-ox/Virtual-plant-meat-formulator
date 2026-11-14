@@ -1,11 +1,11 @@
-import type { AuthUser } from "@/types";
+import type { CurrentUser } from "@/lib/api/auth";
 
 /** Mock signed-in user. Never a real account. */
-export const MOCK_USER: AuthUser = {
-  id: "mock-user-1",
+export const MOCK_USER: CurrentUser = {
+  user_id: "mock-user-1",
   email: "scientist@example.test",
-  name: "Mock Scientist",
-  created_at: "2026-11-14T00:00:00Z",
+  display_name: "Mock Scientist",
+  role: "scientist",
 };
 
 export const MOCK_TOKEN = "mock-token-not-a-real-session";
