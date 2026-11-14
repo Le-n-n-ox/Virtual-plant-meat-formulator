@@ -7,8 +7,8 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { RecentFormulations } from "@/components/formulation/recent-formulations";
 import { BackendStatus } from "@/components/layout/backend-status";
-import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -16,13 +16,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
 const ACTIONS = [
   {
-    href: "/formulations/demo",
+    href: "/formulations",
     title: "Open the 3D workspace",
     body: "Build a blend and watch the process view react to validated edits and job events.",
     icon: FlaskConicalIcon,
@@ -87,26 +86,11 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Recent formulations</CardTitle>
             <CardDescription>
-              Your saved formulations will appear here.
+              Your most recently updated formulations.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed p-8 text-center">
-              <FlaskConicalIcon
-                className="size-8 text-muted-foreground"
-                aria-hidden
-              />
-              <p className="text-sm text-muted-foreground">
-                The formulations API is not connected yet. Try the demo
-                workspace in the meantime.
-              </p>
-              <Link
-                href="/formulations/demo"
-                className={cn(buttonVariants({ size: "sm" }))}
-              >
-                Open demo workspace
-              </Link>
-            </div>
+            <RecentFormulations />
           </CardContent>
         </Card>
 

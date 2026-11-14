@@ -50,3 +50,6 @@ redis-data/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Trained model artifacts and generated exports
+backend/artifacts/

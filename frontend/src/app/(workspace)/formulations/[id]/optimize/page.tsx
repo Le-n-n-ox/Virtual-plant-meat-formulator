@@ -1,12 +1,5 @@
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import { OptimizeTab } from "@/components/workspace/optimize-tab";
 
-export default function OptimizePage() {
-  return (
-    <PlaceholderPage
-      title="Optimization setup and run"
-      pageNumber={9}
-      owner="Both"
-      phase="F5"
-    />
-  );
+export default function Page() {
+  return <OptimizeTab />;
 }

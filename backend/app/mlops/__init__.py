@@ -1,1 +1,1 @@
-"""Training, evaluation, and model registry helpers for later phases."""
+"""Dataset loading, grouped-CV training and the model registry for texture estimators."""

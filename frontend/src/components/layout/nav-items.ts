@@ -12,7 +12,7 @@ import {
 export const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
   {
-    href: "/formulations/demo",
+    href: "/formulations",
     label: "Workspace",
     icon: FlaskConicalIcon,
     match: "/formulations",

@@ -17,7 +17,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from pypdf import PdfReader
+from pypdf import PdfReader  # type: ignore[import-not-found]  # pypdf is not a declared dependency
 
 SOURCE_ID = "kfct-recipes-2018"
 SOURCE_CITATION = (
@@ -53,6 +53,19 @@ def _title_after_heading(text: str, heading_end: int, workbook_names: dict[str, 
             continue
         return title
     return ""
+
+
+def _workbook_key(code: str, variant: str | None, name: str | None = None) -> str:
+    """Map the book's 15066(r)/15066 headings to workbook r/s suffixes."""
+    if code == "15066":
+        if variant == "r" or (name and "rice" in name.casefold()):
+            return "15066r"
+        return "15066s"
+    return code
+
+
+def _has_mojibake(value: str) -> bool:
+    return any(marker in value for marker in ("Ã", "Â", "â€", "â€™", "ï¿½", "�"))
 
 
 def _nutrient_status(section: str) -> str:
@@ -93,22 +106,24 @@ def import_recipe_book(
     workbook_names = _workbook_names(workbook_import_path)
     headings = list(CODE_HEADING.finditer(full_text))
     records: list[dict[str, Any]] = []
-    seen_ids: set[str] = set()
     code_counts: Counter[str] = Counter()
     for index, heading in enumerate(headings):
         code = heading.group(1)
         variant = (heading.group(2) or "").lower()
         record_id = f"{code}:{variant}" if variant else code
         stop = headings[index + 1].start() if index + 1 < len(headings) else len(full_text)
-        section = full_text[heading.start():stop].strip()
+        section = full_text[heading.start() : stop].strip()
         title = _title_after_heading(full_text, heading.end(), workbook_names)
+        workbook_key = _workbook_key(code, variant, title)
+        workbook_name = workbook_names.get(workbook_key) or workbook_names.get(code)
+        display_name = workbook_name if workbook_name and _has_mojibake(title) else title
         records.append(
             {
                 "record_type": "recipe",
                 "record_id": record_id,
                 "code": code,
                 "code_suffix": variant or None,
-                "name": title or workbook_names.get(code),
+                "name": display_name or workbook_name,
                 "nutrient_estimate_status": _nutrient_status(section),
                 "extracted_text": section,
                 "source": {
@@ -117,11 +132,10 @@ def import_recipe_book(
                     "workbook_file": pdf_path.name,
                     "pdf_page": _find_source_page(full_text, heading.start()),
                     "heading_text": heading.group(0),
-                    "extraction_method": "pypdf text extraction; layout-dependent values require review",
+                    "extraction_method": "pypdf text extraction; layout-dependent values require review",  # noqa: E501
                 },
             }
         )
-        seen_ids.add(record_id)
         code_counts[code] += 1
 
     # The recipe book's compact nutrient appendix contains this record even
@@ -138,18 +152,17 @@ def import_recipe_book(
                 "code_suffix": None,
                 "name": workbook_names.get("15083") or "Kimanga cha Ndizi",
                 "nutrient_estimate_status": "appendix_values_present_layout_review_required",
-                "extracted_text": full_text[appendix_match.start():appendix_stop],
+                "extracted_text": full_text[appendix_match.start() : appendix_stop],
                 "source": {
                     "source_id": SOURCE_ID,
                     "citation": SOURCE_CITATION,
                     "workbook_file": pdf_path.name,
                     "pdf_page": _find_source_page(full_text, appendix_match.start()),
-                    "heading_text": "Recipe found in the nutrient appendix; narrative heading not extracted",
+                    "heading_text": "Recipe found in the nutrient appendix; narrative heading not extracted",  # noqa: E501
                     "extraction_method": "pypdf text extraction; appendix values require review",
                 },
             }
         )
-        seen_ids.add("15083:appendix")
         code_counts["15083"] += 1
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -158,8 +171,12 @@ def import_recipe_book(
             output.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")))
             output.write("\n")
 
-    missing_workbook_codes = sorted(code for code in code_counts if code not in workbook_names)
-    workbook_only_codes = sorted(code for code in workbook_names if code not in code_counts)
+    book_keys = {
+        _workbook_key(record["code"], record.get("code_suffix"), record.get("name"))
+        for record in records
+    }
+    missing_workbook_codes = sorted(code for code in book_keys if code not in workbook_names)
+    workbook_only_codes = sorted(code for code in workbook_names if code not in book_keys)
     summary = {
         "source_id": SOURCE_ID,
         "source_file": pdf_path.name,
@@ -177,11 +194,14 @@ def import_recipe_book(
         "records_with_font_replacement_character": sum(
             "\ufffd" in record["extracted_text"] for record in records
         ),
+        "records_with_suspected_mojibake": sum(
+            _has_mojibake(record["extracted_text"]) for record in records
+        ),
         "quality_notes": [
             "Recipe content is retained as extracted text with physical PDF page references.",
-            "Ingredient quantities, steps, and nutrients are not promoted to structured fields by this importer.",
-            "Review the duplicate 15066 rice/stew code and the appendix-only record before joining recipes to the food catalogue.",
-            "Text extraction can replace characters from embedded fonts; compare affected entries with the PDF visually.",
+            "Ingredient quantities, steps, and nutrients are not promoted to structured fields by this importer.",  # noqa: E501
+            "Review the duplicate 15066 rice/stew code and the appendix-only record before joining recipes to the food catalogue.",  # noqa: E501
+            "pypdf reports rotated text in the source PDF; review table alignment and rotated pages visually.",  # noqa: E501
         ],
     }
     output_path.with_suffix(".summary.json").write_text(

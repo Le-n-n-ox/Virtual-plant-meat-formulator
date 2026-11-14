@@ -1,25 +1,42 @@
-import { requestValidated } from "./client";
-import {
-  authUserSchema,
-  loginRequestSchema,
-  loginResponseSchema,
-  logoutResponseSchema,
-} from "@/lib/validation/schemas";
+import { jsonInit, requestJson } from "./client";
+import { tokenStore } from "./token";
 
-export function login(email: string, password: string) {
-  return requestValidated("/api/auth/login", loginResponseSchema, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(loginRequestSchema.parse({ email, password })),
-  });
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
 }
 
-export function logout() {
-  return requestValidated("/api/auth/logout", logoutResponseSchema, {
-    method: "POST",
-  });
+export interface CurrentUser {
+  user_id: string;
+  email: string;
+  display_name: string;
+  role: "viewer" | "scientist" | "curator" | "admin" | string;
 }
 
-export function getMe() {
-  return requestValidated("/api/auth/me", authUserSchema);
+export async function login(
+  email: string,
+  password: string,
+): Promise<LoginResponse> {
+  const result = await requestJson<LoginResponse>(
+    "/api/auth/login",
+    jsonInit("POST", { email, password }),
+  );
+  tokenStore.set(result.access_token);
+  return result;
 }
+
+export async function logout(): Promise<void> {
+  try {
+    await requestJson<void>("/api/auth/logout", { method: "POST" });
+  } finally {
+    tokenStore.clear();
+  }
+}
+
+export function me(): Promise<CurrentUser> {
+  return requestJson<CurrentUser>("/api/auth/me");
+}
+
+export const authApi = { login, logout, me };
+export type AuthApi = typeof authApi;

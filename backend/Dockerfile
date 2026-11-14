@@ -11,13 +11,15 @@ COPY alembic.ini ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 COPY app ./app
+COPY data/reference ./data/reference
 
 FROM python:3.15.2-slim-bookworm AS runtime
 ENV PATH="/opt/venv/bin:$PATH" PYTHONUNBUFFERED=1
 WORKDIR /app
-RUN groupadd --system app && useradd --system --gid app --create-home app
+RUN groupadd --system app && useradd --system --gid app --create-home app     && mkdir -p /app/artifacts/models /app/artifacts/exports && chown -R app:app /app/artifacts
 COPY --from=build --chown=app:app /opt/venv /opt/venv
 COPY --from=build --chown=app:app /app/app ./app
+COPY --from=build --chown=app:app /app/data/reference ./data/reference
 COPY --from=build --chown=app:app /app/alembic.ini ./alembic.ini
 USER app
 EXPOSE 8000

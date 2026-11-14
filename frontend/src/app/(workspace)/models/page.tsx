@@ -1,12 +1,8 @@
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import type { Metadata } from "next";
+import { ModelRegistry } from "@/components/models/model-registry";
+
+export const metadata: Metadata = { title: "Models" };
 
 export default function ModelsPage() {
-  return (
-    <PlaceholderPage
-      title="Model registry"
-      pageNumber={15}
-      owner="Steve"
-      phase="F5"
-    />
-  );
+  return <ModelRegistry />;
 }

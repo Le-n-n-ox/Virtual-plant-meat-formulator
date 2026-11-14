@@ -1,12 +1,5 @@
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import { NutritionTab } from "@/components/workspace/nutrition-tab";
 
-export default function NutritionPage() {
-  return (
-    <PlaceholderPage
-      title="Nutrition and amino-acid results"
-      pageNumber={7}
-      owner="Steve"
-      phase="F2"
-    />
-  );
+export default function Page() {
+  return <NutritionTab />;
 }

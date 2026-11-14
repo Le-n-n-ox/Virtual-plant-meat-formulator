@@ -1,12 +1,5 @@
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import { TextureTab } from "@/components/workspace/texture-tab";
 
-export default function TexturePage() {
-  return (
-    <PlaceholderPage
-      title="Texture prediction results"
-      pageNumber={8}
-      owner="Steve"
-      phase="F5"
-    />
-  );
+export default function Page() {
+  return <TextureTab />;
 }

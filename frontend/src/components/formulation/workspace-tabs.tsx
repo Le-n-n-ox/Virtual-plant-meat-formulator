@@ -12,6 +12,7 @@ const TABS = [
   { segment: "optimize", label: "Optimize" },
   { segment: "candidates", label: "Candidates" },
   { segment: "report", label: "Report" },
+  { segment: "versions", label: "Versions" },
 ];
 
 export function WorkspaceTabs() {

@@ -1,24 +1,21 @@
-import type { CompareResponse, NutritionResult } from "@/types";
-import { buildQuery, requestValidated } from "./client";
-import {
-  compareResponseSchema,
-  nutritionResultSchema,
-} from "@/lib/validation/schemas";
+import type { NutritionResult } from "@/types";
+import { buildQuery, requestJson } from "./client";
 
-export function getNutrition(formulationId: string): Promise<NutritionResult> {
-  return requestValidated(
-    `/api/formulations/${encodeURIComponent(formulationId)}/nutrition`,
-    nutritionResultSchema,
+export type {
+  AminoAcidBlock,
+  NutritionResult,
+  TextureResult,
+  TexturePrediction,
+} from "@/types";
+
+export function getNutrition(
+  formulationId: string,
+  version?: number,
+): Promise<NutritionResult> {
+  return requestJson(
+    `/api/formulations/${encodeURIComponent(formulationId)}/nutrition${buildQuery({ version })}`,
   );
 }
 
-/** Side-by-side comparison of two candidates (page 11). */
-export function compareCandidates(
-  idA: string,
-  idB: string,
-): Promise<CompareResponse> {
-  return requestValidated(
-    `/api/compare${buildQuery({ ids: `${idA},${idB}` })}`,
-    compareResponseSchema,
-  );
-}
+export const resultsApi = { getNutrition };
+export type ResultsApi = typeof resultsApi;

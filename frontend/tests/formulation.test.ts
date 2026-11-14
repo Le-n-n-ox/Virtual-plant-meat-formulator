@@ -1,10 +1,29 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { validateFormulationLocally } from "@/lib/validation/formulation";
-import {
-  DEMO_FORMULATION,
-  DEMO_INGREDIENTS,
-} from "@/mocks/fixtures/ingredients";
 import { useFormulationStore } from "@/stores/formulationStore";
+import type { Formulation, Ingredient } from "@/types";
+
+const ingredient = (id: string): Ingredient => ({
+  id,
+  scientific_name: null,
+  common_name: id,
+  form: "raw",
+  moisture_basis: "as_is",
+  nutrients: [],
+  amino_acids: [],
+  source: { name: "test source", license_status: "test" },
+});
+const INGREDIENTS = [ingredient("ing-a"), ingredient("ing-b")];
+const FORMULATION: Formulation = {
+  id: "frm-test",
+  name: "Test blend",
+  version: 1,
+  lines: [
+    { ingredient_id: "ing-a", percent: 60 },
+    { ingredient_id: "ing-b", percent: 40 },
+  ],
+  updated_at: "2026-11-14T00:00:00Z",
+};
 
 describe("validateFormulationLocally", () => {
   it("accepts a total of exactly 100%", () => {
@@ -40,16 +59,14 @@ describe("validateFormulationLocally", () => {
 
 describe("formulationStore", () => {
   beforeEach(() => {
-    useFormulationStore
-      .getState()
-      .loadFormulation(DEMO_FORMULATION, DEMO_INGREDIENTS);
+    useFormulationStore.getState().loadFormulation(FORMULATION, INGREDIENTS);
   });
 
   it("drops a validation result that is older than the current draft", () => {
     const s = useFormulationStore.getState();
     const staleRevision = s.draftRevision;
     const staleLines = s.draft;
-    s.setPercent("demo-cowpea", 50);
+    s.setPercent("ing-a", 50);
     const applied = useFormulationStore
       .getState()
       .applyValidation(
@@ -74,7 +91,7 @@ describe("formulationStore", () => {
   });
 
   it("does not add the same ingredient twice", () => {
-    const cowpea = DEMO_INGREDIENTS[0];
+    const cowpea = INGREDIENTS[0];
     useFormulationStore.getState().addIngredient(cowpea);
     expect(
       useFormulationStore
@@ -84,12 +101,17 @@ describe("formulationStore", () => {
   });
 });
 
-describe("demo fixtures", () => {
-  it("carry no nutrient values (they must never look like real data)", () => {
-    for (const i of DEMO_INGREDIENTS) {
-      expect(i.nutrients).toHaveLength(0);
-      expect(i.amino_acids).toHaveLength(0);
-      expect(i.source.name).toMatch(/not real data/i);
-    }
+describe("formulationStore save tracking", () => {
+  it("markSaved updates the version and saved lines but keeps the draft", () => {
+    useFormulationStore.getState().loadFormulation(FORMULATION, INGREDIENTS);
+    useFormulationStore.getState().setPercent("ing-a", 50);
+    const draft = useFormulationStore.getState().draft;
+    useFormulationStore
+      .getState()
+      .markSaved({ ...FORMULATION, version: 2, lines: draft });
+    const s = useFormulationStore.getState();
+    expect(s.version).toBe(2);
+    expect(s.savedLines).toBe(draft);
+    expect(s.draft).toBe(draft);
   });
 });

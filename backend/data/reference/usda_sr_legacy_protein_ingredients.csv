@@ -1,0 +1,198 @@
+fdc_id,description,nutrient_name,unit,amount_per_100g,source_release,source_license
+168147,Vital wheat gluten,Ash,G,1,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,"Calcium, Ca",MG,142,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,"Carbohydrate, by difference",G,13.79,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,Cholesterol,MG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,Energy,KCAL,370,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,Energy,kJ,1548,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,"Fiber, total dietary",G,0.6,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,"Folate, DFE",UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,"Iron, Fe",MG,5.2,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,"Magnesium, Mg",MG,25,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,Niacin,MG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,"Phosphorus, P",MG,260,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,"Potassium, K",MG,100,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,Protein,G,75.16,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,Retinol,UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,Riboflavin,MG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,"Selenium, Se",UG,39.7,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,"Sodium, Na",MG,29,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,Thiamin,MG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,Total lipid (fat),G,1.85,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,"Vitamin A, RAE",UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,Vitamin B-12,UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,"Vitamin C, total ascorbic acid",MG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,Water,G,8.2,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+168147,Vital wheat gluten,"Zinc, Zn",MG,0.85,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Alanine,G,2.677,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Arginine,G,4.642,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Ash,G,4.7,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Aspartic acid,G,7.249,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction","Calcium, Ca",MG,363,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction","Carbohydrate, by difference",G,25.41,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Cholesterol,MG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Cystine,G,0.886,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Energy,KCAL,328,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Energy,kJ,1373,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction","Fiber, total dietary",G,5.5,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction","Folate, DFE",UG,340,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Glutamic acid,G,12.013,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Glycine,G,2.688,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Histidine,G,1.578,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction","Iron, Fe",MG,10.78,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Isoleucine,G,2.942,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Leucine,G,4.917,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Lysine,G,3.929,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction","Magnesium, Mg",MG,315,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Methionine,G,0.814,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Niacin,MG,0.716,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Phenylalanine,G,3.278,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction","Phosphorus, P",MG,839,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction","Potassium, K",MG,2202,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Proline,G,3.298,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Protein,G,63.63,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Retinol,UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Riboflavin,MG,0.142,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction","Selenium, Se",UG,0.8,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Serine,G,3.369,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction","Sodium, Na",MG,3,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Thiamin,MG,0.316,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Threonine,G,2.474,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Total lipid (fat),G,0.46,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Tryptophan,G,0.835,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Tyrosine,G,2.301,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Valine,G,3.064,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction","Vitamin A, RAE",UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Vitamin B-12,UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction","Vitamin C, total ascorbic acid",MG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction",Water,G,5.8,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+172447,"Soy protein concentrate, produced by alcohol extraction","Zinc, Zn",MG,4.4,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Alanine,G,2.075,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Arginine,G,6.243,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Ash,G,4.75,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Aspartic acid,G,6.367,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted","Calcium, Ca",MG,140,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted","Carbohydrate, by difference",G,34.7,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Cholesterol,MG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Cystine,G,0.669,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Energy,KCAL,327,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Energy,kJ,1368,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted","Fiber, total dietary",G,15.8,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted","Folate, DFE",UG,248,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Glutamic acid,G,10.908,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Glycine,G,3.145,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Histidine,G,1.319,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted","Iron, Fe",MG,2.1,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Isoleucine,G,1.836,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Leucine,G,3.384,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Lysine,G,1.874,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted","Magnesium, Mg",MG,370,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Methionine,G,0.641,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Niacin,MG,27,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Phenylalanine,G,2.705,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted","Phosphorus, P",MG,760,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted","Potassium, K",MG,1290,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Proline,G,2.304,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Protein,G,52.2,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Retinol,UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Riboflavin,MG,0.48,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted","Selenium, Se",UG,7.1,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Serine,G,2.572,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted","Sodium, Na",MG,180,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Thiamin,MG,0.7,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Threonine,G,1.788,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Total lipid (fat),G,0.55,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Tryptophan,G,0.507,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Tyrosine,G,2.122,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Valine,G,2.189,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted","Vitamin A, RAE",UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Vitamin B-12,UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted","Vitamin C, total ascorbic acid",MG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted",Water,G,7.8,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174267,"Peanut flour, defatted","Zinc, Zn",MG,5.1,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Alanine,G,2.215,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Arginine,G,3.647,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Ash,G,6.15,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Aspartic acid,G,5.911,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted","Calcium, Ca",MG,241,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted","Carbohydrate, by difference",G,33.92,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Cholesterol,MG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Cystine,G,0.757,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Energy,KCAL,327,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Energy,kJ,1367,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted","Fiber, total dietary",G,17.5,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted","Folate, DFE",UG,305,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Glutamic acid,G,9.106,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Glycine,G,2.174,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Histidine,G,1.268,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted","Iron, Fe",MG,9.24,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Isoleucine,G,2.281,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Leucine,G,3.828,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Lysine,G,3.129,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted","Magnesium, Mg",MG,290,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Methionine,G,0.634,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Niacin,MG,2.612,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Phenylalanine,G,2.453,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted","Phosphorus, P",MG,674,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted","Potassium, K",MG,2384,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Proline,G,2.75,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Protein,G,51.46,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Retinol,UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Riboflavin,MG,0.253,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted","Selenium, Se",UG,1.7,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Serine,G,2.725,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted","Sodium, Na",MG,20,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Thiamin,MG,0.698,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Threonine,G,2.042,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Total lipid (fat),G,1.22,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Tryptophan,G,0.683,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Tyrosine,G,1.778,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Valine,G,2.346,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted","Vitamin A, RAE",UG,2,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Vitamin B-12,UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted","Vitamin C, total ascorbic acid",MG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted",Water,G,7.25,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174275,"Soy flour, defatted","Zinc, Zn",MG,2.46,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Alanine,G,3.589,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Arginine,G,6.67,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Ash,G,3.58,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Aspartic acid,G,10.203,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,"Calcium, Ca",MG,178,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,"Carbohydrate, by difference",G,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Cholesterol,MG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Cystine,G,1.046,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Energy,KCAL,335,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Energy,kJ,1401,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,"Fiber, total dietary",G,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,"Folate, DFE",UG,176,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Glutamic acid,G,17.452,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Glycine,G,3.603,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Histidine,G,2.303,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,"Iron, Fe",MG,14.5,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Isoleucine,G,4.253,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Leucine,G,6.783,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Lysine,G,5.327,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,"Magnesium, Mg",MG,39,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Methionine,G,1.13,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Niacin,MG,1.438,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Phenylalanine,G,4.593,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,"Phosphorus, P",MG,776,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,"Potassium, K",MG,81,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Proline,G,4.96,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Protein,G,88.32,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Retinol,UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Riboflavin,MG,0.1,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,"Selenium, Se",UG,0.8,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Serine,G,4.593,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,"Sodium, Na",MG,1005,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Thiamin,MG,0.176,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Threonine,G,3.137,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Total lipid (fat),G,3.39,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Tryptophan,G,1.116,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Tyrosine,G,3.222,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Valine,G,4.098,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,"Vitamin A, RAE",UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Vitamin B-12,UG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,"Vitamin C, total ascorbic acid",MG,0,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,Water,G,4.98,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0
+174276,Soy protein isolate,"Zinc, Zn",MG,4.03,USDA FoodData Central SR Legacy 2018-04 final release,CC0 1.0

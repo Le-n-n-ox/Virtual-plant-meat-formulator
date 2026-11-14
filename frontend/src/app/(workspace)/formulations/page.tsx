@@ -1,12 +1,8 @@
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import type { Metadata } from "next";
+import { FormulationList } from "@/components/formulation/formulation-list";
+
+export const metadata: Metadata = { title: "Formulations" };
 
 export default function FormulationsPage() {
-  return (
-    <PlaceholderPage
-      title="Formulation list"
-      pageNumber={5}
-      owner="Steve"
-      phase="F2"
-    />
-  );
+  return <FormulationList />;
 }

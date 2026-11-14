@@ -1,44 +1,79 @@
-import type { Ingredient, IngredientListItem, Paginated } from "@/types";
-import { requestValidated } from "./client";
-import {
-  ingredientDetailSchema,
-  ingredientListItemSchema,
-  paginatedSchema,
-} from "@/lib/validation/schemas";
+import type { IngredientDetail, IngredientListItem, Paged } from "@/types";
+import { buildQuery, requestJson } from "./client";
 
-export type IngredientListParams = {
+export interface IngredientListParams {
   q?: string;
   crop?: string;
   form?: string;
-  source?: string;
+  source_id?: string;
   flag?: "analytical" | "estimated";
-  status?: "active" | "draft" | "retired";
+  status?: string;
+  /** Hide the source's meat, fish and dairy food groups. */
+  exclude_animal_groups?: boolean;
   sort?: string;
   page?: number;
   page_size?: number;
-};
+}
 
-export function getIngredients(
+export interface FacetEntry {
+  value?: string;
+  id?: string;
+  name?: string;
+  count: number;
+}
+
+export interface IngredientFacets {
+  crops: FacetEntry[];
+  forms: FacetEntry[];
+  sources: FacetEntry[];
+}
+
+export interface NutrientDefinition {
+  key: string;
+  name: string;
+  unit: string;
+  kind: string;
+}
+
+export interface AminoAcidPattern {
+  id: string;
+  name: string;
+  version?: string;
+  is_default?: boolean;
+  [key: string]: unknown;
+}
+
+export function listIngredients(
   params: IngredientListParams = {},
-): Promise<Paginated<IngredientListItem>> {
-  const searchParams = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== "") {
-      searchParams.set(key, String(value));
-    }
-  }
-
-  const query = searchParams.toString();
-  return requestValidated(
-    `/api/ingredients${query ? `?${query}` : ""}`,
-    paginatedSchema(ingredientListItemSchema),
-  );
+): Promise<Paged<IngredientListItem>> {
+  return requestJson(`/api/ingredients${buildQuery({ ...params })}`);
 }
 
-export function getIngredient(id: string): Promise<Ingredient> {
-  return requestValidated(
-    `/api/ingredients/${encodeURIComponent(id)}`,
-    ingredientDetailSchema,
-  );
+export function getIngredient(id: string): Promise<IngredientDetail> {
+  return requestJson(`/api/ingredients/${encodeURIComponent(id)}`);
 }
+
+export function getIngredientFacets(): Promise<IngredientFacets> {
+  return requestJson("/api/ingredients/facets");
+}
+
+export function listNutrients(): Promise<
+  NutrientDefinition[] | { items: NutrientDefinition[] }
+> {
+  return requestJson("/api/nutrients");
+}
+
+export function listAminoAcidPatterns(): Promise<
+  AminoAcidPattern[] | { items: AminoAcidPattern[] }
+> {
+  return requestJson("/api/amino-acid-patterns");
+}
+
+export const ingredientsApi = {
+  listIngredients,
+  getIngredient,
+  getIngredientFacets,
+  listNutrients,
+  listAminoAcidPatterns,
+};
+export type IngredientsApi = typeof ingredientsApi;

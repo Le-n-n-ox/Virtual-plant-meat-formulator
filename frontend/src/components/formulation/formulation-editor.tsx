@@ -2,50 +2,73 @@
 
 import {
   CheckCircle2Icon,
-  GripVerticalIcon,
+  FlaskConicalIcon,
   PlayIcon,
-  PlusIcon,
+  SaveIcon,
   SquareIcon,
   Trash2Icon,
   TriangleAlertIcon,
 } from "lucide-react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useRef, useState } from "react";
-import { motion } from "motion/react";
+import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { IngredientPicker } from "@/components/formulation/ingredient-picker";
+import { TextureDialog } from "@/components/formulation/texture-dialog";
+import { ExplainPanel } from "@/components/assistant/explain-panel";
+import { NutritionResults } from "@/components/results/nutrition-results";
+import { TextureResults } from "@/components/results/texture-results";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ApiError } from "@/lib/api/client";
+import { saveFormulation } from "@/lib/api/formulations";
+import { cancelJob, type ProcessConditions } from "@/lib/api/jobs";
+import { describeRunError, runJob } from "@/lib/jobs/job-runner";
+import { errorMessage } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { DEMO_INGREDIENTS } from "@/mocks/fixtures/ingredients";
-import { SCENARIOS, type ScenarioId, playScenario } from "@/mocks/scenarios";
+import { cropVar } from "@/scene/theme/sceneTheme";
 import { useFormulationStore } from "@/stores/formulationStore";
 import { isTerminal, useJobStore } from "@/stores/jobStore";
+import { useResultStore } from "@/stores/resultStore";
 import { useSelectionStore } from "@/stores/selectionStore";
-import { setIngredientDragData } from "@/lib/dnd";
-import { cropVar } from "@/scene/theme/sceneTheme";
+import type { FormulationLine } from "@/types";
 
-/**
- * Preliminary editor so the scene can be exercised end-to-end. The full
- * editor (picker, targets, save/versions) is page 6 in the frontend guide.
- */
+function sameLines(a: FormulationLine[], b: FormulationLine[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (l, i) =>
+        l.ingredient_id === b[i].ingredient_id && l.percent === b[i].percent,
+    )
+  );
+}
+
 export function FormulationEditor() {
   const { id } = useParams<{ id: string }>();
-  const { name, version, draft, catalog, validated, revisionMatches } =
-    useFormulationStore(
-      useShallow((s) => ({
-        name: s.name,
-        version: s.version,
-        draft: s.draft,
-        catalog: s.catalog,
-        validated: s.validated,
-        revisionMatches: s.validated?.lines === s.draft,
-      })),
-    );
-  const { addIngredient, removeIngredient, setPercent } = useFormulationStore(
+  const {
+    name,
+    version,
+    draft,
+    savedLines,
+    catalog,
+    validated,
+    loadState,
+    loadError,
+  } = useFormulationStore(
     useShallow((s) => ({
-      addIngredient: s.addIngredient,
+      name: s.name,
+      version: s.version,
+      draft: s.draft,
+      savedLines: s.savedLines,
+      catalog: s.catalog,
+      validated: s.validated,
+      loadState: s.loadState,
+      loadError: s.loadError,
+    })),
+  );
+  const { removeIngredient, setPercent } = useFormulationStore(
+    useShallow((s) => ({
       removeIngredient: s.removeIngredient,
       setPercent: s.setPercent,
     })),
@@ -54,61 +77,110 @@ export function FormulationEditor() {
     useShallow((s) => [s.selectedIngredientId, s.selectIngredient]),
   );
 
-  if (id !== "demo") {
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState(false);
+  const [textureOpen, setTextureOpen] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+
+  if (loadState === "loading" || loadState === "idle") {
     return (
-      <p className="text-sm text-muted-foreground">
-        Loading saved formulations needs the formulations API. Open{" "}
-        <Link className="text-primary underline" href="/formulations/demo">
-          the demo workspace
-        </Link>{" "}
-        to try the editor and 3D scene.
+      <Skeleton className="h-64 w-full" aria-label="Loading formulation" />
+    );
+  }
+  if (loadState === "error") {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {loadError ?? "Could not load this formulation."}
       </p>
     );
   }
 
-  const available = DEMO_INGREDIENTS.filter(
-    (i) => !draft.some((l) => l.ingredient_id === i.id),
-  );
   const result = validated?.result;
+  const revisionMatches = validated?.lines === draft;
+  const valid = Boolean(revisionMatches && result?.valid);
+  const dirty = !sameLines(draft, savedLines);
   const total = draft.reduce(
     (s, l) => s + (Number.isFinite(l.percent) ? l.percent : 0),
     0,
   );
+  const canRun = version > 0 && !dirty;
+
+  async function save() {
+    setSaving(true);
+    setSaveError(null);
+    setConflict(false);
+    try {
+      const saved = await saveFormulation(id, {
+        base_version: version,
+        lines: draft,
+      });
+      useFormulationStore.getState().markSaved(saved);
+      useResultStore.getState().clear();
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "version_conflict") {
+        setConflict(true);
+      } else {
+        setSaveError(errorMessage(error));
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function start(body: Parameters<typeof runJob>[2]): Promise<void> {
+    setStartError(null);
+    selectIngredient(null);
+    await runJob(id, version, body);
+  }
+
+  async function startNutrition() {
+    try {
+      await start({ type: "nutrition" });
+    } catch (error) {
+      setStartError(
+        error instanceof ApiError
+          ? describeRunError(error.code, error.message)
+          : errorMessage(error),
+      );
+    }
+  }
+
+  async function startTexture(process: ProcessConditions, targets: string[]) {
+    await start({ type: "texture_prediction", params: { process, targets } });
+  }
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-lg font-semibold">{name}</h1>
-        <Badge variant="secondary">v{version}</Badge>
-        <Badge variant="outline" className="border-warning/60">
-          Demo data · no nutrient values
+        <Badge variant="secondary">
+          {version === 0 ? "Not saved yet" : `v${version}`}
         </Badge>
-        <span
-          className={cn(
-            "ml-auto flex items-center gap-1.5 text-xs",
-            revisionMatches ? "text-success" : "text-muted-foreground",
-          )}
-        >
-          <span
-            aria-hidden
-            className={cn(
-              "size-1.5 rounded-full",
-              revisionMatches ? "bg-success" : "bg-muted-foreground",
-            )}
-          />
-          {revisionMatches ? "Scene synced" : "Validating…"}
-        </span>
+        {dirty ? (
+          <Badge variant="outline" className="border-warning/60">
+            Unsaved changes
+          </Badge>
+        ) : version > 0 ? (
+          <Badge variant="outline" className="gap-1">
+            <CheckCircle2Icon className="text-success" aria-hidden /> Saved
+          </Badge>
+        ) : null}
       </div>
 
-      <section aria-label="Ingredients" className="flex flex-col gap-2">
-        <div className="overflow-hidden rounded-lg border">
+      <section aria-label="Ingredients" className="flex flex-col gap-3">
+        {draft.length === 0 ? (
+          <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+            No ingredients yet. Search the catalogue below to add some.
+          </p>
+        ) : (
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+            <thead className="text-left text-xs text-muted-foreground">
               <tr>
-                <th className="px-3 py-2 font-medium">Ingredient</th>
-                <th className="px-3 py-2 font-medium">Form</th>
-                <th className="w-28 px-3 py-2 font-medium">% of mass</th>
-                <th className="w-10 px-3 py-2">
+                <th className="py-1 font-medium">Ingredient</th>
+                <th className="py-1 font-medium">Form</th>
+                <th className="w-28 py-1 font-medium">% of mass</th>
+                <th className="w-10 py-1">
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
@@ -116,20 +188,23 @@ export function FormulationEditor() {
             <tbody>
               {draft.map((line, i) => {
                 const ing = catalog[line.ingredient_id];
-                const issue = result?.issues.find(
-                  (x) => x.ingredient_id === line.ingredient_id,
-                );
+                const issues =
+                  (revisionMatches &&
+                    result?.issues.filter(
+                      (x) => x.ingredient_id === line.ingredient_id,
+                    )) ||
+                  [];
                 const selected = selectedId === line.ingredient_id;
                 return (
                   <tr
                     key={line.ingredient_id}
                     className={cn(
-                      "border-t transition-colors",
-                      selected ? "bg-accent/50" : "hover:bg-muted/40",
+                      "border-t align-top",
+                      selected && "bg-accent/50",
                     )}
                     onClick={() => selectIngredient(line.ingredient_id)}
                   >
-                    <td className="px-3 py-1.5">
+                    <td className="py-1.5">
                       <span className="flex items-center gap-2">
                         <span
                           aria-hidden
@@ -138,11 +213,19 @@ export function FormulationEditor() {
                         />
                         {ing?.common_name ?? line.ingredient_id}
                       </span>
+                      {issues.map((x) => (
+                        <p
+                          key={x.code + x.message}
+                          className="mt-0.5 pl-4.5 text-xs text-destructive"
+                        >
+                          {x.message}
+                        </p>
+                      ))}
                     </td>
-                    <td className="px-3 py-1.5 text-muted-foreground">
+                    <td className="py-1.5 text-muted-foreground">
                       {ing?.form}
                     </td>
-                    <td className="px-3 py-1.5">
+                    <td className="py-1.5">
                       <Input
                         type="number"
                         inputMode="decimal"
@@ -153,7 +236,7 @@ export function FormulationEditor() {
                           Number.isFinite(line.percent) ? line.percent : ""
                         }
                         aria-label={`Percentage of ${ing?.common_name ?? line.ingredient_id}`}
-                        aria-invalid={Boolean(issue)}
+                        aria-invalid={issues.length > 0}
                         onChange={(e) =>
                           setPercent(
                             line.ingredient_id,
@@ -165,7 +248,7 @@ export function FormulationEditor() {
                         className="h-7 tabular-nums"
                       />
                     </td>
-                    <td className="px-3 py-1.5 text-right">
+                    <td className="py-1.5 text-right">
                       <Button
                         size="icon-sm"
                         variant="ghost"
@@ -183,46 +266,80 @@ export function FormulationEditor() {
               })}
             </tbody>
           </table>
-        </div>
-
-        {available.length > 0 && (
-          <div className="flex flex-col gap-1.5">
-            <p className="text-xs text-muted-foreground">
-              Click to add, or drag a crop into the 3D view. Drop it on a bin to
-              replace that ingredient.
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {available.map((ing) => (
-                <Button
-                  key={ing.id}
-                  size="xs"
-                  variant="outline"
-                  className="cursor-grab active:cursor-grabbing"
-                  draggable
-                  title={`Drag ${ing.common_name} into the 3D view`}
-                  onDragStart={(e) => setIngredientDragData(e, ing)}
-                  onClick={() => addIngredient(ing, 0)}
-                >
-                  <GripVerticalIcon
-                    aria-hidden
-                    className="size-3 text-muted-foreground"
-                  />
-                  <PlusIcon aria-hidden /> {ing.common_name}
-                </Button>
-              ))}
-            </div>
-          </div>
         )}
+
+        <IngredientPicker takenIds={draft.map((l) => l.ingredient_id)} />
       </section>
 
       <TotalsBar
         total={total}
-        valid={result?.valid ?? false}
+        valid={valid}
         pending={!revisionMatches}
-        messages={result?.issues.map((i) => i.message) ?? []}
+        messages={
+          revisionMatches
+            ? (result?.issues
+                .filter((i) => !i.ingredient_id)
+                .map((i) => i.message) ?? [])
+            : []
+        }
       />
 
-      <DemoJobs />
+      <section aria-label="Save" className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => void save()}
+            disabled={!valid || !dirty || saving}
+          >
+            <SaveIcon aria-hidden /> {saving ? "Saving…" : "Save"}
+          </Button>
+          {!valid && dirty && (
+            <span className="text-xs text-muted-foreground">
+              Fix the issues above to save.
+            </span>
+          )}
+        </div>
+        {saveError && (
+          <p role="alert" className="text-sm text-destructive">
+            {saveError}
+          </p>
+        )}
+        {conflict && (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/70 bg-warning/10 p-3 text-sm"
+          >
+            <TriangleAlertIcon className="size-4 text-warning" aria-hidden />
+            <span>
+              This formulation was changed elsewhere since you opened it. Reload
+              to see the latest version (your unsaved edits will be replaced).
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setConflict(false);
+                useFormulationStore.getState().requestReload();
+              }}
+            >
+              Reload latest
+            </Button>
+          </div>
+        )}
+      </section>
+
+      <JobSection
+        canRun={canRun}
+        dirty={dirty}
+        startError={startError}
+        onNutrition={() => void startNutrition()}
+        onTexture={() => setTextureOpen(true)}
+      />
+      <TextureDialog
+        open={textureOpen}
+        onOpenChange={setTextureOpen}
+        onSubmit={startTexture}
+      />
+      <Results />
     </div>
   );
 }
@@ -242,7 +359,7 @@ function TotalsBar({
   return (
     <div
       className={cn(
-        "rounded-lg border p-3 text-sm transition-colors",
+        "rounded-lg border p-3 text-sm",
         pending
           ? "border-border"
           : valid
@@ -272,14 +389,12 @@ function TotalsBar({
         className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
         aria-hidden
       >
-        <motion.div
+        <div
           className={cn(
             "h-full rounded-full",
             valid ? "bg-success" : "bg-warning",
           )}
-          initial={false}
-          animate={{ width: `${Math.min(100, Math.max(0, rounded))}%` }}
-          transition={{ type: "spring", stiffness: 200, damping: 30 }}
+          style={{ width: `${Math.min(100, Math.max(0, rounded))}%` }}
         />
       </div>
       {!pending && messages.length > 0 && (
@@ -293,104 +408,128 @@ function TotalsBar({
   );
 }
 
-/** Dev-only: replays scripted job events so the scene can be tested without a backend. */
-function DemoJobs() {
-  const [scenario, setScenario] = useState<ScenarioId>("optimization");
-  const stop = useRef<(() => void) | null>(null);
-  const { status, candidateIds, activeJobId } = useJobStore(
+function JobSection({
+  canRun,
+  dirty,
+  startError,
+  onNutrition,
+  onTexture,
+}: {
+  canRun: boolean;
+  dirty: boolean;
+  startError: string | null;
+  onNutrition: () => void;
+  onTexture: () => void;
+}) {
+  const { status, activeJobId, message } = useJobStore(
     useShallow((s) => ({
       status: s.status,
-      candidateIds: s.candidateIds,
       activeJobId: s.activeJobId,
+      message: s.message,
     })),
   );
-  const [selectedCandidate, selectCandidate] = useSelectionStore(
-    useShallow((s) => [s.selectedCandidateId, s.selectCandidate]),
-  );
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const running = activeJobId !== null && !isTerminal(status);
+
+  async function cancel() {
+    if (!activeJobId) return;
+    setCancelError(null);
+    try {
+      await cancelJob(activeJobId);
+    } catch (error) {
+      setCancelError(errorMessage(error));
+    }
+  }
 
   return (
     <section
-      aria-label="Mock job events"
-      className="flex flex-col gap-2 rounded-lg border border-dashed bg-muted/20 p-3"
+      aria-label="Calculations"
+      className="flex flex-col gap-2 rounded-lg border p-3"
     >
-      <div className="flex items-center gap-2">
-        <h2 className="text-sm font-medium">Run a mock job</h2>
-        <Badge variant="outline">Mock events</Badge>
-      </div>
+      <h2 className="text-sm font-medium">Calculations</h2>
       <p className="text-xs text-muted-foreground">
-        Replays a scripted event stream into the job store, exactly as the SSE
-        client will. No calculations are run.
+        Jobs run on the saved version
+        {dirty ? " — save your changes first." : "."}
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="h-8 rounded-lg border bg-background px-2 text-sm"
-          value={scenario}
-          onChange={(e) => setScenario(e.target.value as ScenarioId)}
-          aria-label="Scenario"
-          disabled={running}
-        >
-          {SCENARIOS.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-        </select>
+        <Button size="sm" disabled={!canRun || running} onClick={onNutrition}>
+          <PlayIcon aria-hidden /> Run nutrition
+        </Button>
         <Button
           size="sm"
-          disabled={running}
-          onClick={() => {
-            stop.current?.();
-            selectCandidate(null);
-            stop.current = playScenario(scenario);
-          }}
+          variant="outline"
+          disabled={!canRun || running}
+          onClick={onTexture}
         >
-          <PlayIcon aria-hidden /> Run
+          <FlaskConicalIcon aria-hidden /> Predict texture
         </Button>
         <Button
           size="sm"
           variant="outline"
           disabled={!running}
-          onClick={() => {
-            stop.current?.();
-            const s = useJobStore.getState();
-            if (s.activeJobId) {
-              s.applyEvent({
-                job_id: s.activeJobId,
-                event: "job.cancelled",
-                status: "cancelled",
-                stage: s.currentStage ?? "",
-                stage_label: s.currentStage
-                  ? (s.stageLabels[s.currentStage] ?? "")
-                  : "",
-                progress_percent: null,
-                candidate_id: null,
-                message: "Cancelled by user.",
-                timestamp: new Date().toISOString(),
-                seq: (s.lastSeq ?? 0) + 1,
-              });
-            }
-          }}
+          onClick={() => void cancel()}
         >
           <SquareIcon aria-hidden /> Cancel
         </Button>
       </div>
-      {candidateIds.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 pt-1">
-          <span className="text-xs text-muted-foreground">Candidates:</span>
-          {candidateIds.map((c) => (
-            <Button
-              key={c}
-              size="xs"
-              variant={selectedCandidate === c ? "secondary" : "outline"}
-              aria-pressed={selectedCandidate === c}
-              onClick={() => selectCandidate(c)}
-            >
-              Preview {c}
-            </Button>
-          ))}
-        </div>
+      {running && message && (
+        <p className="text-xs text-muted-foreground">{message}</p>
+      )}
+      {(startError || cancelError) && (
+        <p role="alert" className="text-sm text-destructive">
+          {startError ?? cancelError}
+        </p>
       )}
     </section>
+  );
+}
+
+function Results() {
+  const {
+    nutrition,
+    texture,
+    nutritionJobId,
+    textureJobId,
+    loading,
+    error,
+    version,
+  } = useResultStore(
+    useShallow((s) => ({
+      nutrition: s.nutrition,
+      texture: s.texture,
+      nutritionJobId: s.nutritionJobId,
+      textureJobId: s.textureJobId,
+      loading: s.loading,
+      error: s.error,
+      version: s.version,
+    })),
+  );
+  const current = useFormulationStore((s) => s.version);
+  if (loading) return <Skeleton className="h-24 w-full" />;
+  if (error) {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {describeRunError(error.code, error.message)}
+      </p>
+    );
+  }
+  if (version !== null && version !== current) return null;
+  return (
+    <>
+      {nutrition && <NutritionResults result={nutrition} />}
+      {nutrition && nutritionJobId && (
+        <ExplainPanel
+          target={{ kind: "job", id: nutritionJobId }}
+          label="Explain nutrition"
+        />
+      )}
+      {texture && <TextureResults result={texture} />}
+      {texture && textureJobId && (
+        <ExplainPanel
+          target={{ kind: "job", id: textureJobId }}
+          label="Explain texture prediction"
+        />
+      )}
+    </>
   );
 }

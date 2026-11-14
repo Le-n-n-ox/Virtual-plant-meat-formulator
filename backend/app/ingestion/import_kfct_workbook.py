@@ -15,7 +15,7 @@ import zipfile
 from collections import Counter
 from decimal import Decimal, InvalidOperation
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, cast
 from xml.etree import ElementTree as ET
 
 MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -24,7 +24,9 @@ PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 NS = {"m": MAIN_NS, "r": REL_NS, "p": PKG_REL_NS}
 SOURCE_ID = "kfct-2018"
 SOURCE_CITATION = "FAO & Government of Kenya. 2018. Kenya Food Composition Tables. Nairobi, FAO."
-LICENSE_NOTICE = "Non-commercial research use with acknowledgement; commercial reuse requires FAO permission."
+LICENSE_NOTICE = (
+    "Non-commercial research use with acknowledgement; commercial reuse requires FAO permission."
+)
 EXPECTED_FOOD_COUNT = 522
 EXPECTED_RECIPE_COUNT = 142
 
@@ -134,7 +136,7 @@ class WorkbookReader:
                     value = "".join(text.text or "" for text in cell.findall(".//m:t", NS))
                 else:
                     element = cell.find("m:v", NS)
-                    value = element.text if element is not None else ""
+                    value = cast("str", element.text) if element is not None else ""
                     if cell_type == "s" and value:
                         value = self.shared_strings[int(value)]
                 values[_column_number(cell.attrib["r"])] = value
@@ -145,7 +147,9 @@ class WorkbookReader:
         self.archive.close()
 
 
-def _component_metadata(rows: dict[int, dict[int, str]]) -> tuple[dict[str, dict[str, str]], dict[str, dict[str, str]]]:
+def _component_metadata(
+    rows: dict[int, dict[int, str]],
+) -> tuple[dict[str, dict[str, str]], dict[str, dict[str, str]]]:
     by_tag: dict[str, dict[str, str]] = {}
     by_name: dict[str, dict[str, str]] = {}
     for row_number, row in rows.items():
@@ -168,8 +172,8 @@ def _component_metadata(rows: dict[int, dict[int, str]]) -> tuple[dict[str, dict
     return by_tag, by_name
 
 
-def _food_index(rows: dict[int, dict[int, str]]) -> dict[str, dict[str, str]]:
-    result: dict[str, dict[str, str]] = {}
+def _food_index(rows: dict[int, dict[int, str]]) -> dict[str, dict[str, Any]]:
+    result: dict[str, dict[str, Any]] = {}
     for row_number, row in rows.items():
         if row_number < 4:
             continue
@@ -269,7 +273,10 @@ def import_workbook(input_path: Path, output_path: Path) -> dict[str, Any]:
             if code_raw.isdigit() and 1 <= int(code_raw) <= 13 and name:
                 current_group_code = code_raw
                 continue
-            if not (code_raw.isdigit() and int(code_raw) >= 1000 and name):
+            # Recipe codes include letter suffixes (e.g. 15066r / 15066s)
+            # for distinct variants. Preserve those codes instead of silently
+            # dropping their nutrient rows as non-numeric identifiers.
+            if not (re.fullmatch(r"\d{4,5}[rs]?", code_raw, re.IGNORECASE) and name):
                 continue
 
             code = code_raw
@@ -375,16 +382,31 @@ def import_workbook(input_path: Path, output_path: Path) -> dict[str, Any]:
             "records_without_food_group": counts["without_food_group"],
             "expected_published_food_count": EXPECTED_FOOD_COUNT,
             "expected_published_recipe_count": EXPECTED_RECIPE_COUNT,
+            "published_food_count_claims": {
+                "foreword_count": {
+                    "count": 522,
+                    "source": "KFCT 2018 PDF, printed page v",
+                },
+                "foods_included_section_count": {
+                    "count": 509,
+                    "source": "KFCT 2018 PDF, printed page 2, section 2",
+                },
+                "workbook_coded_food_rows": counts["food"],
+                "status": "official_pdf_count_conflict_unresolved",
+            },
             "count_reconciliation_required": counts["food"] != EXPECTED_FOOD_COUNT
             or counts["recipe"] != EXPECTED_RECIPE_COUNT,
             "quality_notes": [
-                "The importer preserves source cells, row references, units, reported-value flags, sample counts, and missing-cell lists.",
+                "The importer preserves source cells, row references, units, reported-value flags, sample counts, and missing-cell lists.",  # noqa: E501
                 "Blank nutrient cells remain missing; trace values are not converted to zero.",
-                "This output is an import candidate for review and is not activated as validated product data.",
+                "The official KFCT PDF gives conflicting food totals: 522 in the foreword (printed p. v) and 509 in section 2 (printed p. 2); this workbook contains the reported coded row count, without adding or dropping records to force either total.",  # noqa: E501
+                "This output is an import candidate for review and is not activated as validated product data.",  # noqa: E501
             ],
         }
         summary_path = output_path.with_suffix(".summary.json")
-        summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        summary_path.write_text(
+            json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
         return summary
     finally:
         reader.close()
