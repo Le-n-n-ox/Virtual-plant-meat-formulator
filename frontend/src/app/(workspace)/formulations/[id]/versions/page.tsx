@@ -1,12 +1,5 @@
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import { VersionsTab } from "@/components/workspace/versions-tab";
 
-export default function VersionsPage() {
-  return (
-    <PlaceholderPage
-      title="Saved versions and diff"
-      pageNumber={12}
-      owner="Steve"
-      phase="F2"
-    />
-  );
+export default function Page() {
+  return <VersionsTab />;
 }

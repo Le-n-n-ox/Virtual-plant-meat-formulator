@@ -50,6 +50,7 @@ export interface OptimizationParams {
   process?: Partial<ProcessConditions>;
   n_candidates?: number;
   seed?: number;
+  out_of_domain?: "warn" | "drop";
 }
 
 export type StartJobBody =

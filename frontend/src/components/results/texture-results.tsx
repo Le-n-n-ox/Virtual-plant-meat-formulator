@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatNumber, humanizeKey } from "@/lib/format";
 import type { TexturePrediction, TextureResult } from "@/types";
 
-function intervalOf(p: TexturePrediction): [number, number] | null {
+export function intervalOf(p: TexturePrediction): [number, number] | null {
   const raw = p.interval as unknown;
   if (Array.isArray(raw) && raw.length === 2) {
     return [Number(raw[0]), Number(raw[1])];
@@ -53,6 +53,11 @@ export function TextureResults({ result }: { result: TextureResult }) {
                 {value === null || value === undefined ? (
                   <span className="text-muted-foreground">
                     No supported prediction
+                    {p.reason ? ` (${humanizeKey(p.reason).toLowerCase()}` : ""}
+                    {p.missing_features?.length
+                      ? `: ${p.missing_features.join(", ")}`
+                      : ""}
+                    {p.reason ? ")" : ""}
                   </span>
                 ) : (
                   <>
@@ -95,7 +100,14 @@ export function TextureResults({ result }: { result: TextureResult }) {
             className="mt-px size-3.5 shrink-0 text-warning"
             aria-hidden
           />
-          {w.message}
+          <span>
+            {w.code && (
+              <Badge variant="outline" className="mr-1.5">
+                {humanizeKey(w.code)}
+              </Badge>
+            )}
+            {w.message}
+          </span>
         </p>
       ))}
     </section>

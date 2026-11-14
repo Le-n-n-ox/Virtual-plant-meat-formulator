@@ -161,6 +161,11 @@ def compare_candidates(a: dict[str, Any], b: dict[str, Any]) -> list[dict[str, A
     for metric in [*rows_a, *(m for m in rows_b if m not in rows_a)]:
         unit_a, va = rows_a.get(metric, (None, None))
         unit_b, vb = rows_b.get(metric, (None, None))
+        if metric.startswith("percent:"):
+            # An ingredient absent from a candidate is a known 0 %, not missing data.
+            unit_a, unit_b = unit_a or "%", unit_b or "%"
+            va = 0.0 if metric not in rows_a else va
+            vb = 0.0 if metric not in rows_b else vb
         if va is None and vb is None:
             continue
         delta = round(vb - va, 10) if va is not None and vb is not None else None

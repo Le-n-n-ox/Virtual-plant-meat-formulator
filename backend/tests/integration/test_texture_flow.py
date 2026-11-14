@@ -194,3 +194,34 @@ def test_training_job_via_admin(client, headers, db, users):  # type: ignore[no-
         ).status_code
         == 403
     )
+
+
+def test_optimization_texture_objective_missing_inputs_fails_cleanly(  # type: ignore[no-untyped-def]
+    client, headers, approved_hardness, protein_rich, db
+):
+    row = db.execute(
+        select(IngredientNutrient).where(
+            IngredientNutrient.ingredient_id == "ing_sorghum",
+            IngredientNutrient.nutrient_key == "fibre",
+        )
+    ).scalar_one()
+    row.value = None
+    db.commit()
+    resp = client.post(
+        "/api/formulations/frm_tex/jobs",
+        json={
+            "type": "optimization",
+            "params": {
+                "objectives": [{"target": "hardness", "direction": "target", "value": 40}],
+                "process": {"moisture_percent": 60},
+                "n_starts": 3,
+                "seed": 1,
+            },
+        },
+        headers=headers["scientist"],
+    )
+    status = client.get(f"/api/jobs/{resp.json()['job_id']}", headers=headers["scientist"]).json()
+    assert status["status"] == "failed"
+    assert status["error"]["code"] == "missing_ingredient_data"
+    assert status["error"]["details"]["ingredient_ids"] == ["ing_sorghum"]
+    assert status["candidate_ids"] == []

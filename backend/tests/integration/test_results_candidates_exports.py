@@ -340,3 +340,20 @@ def test_export_restricted_excluded(client, headers, data, db, catalog):
 def test_viewer_forbidden(client, headers, data, method, path):
     r = getattr(client, method)(path, headers=headers["viewer"])
     assert r.status_code == 403
+
+
+def test_compare_absent_ingredient_is_zero_percent() -> None:
+    from app.db.repositories.results import compare_candidates
+
+    a = {"lines": [{"ingredient_id": "ing_x", "percent": 100}], "metrics": {}, "predictions": []}
+    b = {
+        "lines": [
+            {"ingredient_id": "ing_x", "percent": 78.9},
+            {"ingredient_id": "ing_y", "percent": 21.1},
+        ],
+        "metrics": {},
+        "predictions": [],
+    }
+    diffs = {d["metric"]: d for d in compare_candidates(a, b)}
+    assert diffs["percent:ing_y"]["a"] == 0.0
+    assert diffs["percent:ing_y"]["delta"] == 21.1

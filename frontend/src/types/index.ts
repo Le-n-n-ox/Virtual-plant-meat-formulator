@@ -241,6 +241,8 @@ export interface TexturePrediction extends Prediction {
   in_domain?: boolean;
   domain?: Record<string, unknown>;
   evidence_basis?: string;
+  reason?: string;
+  missing_features?: string[];
 }
 
 export interface Candidate {

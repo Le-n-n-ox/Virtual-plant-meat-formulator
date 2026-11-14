@@ -1,12 +1,5 @@
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import { ReportTab } from "@/components/workspace/report-tab";
 
-export default function ReportPage() {
-  return (
-    <PlaceholderPage
-      title="Formulation summary and download"
-      pageNumber={13}
-      owner="Steve"
-      phase="F5"
-    />
-  );
+export default function Page() {
+  return <ReportTab />;
 }

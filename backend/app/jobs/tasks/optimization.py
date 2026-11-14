@@ -106,9 +106,38 @@ def run_optimization(job_id: str, emitter: JobEmitter) -> None:
                 x: Mapping[str, float],
                 _fn: Callable[[Mapping[str, Any]], float] = fn,
             ) -> float | None:
-                return _fn(composition_of(x))
+                try:
+                    return _fn(composition_of(x))
+                except ValueError:
+                    return None  # missing model inputs: the solver skips this start
 
             predictors[target] = predictor
+
+        if predictors:
+            # Texture models need every composition input for every ingredient that can
+            # take a positive share; fail clearly instead of searching blind.
+            excluded = set(constraint_set.excluded_ingredient_ids)
+            zero_max = {
+                b.ingredient_id for b in constraint_set.ingredient_bounds if b.max_percent <= 0
+            }
+            lacking: dict[str, list[str]] = {}
+            for ing_id in ingredient_ids:
+                if ing_id in excluded or ing_id in zero_max:
+                    continue
+                comp = composition_of({ing_id: 100.0})
+                missing = sorted(k for k, v in comp.items() if v is None)
+                if missing:
+                    lacking[ing_id] = missing
+            if lacking:
+                names = ", ".join(
+                    f"{ingredients[i].common_name} ({', '.join(m)})" for i, m in lacking.items()
+                )
+                raise JobFailure(
+                    "missing_ingredient_data",
+                    "Texture objectives need complete composition data, but these ingredients "
+                    f"lack values: {names}. Exclude them or remove the texture objective.",
+                    {"ingredient_ids": sorted(lacking), "missing": lacking},
+                )
 
         seed = int(ctx.seed if ctx.seed is not None else params.get("seed", 0))
         data_versions = dataset_versions(session, ingredient_ids)

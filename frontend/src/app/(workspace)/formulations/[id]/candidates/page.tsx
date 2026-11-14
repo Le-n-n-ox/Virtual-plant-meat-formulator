@@ -1,12 +1,10 @@
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import { Suspense } from "react";
+import { CandidatesTab } from "@/components/workspace/candidates-tab";
 
-export default function CandidatesPage() {
+export default function Page() {
   return (
-    <PlaceholderPage
-      title="Candidates and 3D preview"
-      pageNumber={10}
-      owner="Both"
-      phase="F5"
-    />
+    <Suspense>
+      <CandidatesTab />
+    </Suspense>
   );
 }

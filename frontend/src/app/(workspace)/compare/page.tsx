@@ -1,12 +1,13 @@
-import { PlaceholderPage } from "@/components/layout/placeholder-page";
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { CompareView } from "@/components/candidates/compare-view";
+
+export const metadata: Metadata = { title: "Compare candidates" };
 
 export default function ComparePage() {
   return (
-    <PlaceholderPage
-      title="Side-by-side candidate comparison"
-      pageNumber={11}
-      owner="Both"
-      phase="F5"
-    />
+    <Suspense>
+      <CompareView />
+    </Suspense>
   );
 }
