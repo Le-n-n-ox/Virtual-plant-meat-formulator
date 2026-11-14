@@ -33,11 +33,11 @@ from app.api.routers import (
     system,
 )
 from app.config import get_settings
+from app.core.limits import get_limits
 from app.core.observability import (
     configure_logging,
     metrics,
     rate_limit_rule,
-    rate_limiter,
     request_id_var,
 )
 
@@ -48,7 +48,7 @@ def create_app() -> FastAPI:
     """Build and configure the API app without performing startup I/O."""
     settings = get_settings()
     configure_logging(settings.log_level)
-    rate_limiter.reset()
+    get_limits().reset()
     application = FastAPI(
         title="Virtual Plant-Meat Formulator API",
         version=settings.git_sha,
@@ -93,7 +93,7 @@ def create_app() -> FastAPI:
                     request.client.host if request.client else "unknown"
                 )
                 key = f"{suffix}:{hashlib.sha256(ident.encode()).hexdigest()[:16]}"
-                if not rate_limiter.allow(key, limit, window):
+                if not get_limits().allow(key, limit, window):
                     metrics.inc("http_rate_limited_total", path=suffix)
                     return _error_response(
                         request, 429, "rate_limited", "Too many requests; slow down."

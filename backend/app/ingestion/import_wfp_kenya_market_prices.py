@@ -9,16 +9,14 @@ import os
 import re
 import sys
 from datetime import date
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-
 HAPI_ENDPOINT = (
-    "https://hapi.humdata.org/api/v2/food-security-nutrition-poverty/"
-    "food-prices-market-monitor"
+    "https://hapi.humdata.org/api/v2/food-security-nutrition-poverty/food-prices-market-monitor"
 )
 DATASET_URL = "https://data.humdata.org/dataset/wfp-food-prices-for-kenya"
 LICENSE = "CC BY-IGO 3.0"
@@ -51,16 +49,14 @@ def normalize_mass_price(price: object, unit: object) -> tuple[str, str]:
     try:
         amount = Decimal(match.group(1) or "1")
         raw_price = Decimal(str(price).strip())
-    except (InvalidOperation, ValueError):
+    except InvalidOperation, ValueError:
         return "", "not converted: price or mass quantity is missing or invalid"
     if not amount.is_finite() or amount <= 0 or not raw_price.is_finite() or raw_price < 0:
         return "", "not converted: price or mass quantity is outside the valid range"
 
     unit_name = match.group(2).lower()
     kg_per_unit = amount / Decimal("1000") if unit_name in {"g", "gram", "grams"} else amount
-    price_per_kg = (raw_price / kg_per_unit).quantize(
-        Decimal("0.000001"), rounding=ROUND_HALF_UP
-    )
+    price_per_kg = (raw_price / kg_per_unit).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
     return (
         concise_decimal(price_per_kg),
         f"price divided by explicit source mass quantity ({concise_decimal(kg_per_unit)} kg)",

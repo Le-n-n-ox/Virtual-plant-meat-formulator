@@ -47,6 +47,10 @@ class Settings(BaseSettings):
 
     # Jobs and limits
     max_active_jobs_per_user: int = 5
+    # A running job with no event for this long, or a queued job never picked up, is
+    # marked failed so it stops counting against the user's active-job limit.
+    job_stale_seconds: int = 900
+    job_queue_timeout_seconds: int = 3600
     max_streams_per_user: int = 5
     sse_heartbeat_seconds: float = 15.0
     max_request_bytes: int = 5_000_000

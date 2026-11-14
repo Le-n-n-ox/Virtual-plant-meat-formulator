@@ -13,7 +13,7 @@ import io
 import sys
 import zipfile
 from pathlib import Path
-
+from typing import cast
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BACKEND_DIR / "data"
@@ -123,7 +123,7 @@ FOOD_MATCHES = {
         "status": "species synonym and boiled mature-seed match",
         "role": "external cooked-bean composition reference",
         "eligible": True,
-        "note": "Boiled without salt; external cooked Njahi/lablab reference, not a Kenya-lot measurement.",
+        "note": "Boiled without salt; external cooked Njahi/lablab reference, not a Kenya-lot measurement.",  # noqa: E501
     },
     "175253": {
         "ingredient": "lablab",
@@ -168,14 +168,15 @@ def main() -> int:
 
     missing_ids = sorted(set(FOOD_MATCHES) - set(foods_by_id))
     if missing_ids:
-        print(f"FDC food IDs missing from SR Legacy archive: {', '.join(missing_ids)}", file=sys.stderr)
+        print(
+            f"FDC food IDs missing from SR Legacy archive: {', '.join(missing_ids)}",
+            file=sys.stderr,
+        )
         return 2
 
     food_rows: list[dict[str, object]] = []
     nutrients_out: list[dict[str, object]] = []
-    nutrients_for_food: dict[str, list[dict[str, object]]] = {
-        fdc_id: [] for fdc_id in FOOD_MATCHES
-    }
+    nutrients_for_food: dict[str, list[dict[str, object]]] = {fdc_id: [] for fdc_id in FOOD_MATCHES}
 
     for fdc_id, match in FOOD_MATCHES.items():
         food = foods_by_id[fdc_id]
@@ -199,16 +200,16 @@ def main() -> int:
 
     for row in food_nutrients:
         fdc_id = row["fdc_id"]
-        match = FOOD_MATCHES.get(fdc_id)
-        if match is None:
+        food_match = FOOD_MATCHES.get(fdc_id)
+        if food_match is None:
             continue
         nutrient = nutrients_by_id.get(row["nutrient_id"], {})
         output_row = {
             "fdc_id": fdc_id,
             "food_description": foods_by_id[fdc_id]["description"],
-            "demo_ingredient_key": match["ingredient"],
-            "match_status": match["status"],
-            "reference_role": match["role"],
+            "demo_ingredient_key": food_match["ingredient"],
+            "match_status": food_match["status"],
+            "reference_role": food_match["role"],
             "nutrient_id": row["nutrient_id"],
             "nutrient_name": nutrient.get("name", ""),
             "nutrient_number": nutrient.get("nutrient_nbr", ""),
@@ -244,7 +245,7 @@ def main() -> int:
             ),
             None,
         )
-        protein_amount = float(protein_row["amount_per_100g"]) if protein_row else None
+        protein_amount = float(cast("str", protein_row["amount_per_100g"])) if protein_row else None
 
         selected_amino_acids = [
             row
@@ -252,7 +253,7 @@ def main() -> int:
             if row["nutrient_name"] in AMINO_ACIDS and row["unit"] == "G"
         ]
         for amino_acid in selected_amino_acids:
-            amino_amount = float(amino_acid["amount_per_100g"])
+            amino_amount = float(cast("str", amino_acid["amount_per_100g"]))
             mg_per_g_protein = (
                 round(amino_amount * 1000.0 / protein_amount, 4)
                 if protein_amount and protein_amount > 0
@@ -274,7 +275,7 @@ def main() -> int:
                     "source_release": SOURCE_RELEASE,
                     "source_fdc_id": fdc_id,
                     "source_license": SOURCE_LICENSE,
-                    "use_note": "Derived reference only; preserve food-form and country caveats; not a Kenya measurement",
+                    "use_note": "Derived reference only; preserve food-form and country caveats; not a Kenya measurement",  # noqa: E501
                 }
             )
 
@@ -289,7 +290,9 @@ def main() -> int:
     processed = DATA_DIR / "processed"
     nutrients_file = processed / f"usda_sr_legacy_demo_nutrients_{RETRIEVAL_DATE}.csv"
     crosswalk_file = processed / f"usda_sr_legacy_demo_food_crosswalk_{RETRIEVAL_DATE}.csv"
-    amino_acids_file = processed / f"usda_sr_legacy_demo_amino_acids_mg_per_g_protein_{RETRIEVAL_DATE}.csv"
+    amino_acids_file = (
+        processed / f"usda_sr_legacy_demo_amino_acids_mg_per_g_protein_{RETRIEVAL_DATE}.csv"
+    )
 
     write_csv(
         nutrients_file,
@@ -299,7 +302,7 @@ def main() -> int:
     write_csv(crosswalk_file, list(crosswalk[0]), crosswalk)
     write_csv(amino_acids_file, list(amino_acids_out[0]), amino_acids_out)
 
-    numeric_value_count = sum(int(row["numeric_nutrient_count"]) for row in crosswalk)
+    numeric_value_count = sum(int(cast("int", row["numeric_nutrient_count"])) for row in crosswalk)
     print(
         f"Imported {len(crosswalk)} USDA SR Legacy foods, "
         f"{numeric_value_count} numeric nutrient values, and "

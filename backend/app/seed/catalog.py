@@ -329,19 +329,28 @@ def seed_dev_users(session: Session, settings: Settings | None = None) -> int:
     if settings.env == "production":
         print("Refusing to seed dev users when ENV=production.")
         return 0
-    print("WARNING: seeding development users with a known password. Dev only.")
     password = os.environ.get("DEV_USER_PASSWORD") or "devpassword123"
     count = 0
     for role in ("admin", "curator", "scientist", "viewer"):
         email = f"{role}@vpmf.local"
         row = session.scalars(select(Profile).where(Profile.email == email)).first()
-        if row is None:
-            row = Profile(user_id=f"usr_dev_{role}", email=email, display_name=role.title())
-            session.add(row)
-            count += 1
-        row.role = role
-        row.active = True
-        row.password_hash = hash_password(password)
+        if row is not None:
+            # Create-only: never reset the password, role or active flag of an existing
+            # account, so a changed password or a disabled account survives restarts.
+            continue
+        session.add(
+            Profile(
+                user_id=f"usr_dev_{role}",
+                email=email,
+                display_name=role.title(),
+                role=role,
+                active=True,
+                password_hash=hash_password(password),
+            )
+        )
+        count += 1
+    if count:
+        print(f"WARNING: created {count} development users with a known password. Dev only.")
     session.flush()
     return count
 
@@ -544,6 +553,9 @@ def run_all(
         summary["kfct"] = seed_kfct(session, data_dir)
         summary["prices"] = seed_prices(session, data_dir)
         summary["literature"] = seed_literature_experiments(session, data_dir)
+        from app.seed.protein_ingredients import seed_protein_ingredients
+
+        summary["protein_ingredients"] = seed_protein_ingredients(session, data_dir)
     if dev_users:
         summary["dev_users"] = seed_dev_users(session, settings)
     session.commit()

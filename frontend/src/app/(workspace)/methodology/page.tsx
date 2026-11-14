@@ -95,9 +95,12 @@ export default function MethodologyPage() {
             <strong>90 % prediction intervals</strong> accompany each value.
           </li>
           <li>
-            <strong>Applicability domain:</strong> a prediction for a
-            formulation that lies outside the data the model was trained on is
-            marked out of domain and should not be relied on.
+            <strong>Applicability domain:</strong> the models were trained on
+            blends of protein isolates and concentrates. For a formulation
+            outside that range no number is given at all; the page shows why it
+            is out of range and the nearest published samples for comparison.
+            Optimization with a texture objective only searches blends inside
+            the supported range.
           </li>
           <li>
             <strong>Approval workflow:</strong> a trained model is only used

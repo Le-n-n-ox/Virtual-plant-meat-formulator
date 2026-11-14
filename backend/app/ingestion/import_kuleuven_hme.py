@@ -86,7 +86,8 @@ def import_dataset(input_dir: Path, output_path: Path) -> dict[str, Any]:
                 "total_feed_rate": {"value": _number(row.get(10, "")), "unit": "kg/h"},
                 "specific_mechanical_energy": {"value": _number(row.get(11, "")), "unit": "Wh/kg"},
                 "specific_mechanical_energy_alternate": {
-                    "value": _number(row.get(12, "")), "unit": "kJ/kg"
+                    "value": _number(row.get(12, "")),
+                    "unit": "kJ/kg",
                 },
                 "source_reference": {
                     "file": PROCESS_FILE,
@@ -111,36 +112,40 @@ def import_dataset(input_dir: Path, output_path: Path) -> dict[str, Any]:
             material = row.get(3, "").strip()
             if material not in composition_by_material:
                 continue
-            composition_by_material[material].append({
-                "source_row": row_number,
-                "measurements": {
-                    key: {
-                        "value": _number(row.get(column, "")),
-                        "unit": unit,
-                        "source_text": row.get(column, "").strip() or None,
-                        "source_header": composition_header.get(column),
-                    }
-                    for column, (key, unit) in composition_fields.items()
-                },
-            })
+            composition_by_material[material].append(
+                {
+                    "source_row": row_number,
+                    "measurements": {
+                        key: {
+                            "value": _number(row.get(column, "")),
+                            "unit": unit,
+                            "source_text": row.get(column, "").strip() or None,
+                            "source_header": composition_header.get(column),
+                        }
+                        for column, (key, unit) in composition_fields.items()
+                    },
+                }
+            )
 
         for material, conditions in process_by_material.items():
-            records.append({
-                "schema_version": 1,
-                "record_type": "extrusion_run_summary",
-                "processing": {"regime": "high_moisture_extrusion"},
-                "material_code": material,
-                "material_description": material,
-                "process_conditions": conditions,
-                "composition_measurements": composition_by_material.get(material, []),
-                "source": {
-                    "id": SOURCE_ID,
-                    "doi": SOURCE_DOI,
-                    "citation": SOURCE_CITATION,
-                    "license": SOURCE_LICENSE,
-                    "usage_scope": "attribution required; research benchmark, not locally validated",
-                },
-            })
+            records.append(
+                {
+                    "schema_version": 1,
+                    "record_type": "extrusion_run_summary",
+                    "processing": {"regime": "high_moisture_extrusion"},
+                    "material_code": material,
+                    "material_description": material,
+                    "process_conditions": conditions,
+                    "composition_measurements": composition_by_material.get(material, []),
+                    "source": {
+                        "id": SOURCE_ID,
+                        "doi": SOURCE_DOI,
+                        "citation": SOURCE_CITATION,
+                        "license": SOURCE_LICENSE,
+                        "usage_scope": "attribution required; research benchmark, not locally validated",  # noqa: E501
+                    },
+                }
+            )
 
         raw_texture = texture_reader.sheet("Raw data")
         for row_number, row in raw_texture.items():
@@ -150,57 +155,65 @@ def import_dataset(input_dir: Path, output_path: Path) -> dict[str, Any]:
                 if material not in MATERIALS or not source_text:
                     continue
                 metric, unit = TEXTURE_COLUMNS[metric_column]
-                records.append({
-                    "schema_version": 1,
-                    "record_type": "texture_measurement",
-                    "processing": {"regime": "high_moisture_extrusion"},
-                    "material_code": material,
-                    "metric": metric,
-                    "value": _number(source_text),
-                    "unit": unit,
-                    "source_text": source_text,
-                    "linked_run_summary": material,
-                    "specimen_linkage": "not_provided; do not join separate metric columns by row",
-                    "source_reference": {
-                        "file": TEXTURE_FILE,
-                        "worksheet": "Raw data",
-                        "row": row_number,
-                        "metric_header": raw_texture[1].get(metric_column),
-                    },
-                    "source": {
-                        "id": SOURCE_ID,
-                        "doi": SOURCE_DOI,
-                        "citation": SOURCE_CITATION,
-                        "license": SOURCE_LICENSE,
-                        "usage_scope": "attribution required; research benchmark, not locally validated",
-                    },
-                })
+                records.append(
+                    {
+                        "schema_version": 1,
+                        "record_type": "texture_measurement",
+                        "processing": {"regime": "high_moisture_extrusion"},
+                        "material_code": material,
+                        "metric": metric,
+                        "value": _number(source_text),
+                        "unit": unit,
+                        "source_text": source_text,
+                        "linked_run_summary": material,
+                        "specimen_linkage": "not_provided; do not join separate metric columns by row",  # noqa: E501
+                        "source_reference": {
+                            "file": TEXTURE_FILE,
+                            "worksheet": "Raw data",
+                            "row": row_number,
+                            "metric_header": raw_texture[1].get(metric_column),
+                        },
+                        "source": {
+                            "id": SOURCE_ID,
+                            "doi": SOURCE_DOI,
+                            "citation": SOURCE_CITATION,
+                            "license": SOURCE_LICENSE,
+                            "usage_scope": "attribution required; research benchmark, not locally validated",  # noqa: E501
+                        },
+                    }
+                )
 
         summary_rows = texture_reader.sheet("Summary")
         for row_number, row in summary_rows.items():
             material = row.get(2, "").strip()
             if material not in MATERIALS:
                 continue
-            records.append({
-                "schema_version": 1,
-                "record_type": "texture_group_summary",
-                "processing": {"regime": "high_moisture_extrusion"},
-                "material_code": material,
-                "reported_statistics": {
-                    "hardness": {"source_text": row.get(3), "unit": "N"},
-                    "springiness": {"source_text": row.get(4), "unit": "dimensionless"},
-                    "cutting_strength_longitudinal": {"source_text": row.get(5), "unit": "N"},
-                    "cutting_strength_perpendicular": {"source_text": row.get(6), "unit": "N"},
-                },
-                "source_reference": {"file": TEXTURE_FILE, "worksheet": "Summary", "row": row_number},
-                "source": {
-                    "id": SOURCE_ID,
-                    "doi": SOURCE_DOI,
-                    "citation": SOURCE_CITATION,
-                    "license": SOURCE_LICENSE,
-                    "usage_scope": "attribution required; reported statistic format retained verbatim",
-                },
-            })
+            records.append(
+                {
+                    "schema_version": 1,
+                    "record_type": "texture_group_summary",
+                    "processing": {"regime": "high_moisture_extrusion"},
+                    "material_code": material,
+                    "reported_statistics": {
+                        "hardness": {"source_text": row.get(3), "unit": "N"},
+                        "springiness": {"source_text": row.get(4), "unit": "dimensionless"},
+                        "cutting_strength_longitudinal": {"source_text": row.get(5), "unit": "N"},
+                        "cutting_strength_perpendicular": {"source_text": row.get(6), "unit": "N"},
+                    },
+                    "source_reference": {
+                        "file": TEXTURE_FILE,
+                        "worksheet": "Summary",
+                        "row": row_number,
+                    },
+                    "source": {
+                        "id": SOURCE_ID,
+                        "doi": SOURCE_DOI,
+                        "citation": SOURCE_CITATION,
+                        "license": SOURCE_LICENSE,
+                        "usage_scope": "attribution required; reported statistic format retained verbatim",  # noqa: E501
+                    },
+                }
+            )
     finally:
         process_reader.close()
         texture_reader.close()
@@ -231,10 +244,10 @@ def import_dataset(input_dir: Path, output_path: Path) -> dict[str, Any]:
         },
         "treatment_groups": sorted(process_by_material),
         "quality_notes": [
-            "The study includes four soy-protein-concentrate treatment groups and their linked process summaries.",
-            "The raw texture columns have no specimen IDs; separate metric columns must not be joined row-wise.",
-            "This small soy-only dataset cannot validate predictions for Kenyan whole-food ingredients or new formulations.",
-            "Source measurements and summaries retain workbook/worksheet/row provenance; summary text is not reinterpreted.",
+            "The study includes four soy-protein-concentrate treatment groups and their linked process summaries.",  # noqa: E501
+            "The raw texture columns have no specimen IDs; separate metric columns must not be joined row-wise.",  # noqa: E501
+            "This small soy-only dataset cannot validate predictions for Kenyan whole-food ingredients or new formulations.",  # noqa: E501
+            "Source measurements and summaries retain workbook/worksheet/row provenance; summary text is not reinterpreted.",  # noqa: E501
         ],
     }
     output_path.with_suffix(".summary.json").write_text(

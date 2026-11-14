@@ -6,25 +6,13 @@ import csv
 import json
 from pathlib import Path
 
-
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 SOURCE_FILE = (
-    BACKEND_DIR
-    / "data"
-    / "reference"
-    / "dinali_2026_low_moisture_flour_tvp_table1_table3.csv"
+    BACKEND_DIR / "data" / "reference" / "dinali_2026_low_moisture_flour_tvp_table1_table3.csv"
 )
-OUTPUT_FILE = (
-    BACKEND_DIR
-    / "data"
-    / "processed"
-    / "dinali_2026_low_moisture_flour_tvp_review.jsonl"
-)
+OUTPUT_FILE = BACKEND_DIR / "data" / "processed" / "dinali_2026_low_moisture_flour_tvp_review.jsonl"
 SUMMARY_FILE = (
-    BACKEND_DIR
-    / "data"
-    / "processed"
-    / "dinali_2026_low_moisture_flour_tvp_review.summary.json"
+    BACKEND_DIR / "data" / "processed" / "dinali_2026_low_moisture_flour_tvp_review.summary.json"
 )
 
 DOI = "10.1016/j.foostr.2026.100528"
@@ -72,8 +60,7 @@ def main() -> int:
                 "raw_seed_prep": row["raw_seed_prep"],
                 "process_conditions": {
                     "barrel_zones_temperature_c": [
-                        int(value)
-                        for value in row["flour_extrusion_barrel_zones_c"].split("|")
+                        int(value) for value in row["flour_extrusion_barrel_zones_c"].split("|")
                     ],
                     "solids_feed_g_min": float(row["flour_feed_rate_g_min"]),
                     "water_feed_ml_min": float(row["flour_water_rate_ml_min"]),
@@ -226,10 +213,7 @@ def main() -> int:
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    print(
-        f"Imported {len(records)} source-linked low-moisture records; "
-        "eligible HME records: 0."
-    )
+    print(f"Imported {len(records)} source-linked low-moisture records; eligible HME records: 0.")
     print(f"Output: {OUTPUT_FILE}")
     print(f"Summary: {SUMMARY_FILE}")
     return 0

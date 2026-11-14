@@ -5,10 +5,11 @@ Behaviour contract:
 * No approved model for a requested target -> ``ApiError(422, "model_unavailable")``.
 * Missing input features -> no number for that target (``reason: missing_features``) and a
   ``missing_features`` warning. Inputs are never imputed.
-* Out of domain -> the model value is still returned so the user can see what the model
-  extrapolates, but ``in_domain`` is false, nearest supporting groups are listed, and an
-  ``out_of_domain`` warning is emitted. The frontend must show that warning instead of
-  presenting a confident number.
+* Out of domain -> NO number. Tree ensembles return flat plateau values outside their
+  training range, so an extrapolated value is an artifact, not an estimate. The result
+  carries ``reason: out_of_domain``, the violated ranges and ``nearest_evidence`` (the
+  closest published sample groups with their measured ranges) for comparison, plus an
+  ``out_of_domain`` warning.
 * Every result is labelled ``literature_derived_estimate``.
 """
 
@@ -16,10 +17,12 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 import numpy as np
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.errors import ApiError
 from app.config import Settings
+from app.db.models import Experiment, Measurement, Sample
 from app.domain.texture.applicability_domain import check_domain
 from app.domain.texture.features import build_feature_vector, composition_from_blend
 from app.domain.texture.models import load_model
@@ -103,31 +106,31 @@ class TextureService:
                     }
                 )
                 continue
-            artifact = load_model(row.artifact_uri)
-            value, low, high = artifact.predict(x)[0]
             check = check_domain(x, row.applicability_domain)
-            predictions.append(
-                {
-                    **base,
-                    "value": value,
-                    "interval": [low, high],
-                    "interval_level": float(row.interval_level or artifact.interval_level),
-                    "in_domain": check.in_domain,
-                    "domain": {
-                        "distance": check.distance,
-                        "threshold": check.threshold,
-                        "violations": check.violations,
-                        "nearest_groups": check.nearest_groups,
-                    },
-                }
-            )
+            domain = {
+                "distance": check.distance,
+                "threshold": check.threshold,
+                "violations": check.violations,
+                "nearest_groups": check.nearest_groups,
+            }
             if not check.in_domain:
+                evidence = self._nearest_evidence(target, check.nearest_groups)
+                predictions.append(
+                    {
+                        **base,
+                        "in_domain": False,
+                        "reason": "out_of_domain",
+                        "domain": domain,
+                        "nearest_evidence": evidence,
+                    }
+                )
                 warnings.append(
                     {
                         "code": "out_of_domain",
                         "message": (
-                            f"The {target} value is outside the literature training support and "
-                            "is not a supported prediction; see the nearest source groups."
+                            f"No supported {target} estimate: this blend is outside the range "
+                            "of the published samples the model was trained on. The nearest "
+                            "published samples are listed for comparison only."
                         ),
                         "details": {
                             "target": target,
@@ -135,11 +138,73 @@ class TextureService:
                             "violations": check.violations,
                             "distance": check.distance,
                             "threshold": check.threshold,
-                            "nearest_groups": check.nearest_groups,
+                            "nearest_evidence": evidence,
                         },
                     }
                 )
+                continue
+            artifact = load_model(row.artifact_uri)
+            value, low, high = artifact.predict(x)[0]
+            predictions.append(
+                {
+                    **base,
+                    "value": value,
+                    "interval": [low, high],
+                    "interval_level": float(row.interval_level or artifact.interval_level),
+                    "in_domain": True,
+                    "domain": domain,
+                }
+            )
         return {"predictions": predictions, "warnings": warnings}
+
+    def _nearest_evidence(
+        self, target: str, nearest_groups: list[dict[str, Any]], limit: int = 3
+    ) -> list[dict[str, Any]]:
+        """Measured ranges of the closest published sample groups (comparison, not prediction)."""
+        evidence: list[dict[str, Any]] = []
+        for item in nearest_groups[:limit]:
+            label = str(item.get("group", ""))
+            number, _, name = label.partition(":")
+            row = self.session.execute(
+                select(
+                    func.count(Measurement.id),
+                    func.min(Measurement.value),
+                    func.max(Measurement.value),
+                    func.min(Measurement.unit),
+                    func.min(Experiment.name),
+                )
+                .join(Sample, Sample.id == Measurement.sample_id)
+                .join(Experiment, Experiment.id == Sample.experiment_id)
+                .where(
+                    Sample.group_id == f"foodml2023-g{number}",
+                    Measurement.property == target,
+                    Measurement.source_type.in_(("measured", "published")),
+                )
+            ).one()
+            entry: dict[str, Any] = {"group": name or label, "distance": item.get("distance")}
+            if row[0]:
+                entry.update(
+                    {
+                        "n_samples": int(row[0]),
+                        "measured_min": float(row[1]),
+                        "measured_max": float(row[2]),
+                        "unit": row[3],
+                        "source": row[4],
+                    }
+                )
+            evidence.append(entry)
+        return evidence
+
+    def domain_ranges(self, targets: Iterable[str]) -> dict[str, tuple[float, float]]:
+        """Per-feature training range shared by the approved models for ``targets``."""
+        ranges: dict[str, tuple[float, float]] = {}
+        for row in self.require_models(targets).values():
+            for name, stats in (row.applicability_domain or {}).get("features", {}).items():
+                low, high = float(stats["min"]), float(stats["max"])
+                if name in ranges:
+                    low, high = max(low, ranges[name][0]), min(high, ranges[name][1])
+                ranges[name] = (low, high)
+        return ranges
 
     def predictor_fn(
         self, target: str, process: ProcessConditions

@@ -22,6 +22,7 @@ def list_ingredients(
     source_id: Annotated[str | None, Query(max_length=64)] = None,
     flag: Literal["analytical", "estimated"] | None = None,
     status: Literal["active", "draft", "retired", "all"] = "active",
+    exclude_animal_groups: bool = False,
     sort: Literal["common_name", "-common_name", "protein", "-protein", "created_at"] = (
         "common_name"
     ),
@@ -34,6 +35,7 @@ def list_ingredients(
         source_id=source_id,
         flag=flag,
         status=status,
+        exclude_animal_groups=exclude_animal_groups,
         sort=sort,
         offset=paging.offset,
         limit=paging.page_size,

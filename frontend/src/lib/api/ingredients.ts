@@ -8,6 +8,8 @@ export interface IngredientListParams {
   source_id?: string;
   flag?: "analytical" | "estimated";
   status?: string;
+  /** Hide the source's meat, fish and dairy food groups. */
+  exclude_animal_groups?: boolean;
   sort?: string;
   page?: number;
   page_size?: number;

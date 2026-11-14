@@ -13,7 +13,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT_DIR = BACKEND_ROOT / "data" / "raw" / "csiro_low_moisture_2026"
 DEFAULT_OUTPUT = BACKEND_ROOT / "data" / "processed" / "csiro_extrusion_research.jsonl"
@@ -22,7 +21,7 @@ SOURCE_ID = "csiro-low-moisture-extrusion-2026"
 SOURCE_DOI = "10.25919/AG1F-AY33"
 SOURCE_LICENSE = "CC BY-NC-SA 4.0"
 
-PROCESS_FILES = {
+PROCESS_FILES: dict[str, dict[str, Any]] = {
     "6Proteins_ProcessConditions.csv": {
         "record_type": "extrusion_run",
         "numeric_fields": {
@@ -55,8 +54,8 @@ def _read_csv(path: Path) -> tuple[list[str], list[dict[str, str]]]:
         reader = csv.DictReader(source_file)
         if reader.fieldnames is None:
             raise ValueError(f"CSV has no header: {path}")
-        rows = list(reader)
-        return reader.fieldnames, rows
+        rows: list[dict[str, str]] = list(reader)
+        return list(reader.fieldnames), rows
 
 
 def _as_number(value: str | None, *, field: str, row_number: int) -> float | None:

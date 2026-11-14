@@ -15,11 +15,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_INPUT = BACKEND_ROOT / "data" / "reference" / "knaapila_2024_whole_faba_hme_table1_table5.csv"
+DEFAULT_INPUT = (
+    BACKEND_ROOT / "data" / "reference" / "knaapila_2024_whole_faba_hme_table1_table5.csv"
+)
 DEFAULT_OUTPUT = BACKEND_ROOT / "data" / "processed" / "knaapila_whole_faba_hme_2024_review.jsonl"
-DEFAULT_SUMMARY = BACKEND_ROOT / "data" / "processed" / "knaapila_whole_faba_hme_2024_review.summary.json"
+DEFAULT_SUMMARY = (
+    BACKEND_ROOT / "data" / "processed" / "knaapila_whole_faba_hme_2024_review.summary.json"
+)
 
 SOURCE_ID = "knaapila-whole-faba-hme-2024"
 SOURCE_DOI = "10.3390/foods13101444"
@@ -119,7 +122,9 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                     "reported_unit": None,
                     "unit_status": "not_stated_in_source_table_or_text_reviewed",
                     "significance_group": row[group_field],
-                    "replicate_count": int(_number(row, "texture_cutting_replicates", csv_row_number)),
+                    "replicate_count": int(
+                        _number(row, "texture_cutting_replicates", csv_row_number)
+                    ),
                     "summary_statistic": "mean and standard deviation",
                 }
 
@@ -127,7 +132,7 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                 "reported_mean": _number(row, "wac_mean_reported", csv_row_number),
                 "reported_standard_deviation": _number(row, "wac_sd_reported", csv_row_number),
                 "reported_unit": None,
-                "method_unit_description": "grams of water retained per gram of freeze-dried extrudate",
+                "method_unit_description": "grams of water retained per gram of freeze-dried extrudate",  # noqa: E501
                 "unit_status": "table_scale_not_reconciled_with_method_unit",
                 "significance_group": row["wac_group"],
                 "replicate_count": int(_number(row, "wac_replicates", csv_row_number)),
@@ -151,7 +156,7 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                 },
                 "processing": {
                     "regime": "high_moisture_extrusion",
-                    "ingredient_system": "whole faba material, pea protein isolate, with optional oat fiber concentrate",
+                    "ingredient_system": "whole faba material, pea protein isolate, with optional oat fiber concentrate",  # noqa: E501
                     "formulation": formulation,
                     "inputs": {
                         "total_feed_rate": {
@@ -180,13 +185,13 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                 "method": {
                     "texture_and_cutting_replicates": 5,
                     "water_absorption_capacity_replicates": 3,
-                    "texture_protocol": "Texture analyzer method cites Ramos Diaz et al. (2018) with modifications; preserve article-reported means and SDs.",
-                    "water_absorption_capacity_protocol": "Freeze-dried pieces rehydrated in water at 50 degC for 16 h; article text defines WAC as g water retained per g freeze-dried extrudate.",
-                    "replication_note": "The article describes six formulations prepared under fixed conditions but does not report repeated extrusion preparations for each formulation.",
+                    "texture_protocol": "Texture analyzer method cites Ramos Diaz et al. (2018) with modifications; preserve article-reported means and SDs.",  # noqa: E501
+                    "water_absorption_capacity_protocol": "Freeze-dried pieces rehydrated in water at 50 degC for 16 h; article text defines WAC as g water retained per g freeze-dried extrudate.",  # noqa: E501
+                    "replication_note": "The article describes six formulations prepared under fixed conditions but does not report repeated extrusion preparations for each formulation.",  # noqa: E501
                 },
                 "training_eligibility": {
                     "eligible": False,
-                    "reason": "Mechanical target units are not reported in the source table; WAC table values do not reconcile with the method's stated g/g scale.",
+                    "reason": "Mechanical target units are not reported in the source table; WAC table values do not reconcile with the method's stated g/g scale.",  # noqa: E501
                 },
                 "source_reference": {
                     "file": input_path.name,
@@ -202,7 +207,9 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
     expected_sample_codes = {"F30", "GF30", "F50", "GF50", "F35+O", "GF35+O"}
     actual_sample_codes = {record["identifiers"]["source_sample_code"] for record in records}
     if actual_sample_codes != expected_sample_codes or len(records) != 6:
-        raise ValueError(f"Expected the six reported formulations, found {sorted(actual_sample_codes)}")
+        raise ValueError(
+            f"Expected the six reported formulations, found {sorted(actual_sample_codes)}"
+        )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     summary_path.parent.mkdir(parents=True, exist_ok=True)
@@ -222,12 +229,14 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
         "limitations": [
             "Six reported formulations; process settings were held constant.",
             "The article does not report repeated extrusion preparations per formulation.",
-            "The mechanical-property table omits measurement units; these raw values must not be pooled with unit-labeled datasets.",
-            "The WAC method states g/g, while the table values (165--220) do not reconcile to that scale; values are retained without inferred rescaling.",
-            "This source broadens ingredient-form evidence to whole faba material but does not cover Kenyan varieties or formulations.",
+            "The mechanical-property table omits measurement units; these raw values must not be pooled with unit-labeled datasets.",  # noqa: E501
+            "The WAC method states g/g, while the table values (165--220) do not reconcile to that scale; values are retained without inferred rescaling.",  # noqa: E501
+            "This source broadens ingredient-form evidence to whole faba material but does not cover Kenyan varieties or formulations.",  # noqa: E501
         ],
     }
-    summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    summary_path.write_text(
+        json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     return summary
 
 

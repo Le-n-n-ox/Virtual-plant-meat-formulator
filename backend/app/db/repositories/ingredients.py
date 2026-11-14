@@ -62,6 +62,16 @@ def _protein_subquery() -> Any:
     )
 
 
+# Food groups of the source tables that are animal foods. Hiding them is a convenience
+# filter on the source's own grouping, not a guarantee that every remaining item is
+# plant-based (for example ghee sits under "Oils and fats").
+ANIMAL_FOOD_GROUPS = (
+    "Meats, poultry and eggs",
+    "Fish and sea foods",
+    "Milk and dairy products",
+)
+
+
 def _conditions(
     *,
     q: str | None,
@@ -70,8 +80,13 @@ def _conditions(
     source_id: str | None,
     flag: str | None,
     status: str | None,
+    exclude_animal_groups: bool = False,
 ) -> list[Any]:
     conds: list[Any] = []
+    if exclude_animal_groups:
+        conds.append(
+            or_(Ingredient.food_group.is_(None), Ingredient.food_group.not_in(ANIMAL_FOOD_GROUPS))
+        )
     if status and status != "all":
         conds.append(Ingredient.status == status)
     if q:
@@ -111,11 +126,20 @@ def list_ingredients(
     source_id: str | None = None,
     flag: str | None = None,
     status: str | None = "active",
+    exclude_animal_groups: bool = False,
     sort: str = "common_name",
     offset: int = 0,
     limit: int = 25,
 ) -> tuple[list[dict[str, Any]], int]:
-    conds = _conditions(q=q, crop=crop, form=form, source_id=source_id, flag=flag, status=status)
+    conds = _conditions(
+        q=q,
+        crop=crop,
+        form=form,
+        source_id=source_id,
+        flag=flag,
+        status=status,
+        exclude_animal_groups=exclude_animal_groups,
+    )
     total = session.scalar(select(func.count(Ingredient.id)).where(*conds)) or 0
     stmt: Select[Any] = select(Ingredient).where(*conds)
     protein = _protein_subquery()
@@ -137,6 +161,7 @@ def list_ingredients(
 def ingredient_list_item(ing: Ingredient, aa_keys: set[str]) -> dict[str, Any]:
     protein = next((n.value for n in ing.nutrients if n.nutrient_key == "protein"), None)
     return {
+        "food_group": ing.food_group,
         "id": ing.id,
         "common_name": ing.common_name,
         "scientific_name": ing.scientific_name,

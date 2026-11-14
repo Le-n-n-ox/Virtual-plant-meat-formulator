@@ -16,11 +16,12 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT = BACKEND_ROOT / "data" / "reference" / "foodml_texture_prediction_2023.csv"
 DEFAULT_OUTPUT = BACKEND_ROOT / "data" / "processed" / "foodml_texture_prediction_2023_review.jsonl"
-DEFAULT_SUMMARY = BACKEND_ROOT / "data" / "processed" / "foodml_texture_prediction_2023_review.summary.json"
+DEFAULT_SUMMARY = (
+    BACKEND_ROOT / "data" / "processed" / "foodml_texture_prediction_2023_review.summary.json"
+)
 DEFAULT_CROSSWALK = BACKEND_ROOT / "data" / "reference" / "foodml_ferawati_2021_crosswalk.csv"
 
 SOURCE_ID = "foodml-texture-prediction-2023"
@@ -117,14 +118,10 @@ def _crosswalk_int(row: dict[str, str], field: str, csv_row_number: int) -> int:
         ) from error
 
 
-def _enrich_ferawati_records(
-    records: list[dict[str, Any]], crosswalk_path: Path
-) -> dict[str, Any]:
+def _enrich_ferawati_records(records: list[dict[str, Any]], crosswalk_path: Path) -> dict[str, Any]:
     crosswalk_bytes = crosswalk_path.read_bytes()
     crosswalk_checksum = hashlib.sha256(crosswalk_bytes).hexdigest()
-    by_sample_no = {
-        record["identifiers"]["source_sample_no"]: record for record in records
-    }
+    by_sample_no = {record["identifiers"]["source_sample_no"]: record for record in records}
     ferawati_records = {
         sample_no: record
         for sample_no, record in by_sample_no.items()
@@ -173,10 +170,7 @@ def _enrich_ferawati_records(
     with crosswalk_path.open("r", encoding="utf-8-sig", newline="") as source_file:
         reader = csv.DictReader(source_file)
         if set(reader.fieldnames or []) != required_columns:
-            raise ValueError(
-                "Unexpected Ferawati crosswalk columns: "
-                f"{reader.fieldnames!r}"
-            )
+            raise ValueError(f"Unexpected Ferawati crosswalk columns: {reader.fieldnames!r}")
         for crosswalk_csv_row, row in enumerate(reader, start=2):
             row_count += 1
             sample_no = _crosswalk_int(row, "foodml_source_sample_no", crosswalk_csv_row)
@@ -185,9 +179,7 @@ def _enrich_ferawati_records(
             matched_sample_numbers.add(sample_no)
             record = ferawati_records.get(sample_no)
             if record is None:
-                raise ValueError(
-                    f"Crosswalk sample {sample_no} is not a FoodML Ferawati record"
-                )
+                raise ValueError(f"Crosswalk sample {sample_no} is not a FoodML Ferawati record")
 
             article_id = _crosswalk_int(row, "article_table_a4_id", crosswalk_csv_row)
             if article_id != sample_no - 24:
@@ -274,8 +266,8 @@ def _enrich_ferawati_records(
 
             def measure(mean_field: str, sd_field: str, unit: str) -> dict[str, Any]:
                 return {
-                    "mean": _crosswalk_number(row, mean_field, crosswalk_csv_row),
-                    "sd": _crosswalk_number(row, sd_field, crosswalk_csv_row),
+                    "mean": _crosswalk_number(row, mean_field, crosswalk_csv_row),  # noqa: B023 - only called within the same loop iteration
+                    "sd": _crosswalk_number(row, sd_field, crosswalk_csv_row),  # noqa: B023
                     "unit": unit,
                 }
 
@@ -325,7 +317,9 @@ def _enrich_ferawati_records(
                     ),
                     "springiness": measure("springiness_mean", "springiness_sd", "unitless"),
                     "chewiness": measure(
-                        "chewiness_mean_g_as_reported", "chewiness_sd_g_as_reported", "g as reported"
+                        "chewiness_mean_g_as_reported",
+                        "chewiness_sd_g_as_reported",
+                        "g as reported",
                     ),
                     "crosswise_cutting_strength": measure(
                         "crosswise_cutting_mean_g_as_reported",
@@ -366,14 +360,14 @@ def _enrich_ferawati_records(
             "hardness_rows_checked": hardness_matches,
             "chewiness_rows_checked": chewiness_matches,
             "table_reported_g_to_foodml_n_factor": FOODML_N_PER_ARTICLE_G,
-            "factor_status": "inferred by exact row-wise agreement; source table labels the values g",
+            "factor_status": "inferred by exact row-wise agreement; source table labels the values g",  # noqa: E501
         },
         "unresolved_assumptions": [
-            "The row identity mapping uses FoodML source sample numbers 25-54 to Table A4 IDs 1-30 (ID = sample number - 24); every mapping is corroborated by material, target moisture, hardness and chewiness, but the papers do not publish a shared sample identifier.",
-            "FoodML target values agree exactly with Table A4 means when table-reported g values are multiplied by 0.0098; this factor is inferred from the row values, and the article labels the source measurement unit only as g.",
-            "Table A4 reports mean ± SD with n=3; the article describes triplicate texture measurements but does not establish three independent extrusion batches. SD replicates are not added as dataset records.",
-            "Ferawati Table A3 lists FBI-local target moistures through 68%, while Table A4 row 30 reports a 70% result. The crosswalk retains the row-level Table A4 value (matching FoodML sample 54) and flags the discrepancy without resolving it.",
-            "Composition values in FoodML are repeated by material group; the crosswalk does not turn repeated rows or technical replicates into independent ingredient assays.",
+            "The row identity mapping uses FoodML source sample numbers 25-54 to Table A4 IDs 1-30 (ID = sample number - 24); every mapping is corroborated by material, target moisture, hardness and chewiness, but the papers do not publish a shared sample identifier.",  # noqa: E501
+            "FoodML target values agree exactly with Table A4 means when table-reported g values are multiplied by 0.0098; this factor is inferred from the row values, and the article labels the source measurement unit only as g.",  # noqa: E501
+            "Table A4 reports mean ± SD with n=3; the article describes triplicate texture measurements but does not establish three independent extrusion batches. SD replicates are not added as dataset records.",  # noqa: E501
+            "Ferawati Table A3 lists FBI-local target moistures through 68%, while Table A4 row 30 reports a 70% result. The crosswalk retains the row-level Table A4 value (matching FoodML sample 54) and flags the discrepancy without resolving it.",  # noqa: E501
+            "Composition values in FoodML are repeated by material group; the crosswalk does not turn repeated rows or technical replicates into independent ingredient assays.",  # noqa: E501
         ],
     }
 
@@ -409,7 +403,7 @@ def import_dataset(
         for csv_row_number, row in enumerate(reader, start=2):
             if len(row) != len(EXPECTED_HEADER):
                 raise ValueError(
-                    f"Expected {len(EXPECTED_HEADER)} columns at row {csv_row_number}, got {len(row)}"
+                    f"Expected {len(EXPECTED_HEADER)} columns at row {csv_row_number}, got {len(row)}"  # noqa: E501
                 )
             source_row = dict(zip(EXPECTED_HEADER[:13], row[:13], strict=True))
             sample_no = source_row["no"]
@@ -420,7 +414,10 @@ def import_dataset(
                 raise ValueError(f"Unknown Study_ID {study_id!r} at CSV row {csv_row_number}")
 
             values = {
-                field: {"value": _number(source_row[field], field=field, row_number=csv_row_number), "unit": unit}
+                field: {
+                    "value": _number(source_row[field], field=field, row_number=csv_row_number),
+                    "unit": unit,
+                }
                 for field, unit in INPUT_UNITS.items()
             }
             targets = {
@@ -439,7 +436,7 @@ def import_dataset(
                     "doi": SOURCE_DOI,
                     "citation": SOURCE_CITATION,
                     "license": SOURCE_LICENSE,
-                    "usage_scope": "attribution required; confirm underlying source-study terms before commercial redistribution",
+                    "usage_scope": "attribution required; confirm underlying source-study terms before commercial redistribution",  # noqa: E501
                 },
                 "record_type": "literature_texture_sample",
                 "identifiers": {
@@ -461,8 +458,8 @@ def import_dataset(
                 "values": values,
                 "targets": targets,
                 "method": {
-                    "measurement": "two complete compression/decompression cycles (texture profile analysis)",
-                    "source_note": "The paper reports hardness and chewiness in N. Raw row-level replicate/run IDs and detailed extrusion settings are not supplied in this CSV.",
+                    "measurement": "two complete compression/decompression cycles (texture profile analysis)",  # noqa: E501
+                    "source_note": "The paper reports hardness and chewiness in N. Raw row-level replicate/run IDs and detailed extrusion settings are not supplied in this CSV.",  # noqa: E501
                 },
                 "source_reference": {
                     "file": input_path.name,
@@ -510,13 +507,15 @@ def import_dataset(
             "ridge_chewiness_mape_percent": 14.5,
         },
         "limitations": [
-            "42 HME samples and 12 mechanical-elongation samples are explicitly separated by processing.regime.",
-            "The paper's reported errors use the mixed 54-sample dataset and must not be represented as HME-only or Kenya-specific performance.",
-            "The FoodML CSV itself does not contain per-row screw speed or barrel-zone temperatures. A source-cited crosswalk restores these settings only for its 30 Ferawati rows; it does not supply run identifiers, independent extrusion-batch identifiers, or lot metadata.",
-            "The source groups primarily use protein isolates/concentrates; Kenyan whole-food formulations are outside demonstrated coverage.",
+            "42 HME samples and 12 mechanical-elongation samples are explicitly separated by processing.regime.",  # noqa: E501
+            "The paper's reported errors use the mixed 54-sample dataset and must not be represented as HME-only or Kenya-specific performance.",  # noqa: E501
+            "The FoodML CSV itself does not contain per-row screw speed or barrel-zone temperatures. A source-cited crosswalk restores these settings only for its 30 Ferawati rows; it does not supply run identifiers, independent extrusion-batch identifiers, or lot metadata.",  # noqa: E501
+            "The source groups primarily use protein isolates/concentrates; Kenyan whole-food formulations are outside demonstrated coverage.",  # noqa: E501
         ],
     }
-    summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    summary_path.write_text(
+        json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     return summary
 
 

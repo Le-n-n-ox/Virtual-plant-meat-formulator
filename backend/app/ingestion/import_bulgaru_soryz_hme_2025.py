@@ -15,26 +15,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_INPUT = (
-    BACKEND_ROOT
-    / "data"
-    / "reference"
-    / "bulgaru_2025_soryz_hme_table2.csv"
-)
-DEFAULT_OUTPUT = (
-    BACKEND_ROOT
-    / "data"
-    / "processed"
-    / "bulgaru_2025_soryz_hme_review.jsonl"
-)
-DEFAULT_SUMMARY = (
-    BACKEND_ROOT
-    / "data"
-    / "processed"
-    / "bulgaru_2025_soryz_hme_review.summary.json"
-)
+DEFAULT_INPUT = BACKEND_ROOT / "data" / "reference" / "bulgaru_2025_soryz_hme_table2.csv"
+DEFAULT_OUTPUT = BACKEND_ROOT / "data" / "processed" / "bulgaru_2025_soryz_hme_review.jsonl"
+DEFAULT_SUMMARY = BACKEND_ROOT / "data" / "processed" / "bulgaru_2025_soryz_hme_review.summary.json"
 
 SOURCE_ID = "bulgaru-et-al-hme-analogues-2025"
 SOURCE_DOI = "10.3390/foods14172939"
@@ -162,7 +146,9 @@ def sha256_file(path: Path) -> str:
 def require_value(row: dict[str, str], field: str) -> str:
     value = row.get(field, "").strip()
     if not value:
-        raise ValueError(f"Missing required value in {field!r} for {row.get('formulation_label')!r}")
+        raise ValueError(
+            f"Missing required value in {field!r} for {row.get('formulation_label')!r}"
+        )
     return value
 
 
@@ -192,7 +178,9 @@ def normalize_row(row: dict[str, str], source_sha256: str) -> dict[str, Any]:
     tpa_n = int(require_value(row, "tpa_measurement_replicates_n_reported"))
     batch_replicates = require_value(row, "extrusion_batch_replicates_reported")
     if batch_replicates.lower() != "not reported":
-        raise ValueError("This transcription expects extrusion-batch replication to remain unreported")
+        raise ValueError(
+            "This transcription expects extrusion-batch replication to remain unreported"
+        )
 
     return {
         "record_type": "published_hme_condition_summary",
@@ -206,15 +194,15 @@ def normalize_row(row: dict[str, str], source_sha256: str) -> dict[str, Any]:
             "license_url": SOURCE_LICENSE_URL,
             "source_sha256": source_sha256,
             "table_references": {
-                "formulation_and_process": f"Methods §§2.2–2.3.2; Table 1 row {require_value(row, 'source_table_1_row_label')}",
+                "formulation_and_process": f"Methods §§2.2–2.3.2; Table 1 row {require_value(row, 'source_table_1_row_label')}",  # noqa: E501
                 "texture": f"Table 2 row {require_value(row, 'source_table_2_row_label')}",
             },
         },
         "sample_id": require_value(row, "formulation_label"),
-        "process_conditions": {field.removesuffix("_reported"): row[field] for field in PROCESS_COLUMNS},
-        "texture_method": {
-            field.removesuffix("_reported"): row[field] for field in TPA_COLUMNS
+        "process_conditions": {
+            field.removesuffix("_reported"): row[field] for field in PROCESS_COLUMNS
         },
+        "texture_method": {field.removesuffix("_reported"): row[field] for field in TPA_COLUMNS},
         "texture_measurements": measurements,
         "replication": {
             "tpa_measurement_replicates_per_sample": tpa_n,
@@ -243,8 +231,14 @@ def main() -> None:
     records = [normalize_row(row, input_sha256) for row in rows]
     sample_ids = [record["sample_id"] for record in records]
     expected_sample_ids = [
-        "1PPI", "1S:PPI", "1C:PPI", "1HM:PPI",
-        "2PPI", "2S:PPI", "2C:PPI", "2HM:PPI",
+        "1PPI",
+        "1S:PPI",
+        "1C:PPI",
+        "1HM:PPI",
+        "2PPI",
+        "2S:PPI",
+        "2C:PPI",
+        "2HM:PPI",
     ]
     if sample_ids != expected_sample_ids:
         raise ValueError(f"Unexpected sample order/labels: {sample_ids!r}")
@@ -274,7 +268,7 @@ def main() -> None:
             "training dataset."
         ),
         "replication_note": (
-            "TPA n=12 per sample is reported; independent extrusion-batch replicate count is not reported."
+            "TPA n=12 per sample is reported; independent extrusion-batch replicate count is not reported."  # noqa: E501
         ),
         "caveats": SCOPE_AND_CAVEATS,
     }

@@ -20,7 +20,7 @@ export function IngredientPicker({ takenIds }: { takenIds: string[] }) {
 
   const { data, error, loading } = useApiQuery(
     `pick|${q}`,
-    () => listIngredients({ q, page_size: 8 }),
+    () => listIngredients({ q, page_size: 8, exclude_animal_groups: true }),
     enabled,
   );
 

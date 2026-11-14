@@ -16,11 +16,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT = BACKEND_ROOT / "data" / "reference" / "jeon_2023_full_fat_soy_hme_table1_table2.csv"
 DEFAULT_OUTPUT = BACKEND_ROOT / "data" / "processed" / "jeon_full_fat_soy_hme_2023_review.jsonl"
-DEFAULT_SUMMARY = BACKEND_ROOT / "data" / "processed" / "jeon_full_fat_soy_hme_2023_review.summary.json"
+DEFAULT_SUMMARY = (
+    BACKEND_ROOT / "data" / "processed" / "jeon_full_fat_soy_hme_2023_review.summary.json"
+)
 
 SOURCE_ID = "jeon-full-fat-soy-hme-2023"
 SOURCE_DOI = "10.3390/foods12051011"
@@ -39,8 +40,18 @@ FORMULATION_FIELDS = {
     "corn_starch_pct": "corn_starch",
 }
 MEASUREMENT_FIELDS = {
-    "springiness": ("springiness_mean_pct", "springiness_sd_pct", "springiness_significance_group", "%"),
-    "cohesiveness": ("cohesiveness_mean_pct", "cohesiveness_sd_pct", "cohesiveness_significance_group", "%"),
+    "springiness": (
+        "springiness_mean_pct",
+        "springiness_sd_pct",
+        "springiness_significance_group",
+        "%",
+    ),
+    "cohesiveness": (
+        "cohesiveness_mean_pct",
+        "cohesiveness_sd_pct",
+        "cohesiveness_significance_group",
+        "%",
+    ),
     "chewiness": ("chewiness_mean_g", "chewiness_sd_g", "chewiness_significance_group", "g"),
     "cutting_strength_vertical": (
         "cutting_vertical_mean_g_cm2",
@@ -111,7 +122,7 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
             if row["source_id"].strip() != SOURCE_ID:
                 raise ValueError(f"Unexpected source ID at CSV row {row_number}")
             sample_code = row["source_sample_code"].strip()
-            formulation = {
+            formulation: dict[str, dict[str, Any]] = {
                 ingredient: {
                     "value": _number(row, field, row_number),
                     "unit": "% as reported in Table 1",
@@ -120,7 +131,9 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                 for field, ingredient in FORMULATION_FIELDS.items()
             }
             if abs(sum(item["value"] for item in formulation.values()) - 100.0) > 1e-9:
-                raise ValueError(f"Formulation percentages do not sum to 100 at CSV row {row_number}")
+                raise ValueError(
+                    f"Formulation percentages do not sum to 100 at CSV row {row_number}"
+                )
 
             measurements: dict[str, Any] = {}
             for metric, (mean_field, sd_field, group_field, unit) in MEASUREMENT_FIELDS.items():
@@ -135,7 +148,7 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                 }
 
             independent_batches = row["independent_extrusion_batches_reported"].strip()
-            record = {
+            record: dict[str, Any] = {
                 "schema_version": 1,
                 "source": {
                     "id": SOURCE_ID,
@@ -143,17 +156,17 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                     "citation": SOURCE_CITATION,
                     "license": SOURCE_LICENSE,
                     "license_url": row["source_license_url"],
-                    "usage_scope": "CC BY 4.0; attribute the authors and article, link the licence, and indicate changes",
+                    "usage_scope": "CC BY 4.0; attribute the authors and article, link the licence, and indicate changes",  # noqa: E501
                 },
                 "record_type": "hme_formulation_summary",
                 "identifiers": {
                     "sample_id": row["source_sample_id"],
                     "source_sample_code": sample_code,
-                    "source_sample_code_note": "constructed from the article's HMMA type and reported FFS percentage; no native sample ID is stated",
+                    "source_sample_code_note": "constructed from the article's HMMA type and reported FFS percentage; no native sample ID is stated",  # noqa: E501
                 },
                 "processing": {
                     "regime": "high_moisture_extrusion",
-                    "ingredient_system": "full-fat soy, soy protein isolate, wheat gluten, and corn starch",
+                    "ingredient_system": "full-fat soy, soy protein isolate, wheat gluten, and corn starch",  # noqa: E501
                     "formulation": formulation,
                     "inputs": {
                         "feed_moisture": {
@@ -171,9 +184,18 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                     },
                     "cooling_die": {
                         "dimensions": {
-                            "width": {"value": _number(row, "cooling_die_width_cm", row_number), "unit": "cm"},
-                            "height": {"value": _number(row, "cooling_die_height_cm", row_number), "unit": "cm"},
-                            "length": {"value": _number(row, "cooling_die_length_cm", row_number), "unit": "cm"},
+                            "width": {
+                                "value": _number(row, "cooling_die_width_cm", row_number),
+                                "unit": "cm",
+                            },
+                            "height": {
+                                "value": _number(row, "cooling_die_height_cm", row_number),
+                                "unit": "cm",
+                            },
+                            "length": {
+                                "value": _number(row, "cooling_die_length_cm", row_number),
+                                "unit": "cm",
+                            },
                         },
                         "cooling_water_temperature": {
                             "value": _number(row, "cooling_water_temperature_c", row_number),
@@ -182,12 +204,22 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                     },
                     "extruder": {
                         "model": row["extruder_model"],
-                        "screw_diameter": {"value": _number(row, "screw_diameter_cm", row_number), "unit": "cm"},
-                        "screw_length": {"value": _number(row, "screw_length_cm", row_number), "unit": "cm"},
-                        "length_to_diameter_ratio": _number(row, "screw_length_to_diameter_ratio", row_number),
+                        "screw_diameter": {
+                            "value": _number(row, "screw_diameter_cm", row_number),
+                            "unit": "cm",
+                        },
+                        "screw_length": {
+                            "value": _number(row, "screw_length_cm", row_number),
+                            "unit": "cm",
+                        },
+                        "length_to_diameter_ratio": _number(
+                            row, "screw_length_to_diameter_ratio", row_number
+                        ),
                     },
                     "sample_collection": {
-                        "extrudates_collected_minimum": int(_number(row, "sampled_extrudates_min", row_number)),
+                        "extrudates_collected_minimum": int(
+                            _number(row, "sampled_extrudates_min", row_number)
+                        ),
                         "collection_condition": "after extrusion conditions were stable",
                     },
                 },
@@ -204,36 +236,42 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                         "value": _number(row, "cutting_max_peak_stress_kg", row_number),
                         "unit": "kg",
                     },
-                    "sample_preparation": "HMMAs were frozen at -18 degC, thawed at 4 degC for 24 h, then equilibrated at room temperature before TPA and cutting-strength measurements.",
-                    "replication_note": "Texture and cutting results are reported as averages of six measurements. At least 30 extrudates were collected per formulation after conditions stabilized. Independent extrusion batch replication is not reported.",
+                    "sample_preparation": "HMMAs were frozen at -18 degC, thawed at 4 degC for 24 h, then equilibrated at room temperature before TPA and cutting-strength measurements.",  # noqa: E501
+                    "replication_note": "Texture and cutting results are reported as averages of six measurements. At least 30 extrudates were collected per formulation after conditions stabilized. Independent extrusion batch replication is not reported.",  # noqa: E501
                 },
                 "training_eligibility": {
                     "eligible": False,
-                    "reason": "All six formulation outcomes use one reported HME process setting; independent extrusion-batch replication and individual readings are unavailable. Suitable as source-cited comparative evidence at the stated conditions, not as a validated generalized predictor.",
+                    "reason": "All six formulation outcomes use one reported HME process setting; independent extrusion-batch replication and individual readings are unavailable. Suitable as source-cited comparative evidence at the stated conditions, not as a validated generalized predictor.",  # noqa: E501
                 },
                 "source_reference": {
                     "file": input_path.name,
                     "csv_row": row_number,
                     "sha256": checksum,
-                    "article_tables": [row["source_formulation_table"], row["source_texture_table"]],
+                    "article_tables": [
+                        row["source_formulation_table"],
+                        row["source_texture_table"],
+                    ],
                     "process_reference": row["source_process_section"],
                     "article_url": row["source_article_url"],
                 },
                 "source_row": row,
             }
             if independent_batches.lower() not in {"", "not reported"}:
-                record["method"]["independent_extrusion_batches_reported"] = int(independent_batches)
+                record["method"]["independent_extrusion_batches_reported"] = int(
+                    independent_batches
+                )
             else:
                 record["method"]["independent_extrusion_batches_reported"] = None
             records.append(record)
 
     expected_percentages = {0, 10, 20, 30, 40, 50}
     actual_percentages = {
-        int(record["processing"]["formulation"]["full_fat_soy"]["value"])
-        for record in records
+        int(record["processing"]["formulation"]["full_fat_soy"]["value"]) for record in records
     }
     if len(records) != 6 or actual_percentages != expected_percentages:
-        raise ValueError(f"Expected six HMMA formulations at FFS 0-50%, found {sorted(actual_percentages)}")
+        raise ValueError(
+            f"Expected six HMMA formulations at FFS 0-50%, found {sorted(actual_percentages)}"
+        )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     summary_path.parent.mkdir(parents=True, exist_ok=True)
@@ -252,15 +290,17 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
         "distinct_process_setting_count": 1,
         "training_eligible": False,
         "limitations": [
-            "Only the six HMMA formulations are included; the separate LMMA experiments are excluded.",
-            "All HMMA formulations use one reported process setting, so this source cannot identify process-condition effects.",
-            "Results are six-measurement summaries; individual readings and independent extrusion-batch count are not reported.",
-            "The article's WHC, degree-of-texturization, integrity-index, DPPH, and total-phenolic results are presented in figures rather than tabulated numeric source values and are not digitized here.",
-            "The formulation percentage basis is not specified in Table 1 and is preserved without assigning a dry-matter basis.",
-            "This soy-based ingredient system includes wheat gluten and corn starch and does not validate Kenyan ingredient formulations.",
+            "Only the six HMMA formulations are included; the separate LMMA experiments are excluded.",  # noqa: E501
+            "All HMMA formulations use one reported process setting, so this source cannot identify process-condition effects.",  # noqa: E501
+            "Results are six-measurement summaries; individual readings and independent extrusion-batch count are not reported.",  # noqa: E501
+            "The article's WHC, degree-of-texturization, integrity-index, DPPH, and total-phenolic results are presented in figures rather than tabulated numeric source values and are not digitized here.",  # noqa: E501
+            "The formulation percentage basis is not specified in Table 1 and is preserved without assigning a dry-matter basis.",  # noqa: E501
+            "This soy-based ingredient system includes wheat gluten and corn starch and does not validate Kenyan ingredient formulations.",  # noqa: E501
         ],
     }
-    summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    summary_path.write_text(
+        json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     return summary
 
 

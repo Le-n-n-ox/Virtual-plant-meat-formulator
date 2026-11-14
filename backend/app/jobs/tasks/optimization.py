@@ -27,6 +27,16 @@ from app.jobs.tasks.common import (
     update_job,
 )
 
+# Texture model feature -> catalogue nutrient key (g per 100 g as formulated).
+TEXTURE_FEATURE_KEYS = {
+    "protein": "protein",
+    "moisture": "water",
+    "ash": "ash",
+    "carbs": "carbohydrate_available",
+    "fat": "fat",
+    "fiber": "fibre",
+}
+
 SCENE_DEFAULT: dict[str, Any] = {"visual_basis": "illustrative", "variables": []}
 
 
@@ -113,7 +123,40 @@ def run_optimization(job_id: str, emitter: JobEmitter) -> None:
 
             predictors[target] = predictor
 
+        texture_range_keys: set[str] = set()
         if predictors:
+            # Search only where the texture models are supported: their training ranges are
+            # linear in the blend, so they become ordinary constraints. A blend that cannot
+            # reach them fails with an explanation instead of chasing extrapolation artifacts.
+            ranges = service.domain_ranges(texture_targets)
+            moisture_range = ranges.get("target_moisture")
+            if (
+                moisture_range
+                and process.moisture_percent is not None
+                and not (moisture_range[0] <= process.moisture_percent <= moisture_range[1])
+            ):
+                raise JobFailure(
+                    "validation_failed",
+                    f"Process moisture {process.moisture_percent:g}% is outside the range the "
+                    f"texture models were trained on ({moisture_range[0]:g} to "
+                    f"{moisture_range[1]:g}%).",
+                    {
+                        "issues": [
+                            {
+                                "code": "out_of_domain",
+                                "field": "params.process.moisture_percent",
+                                "message": "Choose a moisture inside the supported range.",
+                            }
+                        ]
+                    },
+                )
+            for feature, key in TEXTURE_FEATURE_KEYS.items():
+                if feature in ranges:
+                    low, high = ranges[feature]
+                    constraint_set.nutrient_limits.append(cons.NutrientLimit(key, low, "g", "min"))
+                    constraint_set.nutrient_limits.append(cons.NutrientLimit(key, high, "g", "max"))
+            texture_range_keys = set(TEXTURE_FEATURE_KEYS.values())
+
             # Texture models need every composition input for every ingredient that can
             # take a positive share; fail clearly instead of searching blind.
             excluded = set(constraint_set.excluded_ingredient_ids)
@@ -151,7 +194,11 @@ def run_optimization(job_id: str, emitter: JobEmitter) -> None:
             ),
             seed=seed,
         )
-        out_of_domain_policy = str(params.get("out_of_domain", "warn"))
+        # With texture objectives an out-of-domain candidate has no estimate at all, so it
+        # can never be ranked on texture: always drop it.
+        out_of_domain_policy = (
+            "drop" if texture_targets else str(params.get("out_of_domain", "warn"))
+        )
         stored: list[str] = []
 
         def evaluate_and_store(candidate: Any, rank: int, pareto: bool) -> str | None:
@@ -191,7 +238,7 @@ def run_optimization(job_id: str, emitter: JobEmitter) -> None:
                 predictions = outcome.get("predictions", [])
                 warnings = outcome.get("warnings", [])
                 if out_of_domain_policy == "drop" and any(
-                    p.get("in_domain") is False for p in predictions
+                    p.get("in_domain") is False or p.get("value") is None for p in predictions
                 ):
                     return None
             row = Candidate(
@@ -256,8 +303,19 @@ def run_optimization(job_id: str, emitter: JobEmitter) -> None:
                 candidate_cb=on_candidate if predictors else None,
             )
         except solver.InfeasibleError as exc:
+            explanation = exc.explanation
+            if any(
+                str(v.get("constraint", "")).split("#")[0].rsplit("_", 1)[0] in texture_range_keys
+                for v in exc.violated
+            ):
+                explanation = (
+                    "These ingredients cannot form a blend inside the range the texture models "
+                    "were trained on (protein isolates and concentrates, roughly 56 to 88 g "
+                    "protein per 100 g). Add a protein isolate or concentrate, or remove the "
+                    "texture objective. " + explanation
+                )
             raise JobFailure(
-                "infeasible", exc.explanation, {"violated_constraints": exc.violated}
+                "infeasible", explanation, {"violated_constraints": exc.violated}
             ) from exc
         except solver.MissingDataError as exc:
             raise JobFailure(
@@ -298,7 +356,12 @@ def run_optimization(job_id: str, emitter: JobEmitter) -> None:
         if not final_ids:
             raise JobFailure(
                 "infeasible",
-                "No candidate satisfied every constraint after rounding and re-validation.",
+                (
+                    "No candidate stayed inside the texture models' supported range after "
+                    "rounding; widen the ingredient limits or remove the texture objective."
+                    if texture_targets
+                    else "No candidate satisfied every constraint after rounding and re-validation."
+                ),
                 {"summary": jsonable(outcome.summary)},
             )
 

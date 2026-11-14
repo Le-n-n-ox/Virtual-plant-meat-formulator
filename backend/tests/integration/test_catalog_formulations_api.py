@@ -739,3 +739,18 @@ def test_seed_run_all_and_real_kfct(db):  # type: ignore[no-untyped-def]
         pytest.skip("real KFCT file not present")
     assert summary["kfct"]["foods"] > 400
     assert db.get(Ingredient, "ing_kfct_1001") is not None
+
+
+def test_exclude_animal_groups_filter(client, headers, catalog, db):  # type: ignore[no-untyped-def]
+    db.get(Ingredient, "ing_bean").food_group = "Legumes and pulses"
+    db.get(Ingredient, "ing_sorghum").food_group = "Fish and sea foods"  # pretend animal group
+    db.commit()
+    everything = client.get("/api/ingredients", headers=headers["viewer"]).json()
+    assert everything["total"] == 3
+    filtered = client.get(
+        "/api/ingredients?exclude_animal_groups=true", headers=headers["viewer"]
+    ).json()
+    ids = {i["id"] for i in filtered["items"]}
+    assert ids == {"ing_bean", "ing_water"}  # ungrouped items are kept
+    assert filtered["total"] == 2
+    assert {i["food_group"] for i in filtered["items"]} == {"Legumes and pulses", None}

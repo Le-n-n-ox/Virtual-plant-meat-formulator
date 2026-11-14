@@ -17,7 +17,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from pypdf import PdfReader
+from pypdf import PdfReader  # type: ignore[import-not-found]  # pypdf is not a declared dependency
 
 SOURCE_ID = "kfct-recipes-2018"
 SOURCE_CITATION = (
@@ -112,7 +112,7 @@ def import_recipe_book(
         variant = (heading.group(2) or "").lower()
         record_id = f"{code}:{variant}" if variant else code
         stop = headings[index + 1].start() if index + 1 < len(headings) else len(full_text)
-        section = full_text[heading.start():stop].strip()
+        section = full_text[heading.start() : stop].strip()
         title = _title_after_heading(full_text, heading.end(), workbook_names)
         workbook_key = _workbook_key(code, variant, title)
         workbook_name = workbook_names.get(workbook_key) or workbook_names.get(code)
@@ -132,7 +132,7 @@ def import_recipe_book(
                     "workbook_file": pdf_path.name,
                     "pdf_page": _find_source_page(full_text, heading.start()),
                     "heading_text": heading.group(0),
-                    "extraction_method": "pypdf text extraction; layout-dependent values require review",
+                    "extraction_method": "pypdf text extraction; layout-dependent values require review",  # noqa: E501
                 },
             }
         )
@@ -152,13 +152,13 @@ def import_recipe_book(
                 "code_suffix": None,
                 "name": workbook_names.get("15083") or "Kimanga cha Ndizi",
                 "nutrient_estimate_status": "appendix_values_present_layout_review_required",
-                "extracted_text": full_text[appendix_match.start():appendix_stop],
+                "extracted_text": full_text[appendix_match.start() : appendix_stop],
                 "source": {
                     "source_id": SOURCE_ID,
                     "citation": SOURCE_CITATION,
                     "workbook_file": pdf_path.name,
                     "pdf_page": _find_source_page(full_text, appendix_match.start()),
-                    "heading_text": "Recipe found in the nutrient appendix; narrative heading not extracted",
+                    "heading_text": "Recipe found in the nutrient appendix; narrative heading not extracted",  # noqa: E501
                     "extraction_method": "pypdf text extraction; appendix values require review",
                 },
             }
@@ -199,9 +199,9 @@ def import_recipe_book(
         ),
         "quality_notes": [
             "Recipe content is retained as extracted text with physical PDF page references.",
-            "Ingredient quantities, steps, and nutrients are not promoted to structured fields by this importer.",
-            "Review the duplicate 15066 rice/stew code and the appendix-only record before joining recipes to the food catalogue.",
-            "pypdf reports rotated text in the source PDF; review table alignment and rotated pages visually.",
+            "Ingredient quantities, steps, and nutrients are not promoted to structured fields by this importer.",  # noqa: E501
+            "Review the duplicate 15066 rice/stew code and the appendix-only record before joining recipes to the food catalogue.",  # noqa: E501
+            "pypdf reports rotated text in the source PDF; review table alignment and rotated pages visually.",  # noqa: E501
         ],
     }
     output_path.with_suffix(".summary.json").write_text(

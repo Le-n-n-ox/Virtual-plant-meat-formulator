@@ -243,6 +243,25 @@ export interface TexturePrediction extends Prediction {
   evidence_basis?: string;
   reason?: string;
   missing_features?: string[];
+  /** Closest published sample groups, shown for comparison when out of domain. */
+  nearest_evidence?: NearestEvidence[];
+}
+
+export interface NearestEvidence {
+  group: string;
+  distance?: number | null;
+  n_samples?: number;
+  measured_min?: number;
+  measured_max?: number;
+  unit?: string;
+  source?: string;
+}
+
+export interface DomainViolation {
+  feature: string;
+  value: number;
+  min: number;
+  max: number;
 }
 
 export interface Candidate {

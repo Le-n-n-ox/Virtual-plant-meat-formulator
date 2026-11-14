@@ -15,14 +15,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_INPUT = (
-    BACKEND_ROOT
-    / "data"
-    / "reference"
-    / "mektun_2026_mungbean_wg_hme_tables1_3_4.csv"
-)
+DEFAULT_INPUT = BACKEND_ROOT / "data" / "reference" / "mektun_2026_mungbean_wg_hme_tables1_3_4.csv"
 DEFAULT_OUTPUT = BACKEND_ROOT / "data" / "processed" / "mektun_mungbean_wg_hme_2026_review.jsonl"
 DEFAULT_SUMMARY = (
     BACKEND_ROOT / "data" / "processed" / "mektun_mungbean_wg_hme_2026_review.summary.json"
@@ -50,7 +44,7 @@ TABLE_5_EQUATION_TEXT_UNVERIFIED = {
     "status": "unresolved_pdf_visual_verification",
     "executable": False,
     "scope": (
-        "70:30 mung bean protein isolate:wheat gluten blend and the study's tested central-composite "
+        "70:30 mung bean protein isolate:wheat gluten blend and the study's tested central-composite "  # noqa: E501
         "temperature/moisture design only"
     ),
     "entries": [
@@ -70,7 +64,7 @@ TABLE_5_EQUATION_TEXT_UNVERIFIED = {
         },
     ],
     "caveat": (
-        "Publisher PDF could not be visually verified (request timed out); HTML text extraction may "
+        "Publisher PDF could not be visually verified (request timed out); HTML text extraction may "  # noqa: E501
         "concatenate or misplace decimal points. Preserve this text for source review only; do not "
         "parse, evaluate, or use it as an executable model until the PDF typography is checked."
     ),
@@ -219,9 +213,7 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
             for metric in MECHANICAL_METRICS.values()
             for field in (metric["mean"], metric["sd"], metric["unit"], metric["n"])
         }
-        required |= {
-            f"barrel_zone_{zone}_c" for zone in (1, 2, 3, 4, 5, 8, 9)
-        }
+        required |= {f"barrel_zone_{zone}_c" for zone in (1, 2, 3, 4, 5, 8, 9)}
         missing = sorted(required - set(reader.fieldnames or []))
         if missing:
             raise ValueError(f"Missing expected CSV columns: {', '.join(missing)}")
@@ -241,13 +233,11 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                 }
 
             zone_temperature = inputs["barrel_temperature_zone_6_7"]["value"]
-            barrel_profile = [
-                _count(row, f"barrel_zone_{zone}_c", csv_row_number)
-                for zone in (1, 2, 3, 4, 5)
-            ] + [zone_temperature, zone_temperature] + [
-                _count(row, f"barrel_zone_{zone}_c", csv_row_number)
-                for zone in (8, 9)
-            ]
+            barrel_profile = (
+                [_count(row, f"barrel_zone_{zone}_c", csv_row_number) for zone in (1, 2, 3, 4, 5)]
+                + [zone_temperature, zone_temperature]
+                + [_count(row, f"barrel_zone_{zone}_c", csv_row_number) for zone in (8, 9)]
+            )
 
             measurements: dict[str, Any] = {}
             for metric_name, spec in MECHANICAL_METRICS.items():
@@ -284,7 +274,7 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                     "usage_scope": "CC BY 4.0; attribution to the original article is required",
                 },
                 "record_type": "hme_condition_published_summary",
-                "data_level": "condition_level_mean_and_standard_deviation; raw replicates not published",
+                "data_level": "condition_level_mean_and_standard_deviation; raw replicates not published",  # noqa: E501
                 "identifiers": {
                     "trial_id": f"mektun2026-{sample_code}",
                     "source_sample_code": sample_code,
@@ -300,7 +290,9 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                     "ingredient_system": "mung bean protein isolate and wheat gluten",
                     "formulation": {
                         "mung_bean_protein_isolate_fraction": {
-                            "value": _number(row, "mung_bean_protein_isolate_pct_w_w", csv_row_number),
+                            "value": _number(
+                                row, "mung_bean_protein_isolate_pct_w_w", csv_row_number
+                            ),
                             "unit": "% w/w",
                         },
                         "wheat_gluten_fraction": {
@@ -329,14 +321,25 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                             "unit": "degC",
                         },
                         "cooling_die_dimensions": {
-                            "width": {"value": _number(row, "cooling_die_width_mm", csv_row_number), "unit": "mm"},
-                            "height": {"value": _number(row, "cooling_die_height_mm", csv_row_number), "unit": "mm"},
-                            "length": {"value": _number(row, "cooling_die_length_mm", csv_row_number), "unit": "mm"},
+                            "width": {
+                                "value": _number(row, "cooling_die_width_mm", csv_row_number),
+                                "unit": "mm",
+                            },
+                            "height": {
+                                "value": _number(row, "cooling_die_height_mm", csv_row_number),
+                                "unit": "mm",
+                            },
+                            "length": {
+                                "value": _number(row, "cooling_die_length_mm", csv_row_number),
+                                "unit": "mm",
+                            },
                         },
                         "extruder_barrel_length": {
-                            "reported_value": _number(row, "extruder_barrel_length_reported", csv_row_number),
+                            "reported_value": _number(
+                                row, "extruder_barrel_length_reported", csv_row_number
+                            ),
                             "reported_unit": row["extruder_barrel_length_unit_reported"],
-                            "source_note": "Source reports barrel length as 72 mm; retained without correction.",
+                            "source_note": "Source reports barrel length as 72 mm; retained without correction.",  # noqa: E501
                         },
                         "extruder_screw_diameter": {
                             "value": _number(row, "extruder_screw_diameter_mm", csv_row_number),
@@ -356,23 +359,23 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
                 "method": {
                     "texture_profile_analysis": (
                         "Double-compression test on 2 x 2 cm samples, 1.5 cm thick; source reports "
-                        "a minimum of ten measurements. Hardness is first-compression maximum force; "
-                        "springiness, cohesiveness, chewiness, and resilience follow the source definitions."
+                        "a minimum of ten measurements. Hardness is first-compression maximum force; "  # noqa: E501
+                        "springiness, cohesiveness, chewiness, and resilience follow the source definitions."  # noqa: E501
                     ),
                     "penetration_test": (
-                        "Multiple-puncture probe on 4 x 4 cm samples, 1.5 cm thick, at 75% of original "
-                        "thickness and 2 mm/s; rupture force is reported as firmness; minimum ten measurements."
+                        "Multiple-puncture probe on 4 x 4 cm samples, 1.5 cm thick, at 75% of original "  # noqa: E501
+                        "thickness and 2 mm/s; rupture force is reported as firmness; minimum ten measurements."  # noqa: E501
                     ),
                     "razor_blade_shear_test": (
-                        "Meullenet-Owens razor shear blade; 2 x 2 x 1.5 cm samples cut to 75% thickness "
-                        "at 2 mm/s in lengthwise and crosswise directions; minimum ten measurements."
+                        "Meullenet-Owens razor shear blade; 2 x 2 x 1.5 cm samples cut to 75% thickness "  # noqa: E501
+                        "at 2 mm/s in lengthwise and crosswise directions; minimum ten measurements."  # noqa: E501
                     ),
                     "specimen_handling": (
-                        "Samples stored at -20 degC for no longer than one month, defrosted at 4 degC overnight, "
-                        "then equilibrated at room temperature for at least two hours before analysis."
+                        "Samples stored at -20 degC for no longer than one month, defrosted at 4 degC overnight, "  # noqa: E501
+                        "then equilibrated at room temperature for at least two hours before analysis."  # noqa: E501
                     ),
                     "units_note": (
-                        "Units absent from a source table cell remain null. Table 4 labels chewiness as N; "
+                        "Units absent from a source table cell remain null. Table 4 labels chewiness as N; "  # noqa: E501
                         "that reported unit is retained."
                     ),
                 },
@@ -390,7 +393,13 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
         raise ValueError("Expected the nine source conditions with sample codes 1 through 9")
     if len(records) != 9:
         raise ValueError(f"Expected 9 condition rows, found {len(records)}")
-    if sum(record["processing"]["center_condition_replicates"]["triplicate_reported"] for record in records) != 1:
+    if (
+        sum(
+            record["processing"]["center_condition_replicates"]["triplicate_reported"]
+            for record in records
+        )
+        != 1
+    ):
         raise ValueError("Expected exactly one center condition marked as triplicate")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -419,16 +428,18 @@ def import_dataset(input_path: Path, output_path: Path, summary_path: Path) -> d
         "mechanical_metrics": list(MECHANICAL_METRICS),
         "table_5_equation_text_unverified": TABLE_5_EQUATION_TEXT_UNVERIFIED,
         "limitations": [
-            "Records are condition-level published means and standard deviations; individual instrument readings are not supplied.",
-            "The paper reports the 150BT-60MC center condition as triplicate and the texture-table measurement count as n=10; these describe different replication levels and are retained separately.",
-            "The source reports extruder barrel length as 72 mm. The value is preserved verbatim and its physical interpretation remains unresolved.",
-            "Table 4 reports chewiness in N; the importer retains the table unit without conversion.",
-            "Table 5 hardness and chewiness equations and fit statistics are retained verbatim from HTML text extraction but excluded from executable metadata until PDF rendering is visually verified; even if confirmed, they apply only to this 70:30 MBPI:WG system and its tested design.",
-            "This is one mung bean protein isolate/wheat gluten blend processed on one extruder. It does not validate texture predictions for Kenyan whole-food formulations or other equipment.",
-            "CC BY 4.0 attribution is required; retain the article citation and license with redistributed data.",
+            "Records are condition-level published means and standard deviations; individual instrument readings are not supplied.",  # noqa: E501
+            "The paper reports the 150BT-60MC center condition as triplicate and the texture-table measurement count as n=10; these describe different replication levels and are retained separately.",  # noqa: E501
+            "The source reports extruder barrel length as 72 mm. The value is preserved verbatim and its physical interpretation remains unresolved.",  # noqa: E501
+            "Table 4 reports chewiness in N; the importer retains the table unit without conversion.",  # noqa: E501
+            "Table 5 hardness and chewiness equations and fit statistics are retained verbatim from HTML text extraction but excluded from executable metadata until PDF rendering is visually verified; even if confirmed, they apply only to this 70:30 MBPI:WG system and its tested design.",  # noqa: E501
+            "This is one mung bean protein isolate/wheat gluten blend processed on one extruder. It does not validate texture predictions for Kenyan whole-food formulations or other equipment.",  # noqa: E501
+            "CC BY 4.0 attribution is required; retain the article citation and license with redistributed data.",  # noqa: E501
         ],
     }
-    summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    summary_path.write_text(
+        json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     return summary
 
 

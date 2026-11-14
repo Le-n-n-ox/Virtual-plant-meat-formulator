@@ -25,6 +25,10 @@ def _issues(*items: tuple[str, str, str]) -> dict[str, Any]:
 
 
 def check_job_limit(session: Session, user: CurrentUser, settings: Settings) -> None:
+    from app.jobs.recovery import fail_stale_jobs
+
+    if fail_stale_jobs(settings, user_id=user.user_id):
+        session.expire_all()
     active = session.execute(
         select(func.count())
         .select_from(Job)

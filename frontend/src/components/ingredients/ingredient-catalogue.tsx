@@ -29,11 +29,12 @@ export function IngredientCatalogue() {
   const [form, setForm] = useState("");
   const [crop, setCrop] = useState("");
   const [page, setPage] = useState(1);
+  const [hideAnimal, setHideAnimal] = useState(true);
   const q = useDebouncedValue(search.trim(), 300);
 
   const facets = useApiQuery("facets", getIngredientFacets);
   const { data, error, loading } = useApiQuery(
-    `ing|${q}|${form}|${crop}|${page}`,
+    `ing|${q}|${form}|${crop}|${page}|${hideAnimal}`,
     () =>
       listIngredients({
         q: q || undefined,
@@ -42,6 +43,7 @@ export function IngredientCatalogue() {
         page,
         page_size: PAGE_SIZE,
         sort: "common_name",
+        exclude_animal_groups: hideAnimal || undefined,
       }),
   );
   const pages = data ? Math.max(1, Math.ceil(data.total / data.page_size)) : 1;
@@ -108,6 +110,17 @@ export function IngredientCatalogue() {
             </option>
           ))}
         </select>
+        <label className="flex items-center gap-1.5 text-sm">
+          <input
+            type="checkbox"
+            checked={hideAnimal}
+            onChange={(e) => {
+              setHideAnimal(e.target.checked);
+              setPage(1);
+            }}
+          />
+          Hide meat, fish and dairy
+        </label>
       </div>
 
       {error ? (

@@ -19,12 +19,12 @@ from app.api.deps import (
     audit,
 )
 from app.api.errors import ApiError
-from app.api.sse import SSE_HEADERS, job_event_stream, stream_limiter
+from app.api.sse import SSE_HEADERS, job_event_stream
 from app.core.ids import iso, utcnow
+from app.core.limits import get_limits
 from app.core.security import (
     TokenError,
     issue_stream_token,
-    stream_nonces,
     verify_stream_token,
 )
 from app.db.models import Formulation, Job, JobResult
@@ -151,12 +151,17 @@ def train_model(
 @router.get("/jobs")
 def list_jobs(
     session: SessionDep,
+    settings: SettingsDep,
     user: ScientistDep,
     paging: PagingDep,
     status: str | None = None,
     type: str | None = None,  # noqa: A002 - public query name
     formulation_id: str | None = None,
 ) -> dict[str, object]:
+    from app.jobs.recovery import fail_stale_jobs
+
+    if fail_stale_jobs(settings, user_id=user.user_id):
+        session.expire_all()
     stmt = select(Job).where(Job.created_by == user.user_id)
     if status:
         stmt = stmt.where(Job.status.in_([s.strip() for s in status.split(",") if s.strip()]))
@@ -208,8 +213,15 @@ def list_jobs(
 
 
 @router.get("/jobs/{job_id}")
-def get_job(job_id: str, session: SessionDep, user: ScientistDep) -> dict[str, object]:
-    return job_status_payload(session, _owned_job(session, job_id, user.user_id))
+def get_job(
+    job_id: str, session: SessionDep, settings: SettingsDep, user: ScientistDep
+) -> dict[str, object]:
+    from app.jobs.recovery import fail_stale_jobs
+
+    job = _owned_job(session, job_id, user.user_id)
+    if job.status in ("queued", "running") and fail_stale_jobs(settings, job_id=job.id):
+        session.refresh(job)
+    return job_status_payload(session, job)
 
 
 @router.post("/jobs/{job_id}/stream-token")
@@ -242,14 +254,15 @@ async def job_events(
     job = session.get(Job, job_id)
     if job is None or job.created_by != claims.user_id:
         raise ApiError(404, "not_found", "Job not found.")
-    if not stream_nonces.consume(claims.nonce, claims.expires_at):
+    limits = get_limits()
+    if not limits.consume_nonce(claims.nonce, claims.expires_at):
         raise ApiError(401, "unauthenticated", "Stream token already used; request a new one.")
     start = 0
     if last_event_id and last_event_id.strip().isdigit():
         start = int(last_event_id.strip())
     elif after_seq is not None:
         start = after_seq
-    if not stream_limiter.acquire(claims.user_id, settings.max_streams_per_user):
+    if not limits.acquire_stream(claims.user_id, settings.max_streams_per_user):
         raise ApiError(429, "rate_limited", "Too many concurrent streams.")
     session.close()
     generator = job_event_stream(
@@ -258,7 +271,7 @@ async def job_events(
         get_bus(),
         heartbeat_seconds=settings.sse_heartbeat_seconds,
         is_disconnected=request.is_disconnected,
-        on_close=lambda: stream_limiter.release(claims.user_id),
+        on_close=lambda: limits.release_stream(claims.user_id),
     )
     return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
 
