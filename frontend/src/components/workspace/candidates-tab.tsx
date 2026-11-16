@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BoxIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   GitCompareIcon,
@@ -10,6 +11,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useState } from "react";
 import { ExplainPanel } from "@/components/assistant/explain-panel";
+import { ModelBadge } from "@/components/models/model-badge";
 import { intervalOf } from "@/components/results/texture-results";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,7 @@ import {
   humanizeKey,
   NOT_REPORTED,
 } from "@/lib/format";
+import { useSelectionStore } from "@/stores/selectionStore";
 import type { Candidate, TexturePrediction } from "@/types";
 
 const KNOWN_METRICS = new Set([
@@ -391,11 +394,24 @@ function CandidateDetail({
       !c.predictions.some((p) => p.target === k) &&
       typeof v === "number",
   );
+  const selectCandidate = useSelectionStore((s) => s.selectCandidate);
+  const models = new Map<string, TexturePrediction["model"]>();
+  for (const p of c.predictions) if (p.model) models.set(p.model.id, p.model);
+  const canCutaway =
+    c.scene.visual_basis !== "illustrative" ||
+    c.scene.variables.some((v) => v.validated);
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" disabled={promoting} onClick={onPromote}>
           {promoting ? "Promoting…" : "Promote to formulation"}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => selectCandidate(c.id, c.scene)}
+        >
+          <BoxIcon aria-hidden /> Preview in 3D
         </Button>
         {c.promoted_formulation_id && (
           <Link
@@ -441,6 +457,24 @@ function CandidateDetail({
           ))}
         </ul>
       )}
+
+      {models.size > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <h4 className="text-xs font-medium text-muted-foreground">
+            Models behind these estimates
+          </h4>
+          {[...models.values()].map((m) => (
+            <ModelBadge key={m.id} model={m} />
+          ))}
+        </div>
+      )}
+
+      <p className="text-xs text-muted-foreground">
+        {canCutaway
+          ? "This candidate carries a validated scene variable, so a cutaway view is available in the 3D scene."
+          : "The 3D visual is illustrative: no calibrated, validated variable is attached to this candidate."}
+      </p>
+
       <ExplainPanel
         target={{ kind: "candidate", id: c.id }}
         label="Explain this candidate"

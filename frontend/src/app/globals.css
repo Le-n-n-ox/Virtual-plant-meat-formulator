@@ -443,6 +443,16 @@
   );
 }
 
+/*
+ * The 3D canvas owns its gestures: one finger orbits, two fingers dolly and
+ * pan. Without this the browser steals the touch for scrolling/zooming the
+ * page before CameraControls sees it.
+ */
+.scene-panel canvas {
+  touch-action: none;
+  display: block;
+}
+
 /* Blueprint grid for schematic surfaces. */
 .scene-grid-lines {
   background-image:

@@ -10,6 +10,7 @@ import {
   type MeshBasicMaterial,
 } from "three";
 import type { SceneTheme } from "../theme/sceneTheme";
+import { SceneModel } from "./SceneModel";
 
 const BIN_HEIGHT = 1.2;
 const FILL_MAX = 1.06;
@@ -124,69 +125,13 @@ export function IngredientBin({
         />
       </mesh>
 
-      {/* Base and foot */}
-      <mesh position={[0, 0.03, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.62, 0.66, 0.06, 48]} />
-        <meshStandardMaterial
-          color={theme.metal}
-          metalness={0.6}
-          roughness={0.32}
-        />
-      </mesh>
-      <mesh position={[0, 0.07, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.62, 0.022, 10, 48]} />
-        <meshStandardMaterial
-          color={theme.metal}
-          metalness={0.7}
-          roughness={0.25}
-        />
-      </mesh>
-
-      {/* Glass container: translucent so the fill level reads from any angle */}
-      <mesh position={[0, 0.08 + BIN_HEIGHT / 2, 0]} renderOrder={2}>
-        <cylinderGeometry args={[0.56, 0.5, BIN_HEIGHT, 48, 1, true]} />
-        <meshStandardMaterial
-          color={theme.glass}
-          transparent
-          opacity={theme.dark ? 0.2 : 0.3}
-          roughness={0.12}
-          metalness={0.1}
-          depthWrite={false}
-          side={DoubleSide}
-        />
-      </mesh>
-
-      {/* Measurement ticks on the glass */}
-      {[0.35, 0.65, 0.95].map((y) => (
-        <mesh
-          key={y}
-          position={[0, 0.08 + y, 0]}
-          rotation={[Math.PI / 2, 0, 0]}
-        >
-          <torusGeometry args={[0.545, 0.006, 8, 48]} />
-          <meshStandardMaterial
-            color={theme.metal}
-            metalness={0.4}
-            roughness={0.4}
-            transparent
-            opacity={0.55}
-          />
-        </mesh>
-      ))}
-
-      {/* Rim */}
-      <mesh
-        position={[0, 0.08 + BIN_HEIGHT, 0]}
-        rotation={[Math.PI / 2, 0, 0]}
-        castShadow
-      >
-        <torusGeometry args={[0.56, 0.035, 12, 48]} />
-        <meshStandardMaterial
-          color={theme.metal}
-          metalness={0.65}
-          roughness={0.28}
-        />
-      </mesh>
+      {/* Hopper shell: Blender-authored GLB, procedural geometry as fallback */}
+      <SceneModel
+        url="/scene/assets/ingredient-bin/ingredient-bin.glb"
+        placeholder={<BinPlaceholder />}
+        fallback={<BinShell theme={theme} />}
+        tints={{ BinMetal: theme.metal, BinGlass: theme.glass }}
+      />
 
       {/* Contents: height follows the validated percentage (illustrative) */}
       <mesh
@@ -218,6 +163,91 @@ export function IngredientBin({
           opacity={0}
           toneMapped={false}
           depthWrite={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/** Procedural hopper matching the GLB; shown if the asset fails to load. */
+function BinShell({ theme }: { theme: SceneTheme }) {
+  return (
+    <group>
+      <mesh position={[0, 0.03, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.62, 0.66, 0.06, 48]} />
+        <meshStandardMaterial
+          color={theme.metal}
+          metalness={0.6}
+          roughness={0.32}
+        />
+      </mesh>
+      <mesh position={[0, 0.07, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.62, 0.022, 10, 48]} />
+        <meshStandardMaterial
+          color={theme.metal}
+          metalness={0.7}
+          roughness={0.25}
+        />
+      </mesh>
+      <mesh position={[0, 0.08 + BIN_HEIGHT / 2, 0]} renderOrder={2}>
+        <cylinderGeometry args={[0.56, 0.5, BIN_HEIGHT, 48, 1, true]} />
+        <meshStandardMaterial
+          color={theme.glass}
+          transparent
+          opacity={theme.dark ? 0.2 : 0.3}
+          roughness={0.12}
+          metalness={0.1}
+          depthWrite={false}
+          side={DoubleSide}
+        />
+      </mesh>
+      {[0.35, 0.65, 0.95].map((y) => (
+        <mesh
+          key={y}
+          position={[0, 0.08 + y, 0]}
+          rotation={[Math.PI / 2, 0, 0]}
+        >
+          <torusGeometry args={[0.545, 0.006, 8, 48]} />
+          <meshStandardMaterial
+            color={theme.metal}
+            metalness={0.4}
+            roughness={0.4}
+            transparent
+            opacity={0.55}
+          />
+        </mesh>
+      ))}
+      <mesh
+        position={[0, 0.08 + BIN_HEIGHT, 0]}
+        rotation={[Math.PI / 2, 0, 0]}
+        castShadow
+      >
+        <torusGeometry args={[0.56, 0.035, 12, 48]} />
+        <meshStandardMaterial
+          color={theme.metal}
+          metalness={0.65}
+          roughness={0.28}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/** Low-poly stand-in while the GLB downloads. */
+function BinPlaceholder() {
+  return (
+    <group>
+      <mesh position={[0, 0.03, 0]}>
+        <cylinderGeometry args={[0.62, 0.66, 0.06, 24]} />
+        <meshStandardMaterial transparent opacity={0.25} />
+      </mesh>
+      <mesh position={[0, 0.08 + BIN_HEIGHT / 2, 0]} renderOrder={2}>
+        <cylinderGeometry args={[0.56, 0.5, BIN_HEIGHT, 16, 1, true]} />
+        <meshStandardMaterial
+          transparent
+          opacity={0.12}
+          depthWrite={false}
+          side={DoubleSide}
         />
       </mesh>
     </group>

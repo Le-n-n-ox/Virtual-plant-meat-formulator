@@ -4,6 +4,7 @@ import { PlayIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, type FormEvent } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { CandidateScatter } from "@/components/candidates/candidate-scatter";
 import { JobProgress } from "@/components/jobs/job-progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import { useApiQuery } from "@/hooks/use-api-query";
 import { useIngredientNames } from "@/hooks/use-ingredient-names";
 import { useSavedVersion } from "@/hooks/use-saved-version";
 import { getJob, type OptimizationParams } from "@/lib/api/jobs";
+import { listCandidates } from "@/lib/api/candidates";
 import { listNutrients, type NutrientDefinition } from "@/lib/api/ingredients";
 import { humanizeKey } from "@/lib/format";
 import { runJob } from "@/lib/jobs/job-runner";
@@ -156,12 +158,22 @@ export function OptimizeTab() {
 
   const isOptimization = jobType === "optimization";
   const running = activeJobId !== null && isOptimization && !isTerminal(status);
+  const finished = isOptimization && activeJobId !== null && isTerminal(status);
   const failedJobId =
     isOptimization && status === "failed" ? activeJobId : null;
   const failure = useApiQuery(
     `opt-fail|${failedJobId}`,
     async () => describeJobError((await getJob(failedJobId ?? "")).error),
     failedJobId !== null,
+  );
+  const scatter = useApiQuery(
+    `opt-scatter|${id}|${activeJobId ?? ""}`,
+    () =>
+      listCandidates(id, {
+        job_id: activeJobId ?? undefined,
+        page_size: 100,
+      }),
+    finished,
   );
   const hasTexture = objectives.some(
     (o) => OBJECTIVE_TARGETS.find((t) => t.id === o.target)?.texture,
@@ -309,8 +321,6 @@ export function OptimizeTab() {
       </p>
     );
   }
-
-  const finished = isOptimization && activeJobId && isTerminal(status);
 
   return (
     <form
@@ -792,6 +802,10 @@ export function OptimizeTab() {
             View candidates
           </Link>
         </p>
+      )}
+
+      {scatter.data && scatter.data.items.length > 0 && (
+        <CandidateScatter candidates={scatter.data.items} />
       )}
     </form>
   );
