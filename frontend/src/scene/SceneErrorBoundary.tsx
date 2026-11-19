@@ -4,7 +4,11 @@ import { Component, type ReactNode } from "react";
 
 /** Falls back (to the 2D view) if the WebGL scene throws, e.g. context loss. */
 export class SceneErrorBoundary extends Component<
-  { fallback: ReactNode; children: ReactNode },
+  {
+    fallback: ReactNode; /** Names the subtree in the console, e.g. "Scene asset …". */
+    label?: string;
+    children: ReactNode;
+  },
   { failed: boolean }
 > {
   state = { failed: false };
@@ -14,7 +18,10 @@ export class SceneErrorBoundary extends Component<
   }
 
   componentDidCatch(error: unknown) {
-    console.error("3D scene failed; showing 2D fallback.", error);
+    console.error(
+      `${this.props.label ?? "3D scene"} failed; showing the fallback.`,
+      error,
+    );
   }
 
   render() {

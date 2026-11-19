@@ -20,6 +20,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiQuery } from "@/hooks/use-api-query";
 import {
@@ -35,6 +42,7 @@ import {
   formatNumber,
   humanizeKey,
 } from "@/lib/format";
+import type { ModelDetail } from "@/types";
 
 type Action = { kind: "approve" | "retire"; model: ModelListItem };
 
@@ -45,6 +53,7 @@ export function ModelRegistry() {
     listModels({ status: "all", page_size: 100 }),
   );
   const [action, setAction] = useState<Action | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -63,6 +72,8 @@ export function ModelRegistry() {
       setPending(false);
     }
   }
+
+  const openModel = data?.items.find((m) => m.id === openId) ?? null;
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 p-4 sm:p-6 lg:p-8">
@@ -94,6 +105,7 @@ export function ModelRegistry() {
               key={m.id}
               model={m}
               isAdmin={isAdmin}
+              onOpen={() => setOpenId(m.id)}
               onAction={(kind) => {
                 setActionError(null);
                 setAction({ kind, model: m });
@@ -101,6 +113,10 @@ export function ModelRegistry() {
             />
           ))}
         </ul>
+      )}
+
+      {openModel && (
+        <ModelDetailSheet model={openModel} onClose={() => setOpenId(null)} />
       )}
 
       <Dialog
@@ -149,16 +165,14 @@ export function ModelRegistry() {
 function ModelCard({
   model,
   isAdmin,
+  onOpen,
   onAction,
 }: {
   model: ModelListItem;
   isAdmin: boolean;
+  onOpen: () => void;
   onAction: (kind: "approve" | "retire") => void;
 }) {
-  const detail = useApiQuery(`model|${model.id}|${model.status}`, () =>
-    getModel(model.id),
-  );
-  const limitations = detail.data?.limitations;
   const rmse = model.holdout_metric;
   return (
     <li>
@@ -200,50 +214,145 @@ function ModelCard({
             <dt className="text-muted-foreground">Dataset</dt>
             <dd>{model.dataset_version}</dd>
           </dl>
-          <div>
-            <h3 className="text-xs font-medium text-muted-foreground">
-              Limitations
-            </h3>
-            {detail.loading ? (
-              <Skeleton className="mt-1 h-10 w-full" />
-            ) : detail.error ? (
-              <p className="text-xs text-destructive">
-                {errorMessage(detail.error)}
-              </p>
-            ) : Array.isArray(limitations) ? (
-              <ul className="list-disc pl-4 text-xs">
-                {limitations.map((l) => (
-                  <li key={l}>{l}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs">{limitations || "none recorded"}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={onOpen}>
+              Details and limitations
+            </Button>
+            {isAdmin && (
+              <>
+                {model.status !== "approved" && (
+                  <Button size="sm" onClick={() => onAction("approve")}>
+                    Approve
+                  </Button>
+                )}
+                {model.status !== "retired" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onAction("retire")}
+                  >
+                    Retire
+                  </Button>
+                )}
+              </>
             )}
           </div>
           <ExplainPanel
             target={{ kind: "model", id: model.id }}
             label="Explain this model"
           />
-          {isAdmin && (
-            <div className="flex gap-2">
-              {model.status !== "approved" && (
-                <Button size="sm" onClick={() => onAction("approve")}>
-                  Approve
-                </Button>
-              )}
-              {model.status !== "retired" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onAction("retire")}
-                >
-                  Retire
-                </Button>
-              )}
-            </div>
-          )}
         </CardContent>
       </Card>
     </li>
+  );
+}
+
+/** Drawer with the model's limitations and the dataset version it used. */
+function ModelDetailSheet({
+  model,
+  onClose,
+}: {
+  model: ModelListItem;
+  onClose: () => void;
+}) {
+  const detail = useApiQuery(`model-detail|${model.id}`, () =>
+    getModel(model.id),
+  );
+  const record: ModelDetail | null = detail.data;
+  const limitations = record
+    ? Array.isArray(record.limitations)
+      ? record.limitations
+      : record.limitations
+        ? [record.limitations]
+        : []
+    : [];
+  const domain = record?.applicability_domain ?? {};
+
+  return (
+    <Sheet
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>
+            {humanizeKey(model.target)} · {humanizeKey(model.algorithm)} v
+            {model.version}
+          </SheetTitle>
+          <SheetDescription>
+            {model.status}
+            {model.approved_at
+              ? ` · approved ${formatDateTime(model.approved_at)}`
+              : ""}
+          </SheetDescription>
+        </SheetHeader>
+
+        {detail.loading ? (
+          <Skeleton className="h-40 w-full" />
+        ) : detail.error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(detail.error)}
+          </p>
+        ) : (
+          <div className="flex flex-col gap-4 text-sm">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+              <dt className="text-muted-foreground">Dataset version</dt>
+              <dd>{record?.dataset_version ?? model.dataset_version}</dd>
+              <dt className="text-muted-foreground">Unit</dt>
+              <dd>{record?.unit ?? "not reported"}</dd>
+              <dt className="text-muted-foreground">Interval level</dt>
+              <dd>
+                {record?.interval_level === undefined
+                  ? "not reported"
+                  : `${Math.round(record.interval_level * 100)}%`}
+              </dd>
+              <dt className="text-muted-foreground">Training set size</dt>
+              <dd className="tabular-nums">
+                {model.training_set_size} samples
+              </dd>
+            </dl>
+
+            {Object.keys(domain).length > 0 && (
+              <section>
+                <h3 className="text-xs font-medium text-muted-foreground">
+                  Applicability domain
+                </h3>
+                <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
+                  {Object.entries(domain).map(([key, value]) => (
+                    <div key={key} className="contents">
+                      <dt className="text-muted-foreground">
+                        {humanizeKey(key)}
+                      </dt>
+                      <dd className="tabular-nums">
+                        {typeof value === "number"
+                          ? formatNumber(value)
+                          : JSON.stringify(value)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            )}
+
+            <section>
+              <h3 className="text-xs font-medium text-muted-foreground">
+                Limitations
+              </h3>
+              {limitations.length === 0 ? (
+                <p className="mt-1 text-xs">none recorded</p>
+              ) : (
+                <ul className="mt-1 list-disc pl-4 text-xs">
+                  {limitations.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 }
