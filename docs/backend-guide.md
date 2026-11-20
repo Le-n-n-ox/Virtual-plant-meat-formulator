@@ -38,11 +38,11 @@ This guide was written as a plan, before any backend code existed. Most of it ha
 - Contract tests against the frontend schemas, load tests, a coverage gate, and a test run of the immutability triggers on PostgreSQL (the test suite runs on SQLite).
 - Dependency and secret scans, the OpenAPI diff, image publishing and deployment steps in CI.
 - Sentry, and `user_id` in log lines.
-- A per-connection rate limit on the SSE stream, and the one-stream-per-job-per-tab rule.
+- The one-stream-per-job-per-tab rule.
 
-**Known defect**
+**Known defect (fixed)**
 
-Starting a job, requesting a stream token, cancelling a job and explaining a job all share one rate-limit budget of 30 requests per minute. The stream token was meant to have its own limit of 60. Section 15 describes the fix (BE-1).
+BE-1's shared rate-limit budget defect is fixed (section 15).
 
 **Added beyond the plan**
 
@@ -621,8 +621,8 @@ The `data` object is the frontend's `JobEvent` contract plus additive fields the
 - The event names, the stage lists in the table above, the 15-second heartbeat, replay from `Last-Event-ID` or `?after_seq=`, and both buses are implemented. The API uses its own SSE helper in `app/api/sse.py`, not `sse-starlette`.
 - The stream always reads event payloads from `job_events` in PostgreSQL. The bus only wakes the reader up, so a stream can never show an event the database lacks.
 - A stream token is single use: its nonce is recorded on first use (in Redis when Redis is configured, otherwise in process memory).
-- The 5-streams-per-user limit is enforced (`MAX_STREAMS_PER_USER`). The one-stream-per-job-per-tab rule and a rate limit on stream connections are not built.
-- Rate limits per minute: login 10, job start 30, export 20, explain 20. `POST /api/jobs/{job_id}/stream-token` is meant to allow 60 but currently shares the 30-per-minute job budget, because the rules in `app/core/observability.py` match on a path fragment and `/jobs` matches first. Job cancel and job explanations share that budget too. Section 15 (BE-1) is the fix.
+- The 5-streams-per-user limit is enforced (`MAX_STREAMS_PER_USER`), as is a rate limit on stream connections. The one-stream-per-job-per-tab rule is not built.
+- Rate limits per minute use separate named rules and per-caller buckets: `POST /api/auth/login` 10; `POST /api/formulations/{id}/jobs` 30; `POST /api/jobs/{job_id}/stream-token` 60; `POST /api/jobs/{job_id}/cancel` 30; `POST /api/jobs/{job_id}/explain`, `POST /api/candidates/{candidate_id}/explain` and `POST /api/models/{id}/explain` share the `explain` rule at 20; `GET /api/formulations/{id}/export` 20; `POST /api/admin/models/train` 10; and `GET /api/jobs/{job_id}/events` 60. Section 15 (BE-1) records the fix.
 
 **Cancellation**
 
@@ -920,7 +920,7 @@ The texture endpoints return `422 model_unavailable` and the frontend shows an e
 - Audit trail records data imports, formulation saves, job starts, model approvals and exports with actor, time and request ID.
 - Personal data stays minimal (email, display name, role); document retention in the privacy note before external users are added.
 
-**Current state.** In place: token verification in both auth modes, role dependencies, ownership checks that return `404`, request size limit (5 MB), CORS from `CORS_ALLOWED_ORIGINS`, signed single-use stream tokens with their own secret, rate limits on login, job start, export and explain, the audit trail, and a refusal to start in production with placeholder secrets. Not in place: a rate limit on stream connections, a secret scanner and a dependency scan in CI, and the privacy note.
+**Current state.** In place: token verification in both auth modes, role dependencies, ownership checks that return `404`, request size limit (5 MB), CORS from `CORS_ALLOWED_ORIGINS`, signed single-use stream tokens with their own secret, separate per-caller rate-limit rules for login, job start, stream tokens, job cancellation, explanations, exports, model training and stream connections (section 7), the audit trail, and a refusal to start in production with placeholder secrets. Not in place: a secret scanner and a dependency scan in CI, and the privacy note.
 
 **Testing**
 
@@ -1095,6 +1095,8 @@ None of these has a recorded decision yet. Where the code had to pick something 
 The audit behind the status notes in this guide found one defect in the backend. It is written here as a piece of work. The frontend's fixes are in the frontend guide (section 13).
 
 ### BE-1 Give each rate limit its own rule and its own bucket
+
+**Status: done**
 
 **Size:** small. **Owner:** the backend developer.
 

@@ -88,13 +88,12 @@ def create_app() -> FastAPI:
                 )
             rule = rate_limit_rule(request.method, request.url.path)
             if rule is not None:
-                suffix, limit, window = rule
-                ident = request.headers.get("authorization") or (
+                caller = request.headers.get("authorization") or (
                     request.client.host if request.client else "unknown"
                 )
-                key = f"{suffix}:{hashlib.sha256(ident.encode()).hexdigest()[:16]}"
-                if not get_limits().allow(key, limit, window):
-                    metrics.inc("http_rate_limited_total", path=suffix)
+                key = f"{rule.name}:{hashlib.sha256(caller.encode()).hexdigest()[:16]}"
+                if not get_limits().allow(key, rule.limit, rule.window_seconds):
+                    metrics.inc("http_rate_limited_total", rule=rule.name)
                     return _error_response(
                         request, 429, "rate_limited", "Too many requests; slow down."
                     )

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sys
 import threading
 import time
 from collections import defaultdict, deque
 from contextvars import ContextVar
+from dataclasses import dataclass
 
 request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
 user_id_var: ContextVar[str | None] = ContextVar("user_id", default=None)
@@ -126,18 +128,70 @@ class RateLimiter:
 
 rate_limiter = RateLimiter()
 
-# (method, path suffix matcher) -> (limit, window seconds)
-RATE_LIMITS: list[tuple[str, str, int, float]] = [
-    ("POST", "/api/auth/login", 10, 60.0),
-    ("POST", "/jobs", 30, 60.0),
-    ("GET", "/export", 20, 60.0),
-    ("POST", "/stream-token", 60, 60.0),
-    ("POST", "/explain", 20, 60.0),
-]
+
+@dataclass(frozen=True, slots=True)
+class RateLimitRule:
+    name: str
+    limit: int
+    window_seconds: float
 
 
-def rate_limit_rule(method: str, path: str) -> tuple[str, int, float] | None:
-    for rule_method, suffix, limit, window in RATE_LIMITS:
-        if method == rule_method and (path.endswith(suffix) or suffix in path):
-            return suffix, limit, window
+def _path_pattern(template: str) -> re.Pattern[str]:
+    """Compile a route template whose ``{param}`` segments match one path segment."""
+    segments = template.split("/")
+    pattern = "/".join(
+        "[^/]+" if re.fullmatch(r"\{[A-Za-z_][A-Za-z0-9_]*\}", segment) else re.escape(segment)
+        for segment in segments
+    )
+    return re.compile(f"^{pattern}$")
+
+
+_RATE_LIMIT_RULES: tuple[tuple[str, tuple[re.Pattern[str], ...], RateLimitRule], ...] = (
+    ("POST", (_path_pattern("/api/auth/login"),), RateLimitRule("login", 10, 60.0)),
+    (
+        "POST",
+        (_path_pattern("/api/formulations/{id}/jobs"),),
+        RateLimitRule("job_start", 30, 60.0),
+    ),
+    (
+        "POST",
+        (_path_pattern("/api/jobs/{job_id}/stream-token"),),
+        RateLimitRule("stream_token", 60, 60.0),
+    ),
+    (
+        "POST",
+        (_path_pattern("/api/jobs/{job_id}/cancel"),),
+        RateLimitRule("job_cancel", 30, 60.0),
+    ),
+    (
+        "POST",
+        (
+            _path_pattern("/api/jobs/{job_id}/explain"),
+            _path_pattern("/api/candidates/{candidate_id}/explain"),
+            _path_pattern("/api/models/{id}/explain"),
+        ),
+        RateLimitRule("explain", 20, 60.0),
+    ),
+    (
+        "GET",
+        (_path_pattern("/api/formulations/{id}/export"),),
+        RateLimitRule("export", 20, 60.0),
+    ),
+    (
+        "POST",
+        (_path_pattern("/api/admin/models/train"),),
+        RateLimitRule("model_train", 10, 60.0),
+    ),
+    (
+        "GET",
+        (_path_pattern("/api/jobs/{job_id}/events"),),
+        RateLimitRule("stream_events", 60, 60.0),
+    ),
+)
+
+
+def rate_limit_rule(method: str, path: str) -> RateLimitRule | None:
+    for rule_method, patterns, rule in _RATE_LIMIT_RULES:
+        if method == rule_method and any(pattern.fullmatch(path) for pattern in patterns):
+            return rule
     return None
