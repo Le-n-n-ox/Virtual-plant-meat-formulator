@@ -15,6 +15,7 @@ import {
   stageColorKey,
 } from "../stations";
 import type { SceneTheme } from "../theme/sceneTheme";
+import { SceneModel } from "./SceneModel";
 
 const SEGMENT_LENGTH = 1.1;
 const SLAT_COUNT = 12;
@@ -55,36 +56,15 @@ export function ProcessLine({
 
   return (
     <group>
-      {/* Base rail */}
-      <mesh
-        position={[(LINE_START + LINE_END) / 2, BELT_Y - 0.18, 0]}
-        receiveShadow
-        castShadow
-      >
-        <boxGeometry args={[LINE_END - LINE_START, 0.36, 1.05]} />
-        <meshStandardMaterial color={theme.metal} roughness={0.55} />
-      </mesh>
-
-      {/* Legs */}
-      {[LINE_START + 0.3, LINE_END - 0.3].map((x) => (
-        <mesh key={x} position={[x, (BELT_Y - 0.36) / 2, 0]} castShadow>
-          <boxGeometry args={[0.16, BELT_Y - 0.36, 0.8]} />
-          <meshStandardMaterial color={theme.metal} roughness={0.6} />
-        </mesh>
-      ))}
-
-      {/* Conveyor bed */}
-      <mesh
-        position={[(LINE_START + LINE_END) / 2, BELT_Y + 0.005, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        <planeGeometry args={[LINE_END - LINE_START - 0.2, 0.92]} />
-        <meshStandardMaterial
-          color={theme.metal}
-          roughness={0.55}
-          metalness={0.3}
+      {/* Rail, legs and bed: Blender-authored GLB, procedural as fallback */}
+      <group position={[(LINE_START + LINE_END) / 2, 0, 0]}>
+        <SceneModel
+          url="/scene/assets/processing-line/processing-line.glb"
+          placeholder={<LinePlaceholder />}
+          fallback={<LineShell theme={theme} />}
+          tints={{ LineMetal: theme.metal, LineDark: theme.metal }}
         />
-      </mesh>
+      </group>
 
       {/* Moving tread slats */}
       <group ref={tread}>
@@ -135,6 +115,42 @@ export function ProcessLine({
         />
       ))}
     </group>
+  );
+}
+
+/** Procedural rail, legs and bed matching the GLB; asset fallback. */
+function LineShell({ theme }: { theme: SceneTheme }) {
+  return (
+    <group>
+      <mesh position={[0, 0.24, 0]} receiveShadow castShadow>
+        <boxGeometry args={[LINE_END - LINE_START, 0.36, 1.05]} />
+        <meshStandardMaterial color={theme.metal} roughness={0.55} />
+      </mesh>
+      {[-1.95, 1.95].map((x) => (
+        <mesh key={x} position={[x, 0.12, 0]} castShadow>
+          <boxGeometry args={[0.16, BELT_Y - 0.36, 0.8]} />
+          <meshStandardMaterial color={theme.metal} roughness={0.6} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.43, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[LINE_END - LINE_START - 0.2, 0.92]} />
+        <meshStandardMaterial
+          color={theme.metal}
+          roughness={0.55}
+          metalness={0.3}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/** Low-poly stand-in while the GLB downloads. */
+function LinePlaceholder() {
+  return (
+    <mesh position={[0, 0.24, 0]}>
+      <boxGeometry args={[LINE_END - LINE_START, 0.36, 1.05]} />
+      <meshStandardMaterial transparent opacity={0.2} />
+    </mesh>
   );
 }
 

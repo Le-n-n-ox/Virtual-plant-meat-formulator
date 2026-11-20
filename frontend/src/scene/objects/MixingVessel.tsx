@@ -7,21 +7,10 @@ import {
   DoubleSide,
   type Group,
   type InstancedMesh,
-  LatheGeometry,
   Object3D,
-  Vector2,
 } from "three";
 import type { SceneTheme } from "../theme/sceneTheme";
-
-/** Outer glass silhouette of the vessel (local units, base at y=0). */
-const GLASS_PROFILE = [
-  [0.0, 0.0],
-  [1.02, 0.0],
-  [1.24, 0.22],
-  [1.34, 0.72],
-  [1.4, 1.18],
-  [1.5, 1.28],
-].map(([x, y]) => new Vector2(x, y));
+import { SceneModel } from "./SceneModel";
 
 const BUBBLES = 18;
 const dummy = new Object3D();
@@ -49,7 +38,6 @@ export function MixingVessel({
 }: MixingVesselProps) {
   const paddle = useRef<Group>(null);
   const bubbles = useRef<InstancedMesh>(null);
-  const glass = useMemo(() => new LatheGeometry(GLASS_PROFILE, 72), []);
 
   const total = contents.reduce((sum, c) => sum + Math.max(0, c.weight), 0);
   const level = total > 0 ? Math.min(1, Math.max(0.08, total / 100)) : 0;
@@ -118,37 +106,13 @@ export function MixingVessel({
 
   return (
     <group>
-      {/* Metal base */}
-      <mesh position={[0, 0.16, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[1.16, 1.3, 0.32, 64]} />
-        <meshStandardMaterial
-          color={theme.metal}
-          metalness={0.65}
-          roughness={0.3}
-        />
-      </mesh>
-      <mesh position={[0, 0.33, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[1.2, 0.05, 12, 72]} />
-        <meshStandardMaterial
-          color={theme.metal}
-          metalness={0.7}
-          roughness={0.25}
-        />
-      </mesh>
-
-      {/* Glass body */}
-      <mesh geometry={glass} position={[0, 0.34, 0]} renderOrder={2}>
-        <meshStandardMaterial
-          color={theme.glass}
-          transparent
-          opacity={theme.dark ? 0.22 : 0.3}
-          roughness={0.08}
-          metalness={0.05}
-          envMapIntensity={1.4}
-          depthWrite={false}
-          side={DoubleSide}
-        />
-      </mesh>
+      {/* Vessel shell: Blender-authored GLB, procedural geometry as fallback */}
+      <SceneModel
+        url="/scene/assets/mixing-vessel/mixing-vessel.glb"
+        placeholder={<VesselPlaceholder />}
+        fallback={<VesselShell theme={theme} />}
+        tints={{ VesselMetal: theme.metal, VesselGlass: theme.glass }}
+      />
 
       {/* Contents: illustrative blend, level follows the validated total */}
       {blend && (
@@ -217,12 +181,70 @@ export function MixingVessel({
           opacity={highlight ? 0.95 : 0.8}
         />
       </mesh>
+    </group>
+  );
+}
+
+/** Procedural vessel shell matching the GLB; shown if the asset fails. */
+function VesselShell({ theme }: { theme: SceneTheme }) {
+  return (
+    <group>
+      <mesh position={[0, 0.16, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[1.16, 1.3, 0.32, 64]} />
+        <meshStandardMaterial
+          color={theme.metal}
+          metalness={0.65}
+          roughness={0.3}
+        />
+      </mesh>
+      <mesh position={[0, 0.33, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[1.2, 0.05, 12, 72]} />
+        <meshStandardMaterial
+          color={theme.metal}
+          metalness={0.7}
+          roughness={0.25}
+        />
+      </mesh>
+      <mesh position={[0, 0.98, 0]} renderOrder={2}>
+        <cylinderGeometry args={[1.02, 1.5, 1.28, 64, 1, true]} />
+        <meshStandardMaterial
+          color={theme.glass}
+          transparent
+          opacity={theme.dark ? 0.22 : 0.3}
+          roughness={0.08}
+          metalness={0.05}
+          envMapIntensity={1.4}
+          depthWrite={false}
+          side={DoubleSide}
+        />
+      </mesh>
       <mesh position={[0, 1.62, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[1.5, 0.035, 12, 72]} />
         <meshStandardMaterial
           color={theme.metal}
           metalness={0.7}
           roughness={0.25}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/** Low-poly stand-in while the GLB downloads. */
+function VesselPlaceholder() {
+  return (
+    <group>
+      <mesh position={[0, 0.16, 0]}>
+        <cylinderGeometry args={[1.16, 1.3, 0.32, 32]} />
+        <meshStandardMaterial transparent opacity={0.25} />
+      </mesh>
+      <mesh position={[0, 0.98, 0]} renderOrder={2}>
+        <cylinderGeometry args={[1.02, 1.5, 1.28, 24, 1, true]} />
+        <meshStandardMaterial
+          transparent
+          opacity={0.12}
+          depthWrite={false}
+          side={DoubleSide}
         />
       </mesh>
     </group>

@@ -1,7 +1,9 @@
 "use client";
 
 import { DownloadIcon } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
+import { ModelBadge } from "@/components/models/model-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +14,7 @@ import { useSavedVersion } from "@/hooks/use-saved-version";
 import { ApiError } from "@/lib/api/client";
 import { downloadExport, saveBlob, type ExportFormat } from "@/lib/api/exports";
 import { getVersion, listVersions } from "@/lib/api/formulations";
+import { getIngredient } from "@/lib/api/ingredients";
 import { getNutrition } from "@/lib/api/results";
 import {
   errorMessage,
@@ -20,6 +23,8 @@ import {
   humanizeKey,
   NOT_REPORTED,
 } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import type { IngredientDetail, TexturePrediction } from "@/types";
 
 const SUMMARY_NUTRIENTS = [
   "protein",
@@ -66,6 +71,27 @@ export function ReportTab() {
   const nameOf = useIngredientNames(
     detail.data?.lines.map((l) => l.ingredient_id) ?? [],
   );
+  const lineIds = [
+    ...new Set(detail.data?.lines.map((l) => l.ingredient_id) ?? []),
+  ];
+  const details = useApiQuery(
+    `report-ingredients|${id}|${version}|${lineIds.join(",")}`,
+    () =>
+      Promise.all(
+        lineIds.map(
+          async (ingredientId) =>
+            [
+              ingredientId,
+              await getIngredient(ingredientId).catch(() => null),
+            ] as const,
+        ),
+      ),
+    lineIds.length > 0,
+  );
+  const ingredientById: Record<string, IngredientDetail> = {};
+  for (const [ingredientId, record] of details.data ?? []) {
+    if (record) ingredientById[ingredientId] = record;
+  }
 
   async function download(format: ExportFormat) {
     setBusy(format);
@@ -91,10 +117,9 @@ export function ReportTab() {
   }
 
   const n = nutrition.data;
-  const models = new Map<string, string>();
+  const models = new Map<string, TexturePrediction["model"]>();
   for (const p of texture.data?.payload.predictions ?? [])
-    if (p.model)
-      models.set(p.model.id, `${p.model.algorithm} v${p.model.version}`);
+    if (p.model) models.set(p.model.id, p.model);
 
   return (
     <div className="flex flex-col gap-4">
@@ -263,14 +288,143 @@ export function ReportTab() {
                 );
               })}
             </ul>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Models:{" "}
-              {models.size === 0
-                ? NOT_REPORTED
-                : [...models.values()].join(", ")}
-              .
-            </p>
+            <div className="mt-2 flex flex-col gap-1.5">
+              <p className="text-xs font-medium text-muted-foreground">
+                Models
+              </p>
+              {models.size === 0 ? (
+                <p className="text-xs text-muted-foreground">{NOT_REPORTED}</p>
+              ) : (
+                [...models.values()].map((m) => (
+                  <ModelBadge key={m.id} model={m} />
+                ))
+              )}
+            </div>
           </>
+        )}
+      </section>
+
+      <section
+        aria-label="Data sources"
+        className="rounded-lg border p-3 text-sm"
+      >
+        <h2 className="mb-2 text-sm font-medium">Data sources</h2>
+        {details.loading ? (
+          <Skeleton className="h-16 w-full" />
+        ) : details.error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(details.error)}
+          </p>
+        ) : lineIds.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            This version has no ingredients.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[480px] text-sm">
+              <thead className="text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="py-1 font-medium">Ingredient</th>
+                  <th className="py-1 font-medium">Source</th>
+                  <th className="py-1 font-medium">Licence</th>
+                  <th className="py-1 font-medium">Dataset</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lineIds.map((ingredientId) => {
+                  const record = ingredientById[ingredientId];
+                  return (
+                    <tr key={ingredientId} className="border-t">
+                      <td className="py-1 pr-2">{nameOf(ingredientId)}</td>
+                      <td className="py-1 pr-2 text-xs">
+                        {record?.source.name ?? "not reported"}
+                      </td>
+                      <td className="py-1 pr-2 text-xs">
+                        {record?.source.license_status ?? "not reported"}
+                      </td>
+                      <td className="py-1 text-xs text-muted-foreground">
+                        {record?.dataset_version ?? "not reported"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="mt-2 text-xs text-muted-foreground">
+          Values are the weighted mixture of the source data for each
+          ingredient; the calculation is deterministic, not a prediction.
+        </p>
+      </section>
+
+      <section
+        aria-label="Audit trail"
+        className="rounded-lg border p-3 text-sm"
+      >
+        <h2 className="mb-2 text-sm font-medium">Audit trail</h2>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-xs">
+          <dt className="text-muted-foreground">Formulation</dt>
+          <dd>
+            v{version}
+            {detail.data?.updated_at
+              ? `, saved ${formatDateTime(detail.data.updated_at)}`
+              : ""}
+          </dd>
+          <dt className="text-muted-foreground">Nutrition calculation</dt>
+          <dd>
+            {n?.calc_version
+              ? `${n.calc_version}${n.finished_at ? `, ${formatDateTime(n.finished_at)}` : ""}`
+              : "not run for this version"}
+          </dd>
+          <dt className="text-muted-foreground">Texture job</dt>
+          <dd>
+            {texture.data ? (
+              <>
+                <Link
+                  href={`/jobs/${texture.data.jobId}`}
+                  className="text-primary underline-offset-4 hover:underline"
+                >
+                  {texture.data.jobId}
+                </Link>
+                {`, formulation v${texture.data.job.formulation_version}`}
+              </>
+            ) : (
+              "no texture prediction for this version"
+            )}
+          </dd>
+        </dl>
+        <h3 className="mt-3 text-xs font-medium text-muted-foreground">
+          Version history
+        </h3>
+        {versions.loading ? (
+          <Skeleton className="mt-1 h-12 w-full" />
+        ) : (
+          <ul className="mt-1 flex flex-col gap-1 text-xs">
+            {(versions.data?.items ?? []).map((v) => (
+              <li
+                key={v.version}
+                className={cn(
+                  "flex flex-wrap items-center gap-2 border-t pt-1 first:border-t-0 first:pt-0",
+                  v.version === version && "font-medium",
+                )}
+              >
+                <span className="tabular-nums">v{v.version}</span>
+                <span className="text-muted-foreground">
+                  {formatDateTime(v.created_at)}
+                </span>
+                {v.created_by && (
+                  <span className="text-muted-foreground">
+                    by {v.created_by}
+                  </span>
+                )}
+                {v.note && (
+                  <span className="text-muted-foreground">— {v.note}</span>
+                )}
+                {v.version === version && <Badge>this report</Badge>}
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </div>

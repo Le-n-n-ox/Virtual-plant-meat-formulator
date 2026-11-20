@@ -257,6 +257,7 @@ function Stage({
     })),
   );
   const selectedCandidate = useSelectionStore((s) => s.selectedCandidateId);
+  const cutaway = useSelectionStore((s) => s.cutaway);
   const [flows, setFlows] = useState<Flow[]>([]);
 
   const lines = useMemo(() => validated?.lines ?? [], [validated]);
@@ -395,6 +396,7 @@ function Stage({
             key={candidateId}
             theme={theme}
             reducedMotion={reducedMotion}
+            cutaway={cutaway}
           />
         </group>
       )}

@@ -29,6 +29,20 @@ jobs:
 
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6-alpine3.24
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: backend
@@ -44,10 +58,14 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run mypy app
       - run: uv run pytest
-      - name: Migrations apply from an empty database
+      - name: Create Supabase API roles for migration check
+        run: >-
+          docker exec "${{ job.services.postgres.id }}" psql -U postgres -d postgres
+          -v ON_ERROR_STOP=1 -c "CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN;"
+      - name: Migrations apply from an empty PostgreSQL database
         run: uv run alembic upgrade head
         env:
-          DATABASE_URL: sqlite:///./ci-migration-check.db
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
       - name: Export the OpenAPI contract
         run: >-
           uv run python -c "import json; from app.main import create_app;
@@ -64,16 +82,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Start stack and verify endpoints
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/postgres
         shell: bash
         run: |
           set -euo pipefail
           cleanup() {
             status=$?
-            if [ "$status" -ne 0 ]; then docker compose logs; fi
-            docker compose down -v
+            if [ "$status" -ne 0 ]; then docker compose -f docker-compose.yml -f docker-compose.ci.yml logs; fi
+            docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
             exit "$status"
           }
           trap cleanup EXIT
-          docker compose up --build -d --wait
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml up --build -d --wait
           curl --fail --retry 20 --retry-connrefused --retry-delay 2 http://localhost:8000/api/health
           curl --fail --retry 20 --retry-connrefused --retry-delay 2 -I http://localhost:3000
