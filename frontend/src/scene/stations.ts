@@ -1,3 +1,4 @@
+import type { JobStatus, JobType } from "@/types";
 import type { StageStatus } from "@/stores/jobStore";
 
 /**
@@ -13,6 +14,78 @@ export const PROCESS_STATIONS = [
 
 export type StationId = (typeof PROCESS_STATIONS)[number]["id"];
 
+/** Status of one station: the job's stage status, or idle when it is not involved. */
+export type StationStatus = StageStatus | "idle";
+
+export interface StationJobState {
+  jobType: JobType | null;
+  status: JobStatus | "idle";
+  stages: Record<string, StageStatus>;
+  currentStage: string | null;
+}
+
+/**
+ * Maps the job store's stage names onto the scene's stations (guide §7, §12.7).
+ *
+ * `jobStore.stages` is keyed by the backend's stage names (`validating`,
+ * `calculating`, `searching`, …) while the stations are named after job types,
+ * so a direct lookup never matches. This is the single place that translates.
+ *
+ * - the station named after the running job's type is active, then takes the
+ *   job's terminal status; a stage warning turns it amber.
+ * - the vessel (`mixing`) is active during the `validating` stage and complete
+ *   once the job moves past it.
+ * - a queued job lights nothing, and every other station stays idle.
+ *
+ * Pure: it reads no clock and no counter.
+ */
+export function stationStatuses(
+  job: StationJobState,
+): Record<StationId, StationStatus> {
+  const statuses = Object.fromEntries(
+    PROCESS_STATIONS.map((s) => [s.id, "idle"]),
+  ) as Record<StationId, StationStatus>;
+
+  const { jobType, status, stages, currentStage } = job;
+  if (!jobType || status === "idle" || status === "queued") return statuses;
+
+  const terminal: StationStatus | null =
+    status === "completed"
+      ? "complete"
+      : status === "failed"
+        ? "failed"
+        : status === "cancelled"
+          ? "cancelled"
+          : null;
+
+  const jobTypeWarning = Object.values(stages).includes("warning");
+
+  for (const station of PROCESS_STATIONS) {
+    if (station.id === jobType) {
+      statuses[station.id] =
+        terminal ?? (jobTypeWarning ? "warning" : "active");
+      continue;
+    }
+    if (station.id !== "mixing") continue;
+    if (currentStage === "validating") {
+      statuses.mixing =
+        terminal ?? (stages.validating === "warning" ? "warning" : "active");
+    } else {
+      statuses.mixing = terminal ?? "complete";
+    }
+  }
+  return statuses;
+}
+
+/** The backend's own label for the job's current stage, e.g. "Scoring amino acids". */
+export function currentStageLabel(job: {
+  currentStage: string | null;
+  stageLabels: Record<string, string>;
+}): string | null {
+  if (!job.currentStage) return null;
+  return job.stageLabels[job.currentStage] ?? null;
+}
+
 export const STAGE_STATUS_TEXT: Record<StageStatus | "idle", string> = {
   idle: "Idle",
   active: "Running",
@@ -24,7 +97,7 @@ export const STAGE_STATUS_TEXT: Record<StageStatus | "idle", string> = {
 
 /** Scene-theme colour key for a stage status. */
 export function stageColorKey(
-  status: StageStatus | undefined,
+  status: StationStatus | undefined,
 ): "active" | "complete" | "warning" | "failed" | "idle" | "metal" {
   switch (status) {
     case "active":

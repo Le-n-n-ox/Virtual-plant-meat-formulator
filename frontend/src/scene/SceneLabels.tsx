@@ -7,12 +7,14 @@ import { useJobStore } from "@/stores/jobStore";
 import { useSelectionStore } from "@/stores/selectionStore";
 import { SceneLabel, SceneLabelLayer } from "./labels";
 import {
+  currentStageLabel,
   LABEL_HEIGHT,
   PROCESS_STATIONS,
   PRODUCT_POSITION,
   STAGE_STATUS_TEXT,
   STATION_X,
   binPosition,
+  stationStatuses,
 } from "./stations";
 
 const pill =
@@ -24,14 +26,27 @@ export function SceneLabels() {
   const catalog = useFormulationStore((s) => s.catalog);
   const selectedId = useSelectionStore((s) => s.selectedIngredientId);
   const selectedCandidate = useSelectionStore((s) => s.selectedCandidateId);
-  const { stages, stageLabels, candidateIds, progress } = useJobStore(
+  const {
+    jobType,
+    status,
+    stages,
+    stageLabels,
+    currentStage,
+    candidateIds,
+    progress,
+  } = useJobStore(
     useShallow((s) => ({
+      jobType: s.jobType,
+      status: s.status,
       stages: s.stages,
       stageLabels: s.stageLabels,
+      currentStage: s.currentStage,
       candidateIds: s.candidateIds,
       progress: s.progressPercent,
     })),
   );
+  const statuses = stationStatuses({ jobType, status, stages, currentStage });
+  const stageLabel = currentStageLabel({ currentStage, stageLabels });
   const lines = validated?.lines ?? [];
   const invalid = new Set(validated?.result.issues.map((i) => i.ingredient_id));
   const candidateId = selectedCandidate ?? candidateIds.at(-1) ?? null;
@@ -75,7 +90,7 @@ export function SceneLabels() {
       })}
 
       {PROCESS_STATIONS.filter((s) => s.id !== "mixing").map((station) => {
-        const status = stages[station.id];
+        const status = statuses[station.id];
         const active = status === "active";
         return (
           <SceneLabel
@@ -113,9 +128,9 @@ export function SceneLabels() {
                 {station.label}
               </div>
               <div className="text-muted-foreground">
-                {stageLabels[station.id]
-                  ? STAGE_STATUS_TEXT[status ?? "idle"]
-                  : STAGE_STATUS_TEXT[status ?? "idle"]}
+                {status === "idle"
+                  ? STAGE_STATUS_TEXT.idle
+                  : (stageLabel ?? STAGE_STATUS_TEXT[status])}
               </div>
               {active && progress !== null && (
                 <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">

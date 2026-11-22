@@ -32,7 +32,11 @@ import { SceneErrorBoundary } from "./SceneErrorBoundary";
 import { SceneLabels } from "./SceneLabels";
 import { Workspace2D } from "./fallback/Workspace2D";
 import { useResolvedView } from "./hooks/useSceneEnvironment";
-import { PROCESS_STATIONS, STAGE_STATUS_TEXT } from "./stations";
+import {
+  PROCESS_STATIONS,
+  STAGE_STATUS_TEXT,
+  stationStatuses,
+} from "./stations";
 import { cropVar } from "./theme/sceneTheme";
 
 const SceneCanvas = dynamic(() => import("./SceneCanvas"), {
@@ -302,6 +306,9 @@ function SceneObjectList() {
   const selectedCandidate = useSelectionStore((s) => s.selectedCandidateId);
   const selectCandidate = useSelectionStore((s) => s.selectCandidate);
   const stages = useJobStore((s) => s.stages);
+  const jobType = useJobStore((s) => s.jobType);
+  const jobStatus = useJobStore((s) => s.status);
+  const currentStage = useJobStore((s) => s.currentStage);
   const candidateIds = useJobStore((s) => s.candidateIds);
   const [replaceTarget, setReplaceTarget] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -494,7 +501,16 @@ function SceneObjectList() {
           <li key={s.id}>
             {s.label}:{" "}
             <span className="text-foreground">
-              {STAGE_STATUS_TEXT[stages[s.id] ?? "idle"]}
+              {
+                STAGE_STATUS_TEXT[
+                  stationStatuses({
+                    jobType,
+                    status: jobStatus,
+                    stages,
+                    currentStage,
+                  })[s.id] ?? "idle"
+                ]
+              }
             </span>
           </li>
         ))}

@@ -358,10 +358,7 @@ export default function LandingPage() {
                 </Link>
               </li>
               <li>
-                <Link
-                  className="hover:text-foreground"
-                  href="/formulations/demo"
-                >
+                <Link className="hover:text-foreground" href="/formulations">
                   3D workspace
                 </Link>
               </li>

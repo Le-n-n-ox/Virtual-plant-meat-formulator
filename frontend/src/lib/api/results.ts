@@ -1,5 +1,6 @@
 import type { NutritionResult } from "@/types";
 import { buildQuery, requestJson } from "./client";
+import { nutritionResultSchema } from "@/lib/validation/schemas";
 
 export type {
   AminoAcidBlock,
@@ -14,6 +15,8 @@ export function getNutrition(
 ): Promise<NutritionResult> {
   return requestJson(
     `/api/formulations/${encodeURIComponent(formulationId)}/nutrition${buildQuery({ version })}`,
+    undefined,
+    nutritionResultSchema,
   );
 }
 

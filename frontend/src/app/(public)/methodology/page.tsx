@@ -15,6 +15,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+/** Public page: readable without signing in (frontend guide §4, FE-3). */
 export default function MethodologyPage() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 p-4 sm:p-6 lg:p-8">
@@ -113,6 +114,27 @@ export default function MethodologyPage() {
         <ApprovedModels />
       </Section>
 
+      <Section title="The 3D scene">
+        <p>
+          The process view is an <strong>illustrative</strong> schematic of the
+          workflow. It shows which crops are in the formulation, their validated
+          proportions and the stage the worker currently reports. It is{" "}
+          <strong>not a physical, molecular or mechanical simulation</strong>:
+          the fill levels, blend colours, fibre pattern and product shape are
+          drawings of validated data, not measurements of a real product.
+        </p>
+        <p>
+          Nothing in the scene advances on its own. A station lights up only
+          when a worker event reports that stage, and a progress bar moves only
+          when the event carries a real completed and total count.
+        </p>
+        <p>
+          A cutaway or fibre view is offered only when a calibrated, validated
+          model produced the variable behind it; otherwise the preview stays
+          labelled illustrative.
+        </p>
+      </Section>
+
       <Section title="Optimization">
         <ul className="list-disc pl-5">
           <li>
@@ -129,8 +151,8 @@ export default function MethodologyPage() {
             one.
           </li>
           <li>
-            When no formulation satisfies all constraints, the job reports
-            <strong> infeasibility</strong> and lists the limits that conflict.
+            When no formulation satisfies all constraints, the job reports{" "}
+            <strong>infeasibility</strong> and lists the limits that conflict.
           </li>
         </ul>
       </Section>

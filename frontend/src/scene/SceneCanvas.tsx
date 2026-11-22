@@ -28,6 +28,7 @@ import {
   VESSEL_POSITION,
   binPosition,
   stageColorKey,
+  stationStatuses,
 } from "./stations";
 import { type SceneTheme, cropColor, useSceneTheme } from "./theme/sceneTheme";
 
@@ -252,7 +253,9 @@ function Stage({
   const job = useJobStore(
     useShallow((s) => ({
       status: s.status,
+      jobType: s.jobType,
       stages: s.stages,
+      currentStage: s.currentStage,
       candidateIds: s.candidateIds,
     })),
   );
@@ -292,7 +295,13 @@ function Stage({
   }, [reducedMotion, theme]);
 
   const running = job.status === "running" || job.status === "queued";
-  const mixingStatus = job.stages["mixing"];
+  const stationStatusMap = stationStatuses({
+    jobType: job.jobType,
+    status: job.status,
+    stages: job.stages,
+    currentStage: job.currentStage,
+  });
+  const mixingStatus = stationStatusMap.mixing;
   const totalInvalid = validated ? !validated.result.valid : false;
   // Job stage colour takes precedence; otherwise flag an invalid total in amber.
   const vesselHighlight =
@@ -384,7 +393,7 @@ function Stage({
       ))}
 
       <ProcessLine
-        stages={job.stages}
+        statuses={stationStatusMap}
         running={running}
         theme={theme}
         reducedMotion={reducedMotion}

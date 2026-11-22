@@ -1,5 +1,10 @@
 import type { ModelDetail, ModelMeta, Paged } from "@/types";
 import { buildQuery, requestJson } from "./client";
+import {
+  modelDetailSchema,
+  modelListItemSchema,
+  pagedSchema,
+} from "@/lib/validation/schemas";
 
 export type ModelStatus = "approved" | "candidate" | "retired" | "all";
 
@@ -22,11 +27,15 @@ export function listModels(
     page_size?: number;
   } = {},
 ): Promise<Paged<ModelListItem>> {
-  return requestJson(`/api/models${buildQuery({ ...params })}`);
+  return requestJson(
+    `/api/models${buildQuery({ ...params })}`,
+    undefined,
+    pagedSchema(modelListItemSchema),
+  );
 }
 
 export function getModel(id: string): Promise<ModelDetail> {
-  return requestJson(base(id));
+  return requestJson(base(id), undefined, modelDetailSchema);
 }
 
 export function approveModel(id: string): Promise<ModelDetail> {

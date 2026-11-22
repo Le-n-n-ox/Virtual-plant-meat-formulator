@@ -5,7 +5,11 @@ import { useShallow } from "zustand/react/shallow";
 import { useFormulationStore } from "@/stores/formulationStore";
 import { type StageStatus, useJobStore } from "@/stores/jobStore";
 import { useSelectionStore } from "@/stores/selectionStore";
-import { PROCESS_STATIONS, STAGE_STATUS_TEXT } from "../stations";
+import {
+  PROCESS_STATIONS,
+  STAGE_STATUS_TEXT,
+  stationStatuses,
+} from "../stations";
 import { cropVar } from "../theme/sceneTheme";
 
 const STATUS_FILL: Record<StageStatus | "idle", string> = {
@@ -33,13 +37,16 @@ export function Workspace2D() {
   const [selectedId, selectIngredient] = useSelectionStore(
     useShallow((s) => [s.selectedIngredientId, s.selectIngredient]),
   );
-  const { stages, status, candidateIds } = useJobStore(
+  const { jobType, stages, status, currentStage, candidateIds } = useJobStore(
     useShallow((s) => ({
+      jobType: s.jobType,
       stages: s.stages,
       status: s.status,
+      currentStage: s.currentStage,
       candidateIds: s.candidateIds,
     })),
   );
+  const statuses = stationStatuses({ jobType, status, stages, currentStage });
   const selectedCandidate = useSelectionStore((s) => s.selectedCandidateId);
   const candidateId = selectedCandidate ?? candidateIds.at(-1) ?? null;
 
@@ -279,7 +286,7 @@ export function Workspace2D() {
 
       {/* Mixing vessel */}
       <g
-        aria-label={`Mixing: ${STAGE_STATUS_TEXT[stages.mixing ?? "idle"]}`}
+        aria-label={`Mixing: ${STAGE_STATUS_TEXT[statuses.mixing ?? "idle"]}`}
         role="img"
       >
         <path
@@ -294,8 +301,8 @@ export function Workspace2D() {
           fill="var(--scene-metal)"
           fillOpacity="0.45"
           stroke={
-            stages.mixing
-              ? STATUS_FILL[stages.mixing]
+            statuses.mixing
+              ? STATUS_FILL[statuses.mixing]
               : validated && !validated.result.valid
                 ? "var(--scene-warning)"
                 : "var(--scene-line)"
@@ -349,7 +356,7 @@ export function Workspace2D() {
           fontSize="13"
           fill="var(--foreground)"
         >
-          Mixing · {STAGE_STATUS_TEXT[stages.mixing ?? "idle"]}
+          Mixing · {STAGE_STATUS_TEXT[statuses.mixing ?? "idle"]}
         </text>
       </g>
 
@@ -374,7 +381,7 @@ export function Workspace2D() {
 
       {/* Stations */}
       {PROCESS_STATIONS.filter((s) => s.id !== "mixing").map((station, i) => {
-        const st = stages[station.id];
+        const st = statuses[station.id];
         const x = 110 + i * 200;
         const active = st === "active";
         return (

@@ -1,0 +1,118 @@
+[
+  {
+    "job_id": "job_1",
+    "seq": 1,
+    "event": "stage.updated",
+    "status": "running",
+    "stage": "validating",
+    "stage_label": "Validating",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:02:00Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 2,
+    "event": "stage.updated",
+    "status": "running",
+    "stage": "preparing_constraints",
+    "stage_label": "Preparing constraints",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:02:01Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 3,
+    "event": "progress.updated",
+    "status": "running",
+    "stage": "searching",
+    "stage_label": "Searching formulations",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:02:02Z",
+    "completed": 0,
+    "total": 4
+  },
+  {
+    "job_id": "job_1",
+    "seq": 4,
+    "event": "progress.updated",
+    "status": "running",
+    "stage": "searching",
+    "stage_label": "Searching formulations",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:02:03Z",
+    "completed": 2,
+    "total": 4
+  },
+  {
+    "job_id": "job_1",
+    "seq": 5,
+    "event": "candidate.ready",
+    "status": "running",
+    "stage": "searching",
+    "stage_label": "Searching formulations",
+    "progress_percent": null,
+    "candidate_id": "cand_a",
+    "timestamp": "2026-11-19T09:02:04Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 6,
+    "event": "candidate.ready",
+    "status": "running",
+    "stage": "searching",
+    "stage_label": "Searching formulations",
+    "progress_percent": null,
+    "candidate_id": "cand_b",
+    "timestamp": "2026-11-19T09:02:05Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 7,
+    "event": "candidate.ready",
+    "status": "running",
+    "stage": "searching",
+    "stage_label": "Searching formulations",
+    "progress_percent": null,
+    "candidate_id": "cand_c",
+    "timestamp": "2026-11-19T09:02:06Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 8,
+    "event": "progress.updated",
+    "status": "running",
+    "stage": "searching",
+    "stage_label": "Searching formulations",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:02:07Z",
+    "completed": 4,
+    "total": 4
+  },
+  {
+    "job_id": "job_1",
+    "seq": 9,
+    "event": "stage.updated",
+    "status": "running",
+    "stage": "ranking",
+    "stage_label": "Ranking candidates",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:02:08Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 10,
+    "event": "job.completed",
+    "status": "completed",
+    "stage": "storing",
+    "stage_label": "Storing result",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:02:09Z"
+  }
+]

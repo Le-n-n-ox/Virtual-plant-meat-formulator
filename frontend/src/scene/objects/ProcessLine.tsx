@@ -3,7 +3,6 @@
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import type { Group, Mesh, MeshStandardMaterial } from "three";
-import type { StageStatus } from "@/stores/jobStore";
 import {
   BARREL_Y,
   BELT_Y,
@@ -13,6 +12,8 @@ import {
   PROCESS_STATIONS,
   STATION_X,
   stageColorKey,
+  type StationId,
+  type StationStatus,
 } from "../stations";
 import type { SceneTheme } from "../theme/sceneTheme";
 import { SceneModel } from "./SceneModel";
@@ -22,7 +23,8 @@ const SLAT_COUNT = 12;
 const SLAT_SPACING = 0.4;
 
 interface ProcessLineProps {
-  stages: Record<string, StageStatus>;
+  /** Station statuses derived from the job store by `stationStatuses`. */
+  statuses: Record<StationId, StationStatus>;
   /** True while a worker event reports any stage running. Drives the belt. */
   running: boolean;
   theme: SceneTheme;
@@ -31,7 +33,7 @@ interface ProcessLineProps {
 
 /** Schematic processing line. Segments reflect worker-reported stage status. */
 export function ProcessLine({
-  stages,
+  statuses,
   running,
   theme,
   reducedMotion,
@@ -109,7 +111,7 @@ export function ProcessLine({
         <StationSegment
           key={station.id}
           x={STATION_X[station.id as keyof typeof STATION_X]}
-          status={stages[station.id]}
+          status={statuses[station.id]}
           theme={theme}
           reducedMotion={reducedMotion}
         />
@@ -161,7 +163,7 @@ function StationSegment({
   reducedMotion,
 }: {
   x: number;
-  status: StageStatus | undefined;
+  status: StationStatus | undefined;
   theme: SceneTheme;
   reducedMotion: boolean;
 }) {

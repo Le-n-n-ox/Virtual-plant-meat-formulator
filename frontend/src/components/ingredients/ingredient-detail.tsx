@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/use-api-query";
+import { AminoAcidChart } from "@/components/ingredients/amino-acid-chart";
 import { getIngredient } from "@/lib/api/ingredients";
 import {
   errorMessage,
@@ -149,6 +150,20 @@ export function IngredientDetailView() {
             rows={data.amino_acids}
             empty="No amino acid profile is reported for this ingredient."
           />
+          {data.amino_acids.some((a) => a.value === null) && (
+            <p className="text-xs text-destructive">
+              {data.amino_acids
+                .filter((a) => a.value === null)
+                .map((a) => a.name ?? humanizeKey(a.key))
+                .join(", ")}{" "}
+              {data.amino_acids.filter((a) => a.value === null).length === 1
+                ? "has"
+                : "have"}{" "}
+              no reported value, so any amino-acid score for this ingredient is
+              partial.
+            </p>
+          )}
+          <AminoAcidChart aminoAcids={data.amino_acids} />
 
           <Card>
             <CardHeader>

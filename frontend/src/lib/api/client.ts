@@ -1,4 +1,6 @@
+import type { z } from "zod";
 import type { HealthResponse } from "@/types";
+import { healthResponseSchema } from "@/lib/validation/schemas";
 import { tokenStore } from "./token";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
@@ -89,14 +91,34 @@ async function send(
   return response;
 }
 
+/**
+ * Fetches JSON and, when a schema is given, checks the response against it.
+ * A mismatch throws an `ApiError` with the code `contract_mismatch`, so a
+ * backend change that breaks the contract is reported instead of surfacing as
+ * a blank value somewhere unrelated.
+ */
 export async function requestJson<T>(
   path: string,
   init?: JsonInit,
+  schema?: z.ZodType<unknown>,
 ): Promise<T> {
   const response = await send(path, init, "application/json");
   if (response.status === 204) return undefined as T;
   const text = await response.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  const data: unknown = text ? JSON.parse(text) : undefined;
+  if (!schema) return data as T;
+  const parsed = schema.safeParse(data);
+  if (parsed.success) return parsed.data as T;
+  const issues = parsed.error.issues.slice(0, 5).map((issue) => ({
+    path: issue.path.join("."),
+    message: issue.message,
+  }));
+  throw new ApiError(
+    `The response from ${path} did not match the expected contract.`,
+    200,
+    "contract_mismatch",
+    { path, issues },
+  );
 }
 
 export function jsonInit(
@@ -127,5 +149,5 @@ export async function requestBlob(
 }
 
 export function getHealth(): Promise<HealthResponse> {
-  return requestJson<HealthResponse>("/api/health");
+  return requestJson("/api/health", undefined, healthResponseSchema);
 }

@@ -10,6 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatNumber, humanizeKey } from "@/lib/format";
+import { AminoAcidScoreChart } from "@/components/results/amino-acid-score-chart";
+import { MacroChart } from "@/components/results/macro-chart";
 import type { AminoAcidBlock, NutritionResult } from "@/types";
 
 const BASIS_TEXT: Record<string, string> = {
@@ -60,7 +62,9 @@ export function NutritionResults({ result }: { result: NutritionResult }) {
           ))}
         </TableBody>
       </Table>
+      <MacroChart result={result} />
       {result.amino_acids && <AminoAcidSummary block={result.amino_acids} />}
+      {result.amino_acids && <AminoAcidScoreChart block={result.amino_acids} />}
       <p className="text-xs text-muted-foreground">
         Calculation {result.calc_version}. Source data:{" "}
         {Object.entries(result.data_versions)
