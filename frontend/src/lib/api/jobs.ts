@@ -1,5 +1,6 @@
 import type {
   JobCreated,
+  JobListItem,
   JobStatus,
   JobStatusResponse,
   JobType,
@@ -7,6 +8,7 @@ import type {
   StreamToken,
 } from "@/types";
 import { buildQuery, jsonInit, requestJson } from "./client";
+import type { z } from "zod";
 import {
   cancelResponseSchema,
   jobCreatedSchema,
@@ -66,17 +68,7 @@ export type StartJobBody =
   | { type: "texture_prediction"; version?: number; params: TextureJobParams }
   | { type: "optimization"; version?: number; params: OptimizationParams };
 
-export interface JobListItem {
-  id: string;
-  type: JobType | string;
-  formulation: { id: string; name: string; version: number };
-  status: JobStatus;
-  stage_label: string | null;
-  created_at: string;
-  started_at: string | null;
-  finished_at: string | null;
-  duration_ms: number | null;
-}
+export type { JobListItem };
 
 export interface TrainModelBody {
   target: string;
@@ -136,8 +128,11 @@ export function getStreamToken(id: string): Promise<StreamToken> {
   );
 }
 
-export function getJobResult<T = unknown>(id: string): Promise<T> {
-  return requestJson(`${base(id)}/result`);
+export function getJobResult<T = unknown>(
+  id: string,
+  schema?: z.ZodType<unknown>,
+): Promise<T> {
+  return requestJson(`${base(id)}/result`, undefined, schema);
 }
 
 export function cancelJob(id: string): Promise<{ accepted: boolean }> {

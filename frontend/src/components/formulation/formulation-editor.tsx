@@ -6,13 +6,15 @@ import {
   PlayIcon,
   SaveIcon,
   SquareIcon,
+  TargetIcon,
   Trash2Icon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { IngredientPicker } from "@/components/formulation/ingredient-picker";
+import { TargetsPanel } from "@/components/formulation/targets-panel";
 import { TextureDialog } from "@/components/formulation/texture-dialog";
 import { ExplainPanel } from "@/components/assistant/explain-panel";
 import { NutritionResults } from "@/components/results/nutrition-results";
@@ -26,6 +28,8 @@ import { saveFormulation } from "@/lib/api/formulations";
 import { cancelJob, type ProcessConditions } from "@/lib/api/jobs";
 import { describeRunError, runJob } from "@/lib/jobs/job-runner";
 import { errorMessage } from "@/lib/format";
+import { useInvalidateResource } from "@/lib/query/invalidate";
+import { useUnsavedChangesGuard } from "@/lib/unsaved-changes";
 import { cn } from "@/lib/utils";
 import { cropVar } from "@/scene/theme/sceneTheme";
 import { useFormulationStore } from "@/stores/formulationStore";
@@ -46,12 +50,15 @@ function sameLines(a: FormulationLine[], b: FormulationLine[]): boolean {
 
 export function FormulationEditor() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const invalidate = useInvalidateResource();
   const {
     name,
     version,
     draft,
     savedLines,
     catalog,
+    targets: savedTargets,
     validated,
     loadState,
     loadError,
@@ -62,6 +69,7 @@ export function FormulationEditor() {
       draft: s.draft,
       savedLines: s.savedLines,
       catalog: s.catalog,
+      targets: s.targets,
       validated: s.validated,
       loadState: s.loadState,
       loadError: s.loadError,
@@ -83,9 +91,39 @@ export function FormulationEditor() {
   const [textureOpen, setTextureOpen] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
 
+  /**
+   * Targets are edited as text so a half-typed number is not lost, then parsed
+   * on save. Seeded from the saved formulation when this screen mounts.
+   */
+  const [targetText, setTargetText] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      Object.entries(useFormulationStore.getState().targets).map(([k, v]) => [
+        k,
+        String(v),
+      ]),
+    ),
+  );
+  const [currency, setCurrency] = useState("KES");
+  const [targetsError, setTargetsError] = useState<string | null>(null);
+
+  const dirty = !sameLines(draft, savedLines);
+
+  /**
+   * Leaving with unsaved edits is confirmed: the browser prompt covers closing
+   * or reloading, the History wrapper covers links and Back within the app.
+   */
+  useUnsavedChangesGuard(
+    dirty,
+    "You have unsaved changes to this formulation. Leave anyway?",
+  );
+
   if (loadState === "loading" || loadState === "idle") {
     return (
-      <Skeleton className="h-64 w-full" aria-label="Loading formulation" />
+      <Skeleton
+        className="h-64 w-full"
+        role="status"
+        aria-label="Loading formulation"
+      />
     );
   }
   if (loadState === "error") {
@@ -99,24 +137,57 @@ export function FormulationEditor() {
   const result = validated?.result;
   const revisionMatches = validated?.lines === draft;
   const valid = Boolean(revisionMatches && result?.valid);
-  const dirty = !sameLines(draft, savedLines);
   const total = draft.reduce(
     (s, l) => s + (Number.isFinite(l.percent) ? l.percent : 0),
     0,
   );
   const canRun = version > 0 && !dirty;
 
+  const targetsDirty =
+    Object.entries(targetText).filter(([, v]) => v.trim() !== "").length !==
+      Object.keys(savedTargets).length ||
+    Object.entries(targetText).some(([k, v]) => Number(v) !== savedTargets[k]);
+
+  /** Parses the text fields into the numeric record the API stores. */
+  function buildTargets(): {
+    targets?: Record<string, number>;
+    error?: string;
+  } {
+    const next: Record<string, number> = {};
+    for (const [key, text] of Object.entries(targetText)) {
+      if (text.trim() === "") continue;
+      const value = Number(text);
+      if (!Number.isFinite(value) || value < 0) {
+        return {
+          error: "Targets must be numbers of 0 or more.",
+        };
+      }
+      next[key] = value;
+    }
+    return { targets: next };
+  }
+
   async function save() {
     setSaving(true);
     setSaveError(null);
+    setTargetsError(null);
     setConflict(false);
+    const built = buildTargets();
+    if (built.error) {
+      setTargetsError(built.error);
+      setSaving(false);
+      return;
+    }
     try {
       const saved = await saveFormulation(id, {
         base_version: version,
         lines: draft,
+        targets: built.targets,
       });
       useFormulationStore.getState().markSaved(saved);
       useResultStore.getState().clear();
+      invalidate("formulations");
+      invalidate("results");
     } catch (error) {
       if (error instanceof ApiError && error.code === "version_conflict") {
         setConflict(true);
@@ -284,6 +355,17 @@ export function FormulationEditor() {
         }
       />
 
+      <TargetsPanel
+        values={targetText}
+        currency={currency}
+        dirty={targetsDirty}
+        saving={saving}
+        error={targetsError}
+        onValue={(key, value) => setTargetText((t) => ({ ...t, [key]: value }))}
+        onCurrency={setCurrency}
+        onSave={() => void save()}
+      />
+
       <section aria-label="Save" className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -333,6 +415,7 @@ export function FormulationEditor() {
         startError={startError}
         onNutrition={() => void startNutrition()}
         onTexture={() => setTextureOpen(true)}
+        onOptimize={() => router.push(`/formulations/${id}/optimize`)}
       />
       <TextureDialog
         open={textureOpen}
@@ -414,12 +497,14 @@ function JobSection({
   startError,
   onNutrition,
   onTexture,
+  onOptimize,
 }: {
   canRun: boolean;
   dirty: boolean;
   startError: string | null;
   onNutrition: () => void;
   onTexture: () => void;
+  onOptimize: () => void;
 }) {
   const { status, activeJobId, message } = useJobStore(
     useShallow((s) => ({
@@ -462,6 +547,14 @@ function JobSection({
           onClick={onTexture}
         >
           <FlaskConicalIcon aria-hidden /> Predict texture
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!canRun || running}
+          onClick={onOptimize}
+        >
+          <TargetIcon aria-hidden /> Optimize
         </Button>
         <Button
           size="sm"

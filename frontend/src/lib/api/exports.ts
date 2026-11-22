@@ -1,6 +1,7 @@
 import { buildQuery, requestBlob } from "./client";
+import type { ExportFormat } from "@/types";
 
-export type ExportFormat = "pdf" | "csv";
+export type { ExportFormat };
 
 export async function downloadExport(
   formulationId: string,

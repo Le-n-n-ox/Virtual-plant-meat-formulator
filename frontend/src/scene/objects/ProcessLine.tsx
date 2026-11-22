@@ -62,6 +62,7 @@ export function ProcessLine({
       <group position={[(LINE_START + LINE_END) / 2, 0, 0]}>
         <SceneModel
           url="/scene/assets/processing-line/processing-line.glb"
+          theme={theme}
           placeholder={<LinePlaceholder />}
           fallback={<LineShell theme={theme} />}
           tints={{ LineMetal: theme.metal, LineDark: theme.metal }}

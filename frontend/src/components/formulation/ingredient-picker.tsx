@@ -9,6 +9,8 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getIngredient, listIngredients } from "@/lib/api/ingredients";
 import { errorMessage, formatNumber, NOT_REPORTED } from "@/lib/format";
 import { useFormulationStore } from "@/stores/formulationStore";
+import { usePlacementStore } from "@/stores/placementStore";
+import { startPointerDrag } from "@/scene/drag/startPointerDrag";
 
 /** Searches the real ingredient catalogue and adds the chosen record to the draft. */
 export function IngredientPicker({ takenIds }: { takenIds: string[] }) {
@@ -19,7 +21,7 @@ export function IngredientPicker({ takenIds }: { takenIds: string[] }) {
   const enabled = q.length >= 2;
 
   const { data, error, loading } = useApiQuery(
-    `pick|${q}`,
+    ["ingredients", { q, page_size: 8, exclude_animal_groups: true }],
     () => listIngredients({ q, page_size: 8, exclude_animal_groups: true }),
     enabled,
   );
@@ -83,7 +85,23 @@ export function IngredientPicker({ takenIds }: { takenIds: string[] }) {
                 key={i.id}
                 className="flex items-center justify-between gap-2 px-2.5 py-1.5"
               >
-                <div className="min-w-0 text-sm">
+                <div
+                  className="min-w-0 flex-1 cursor-grab text-sm active:cursor-grabbing"
+                  onPointerDown={startPointerDrag({
+                    kind: "ingredient",
+                    id: i.id,
+                    label: i.common_name,
+                    source: "picker",
+                  })}
+                  onClick={() =>
+                    usePlacementStore.getState().hold({
+                      kind: "ingredient",
+                      id: i.id,
+                      label: i.common_name,
+                    })
+                  }
+                  title="Drag into the scene, or click to pick up and place"
+                >
                   <p className="truncate font-medium">{i.common_name}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {i.form} · protein{" "}

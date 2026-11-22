@@ -11,7 +11,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 const Plot = dynamic(() => import("react-plotly.js"), {
   ssr: false,
   loading: () => (
-    <Skeleton className="h-72 w-full" aria-label="Loading chart" />
+    <Skeleton
+      className="h-72 w-full"
+      role="status"
+      aria-label="Loading chart"
+    />
   ),
 });
 

@@ -26,6 +26,8 @@ interface FormulationState {
   description: string | null;
   /** Lines of the last saved version, used to detect unsaved edits. */
   savedLines: FormulationLine[];
+  /** Optimization targets saved with the formulation (guide §5 page 6). */
+  targets: Record<string, number>;
   loadState: "idle" | "loading" | "ready" | "error";
   loadError: string | null;
   /** Ingredient records referenced by the draft, keyed by id. */
@@ -70,6 +72,7 @@ const INITIAL = {
   version: 0,
   description: null,
   savedLines: [] as FormulationLine[],
+  targets: {} as Record<string, number>,
   loadState: "idle" as const,
   loadError: null,
   catalog: {} as Record<string, Ingredient>,
@@ -93,6 +96,7 @@ export const useFormulationStore = create<FormulationState>((set, get) => ({
       name: formulation.name,
       description: formulation.description ?? null,
       savedLines: formulation.lines,
+      targets: formulation.targets ?? {},
     }),
 
   loadFormulation: (formulation, ingredients) =>
@@ -106,6 +110,7 @@ export const useFormulationStore = create<FormulationState>((set, get) => ({
       loadError: null,
       catalog: Object.fromEntries(ingredients.map((i) => [i.id, i])),
       draft: formulation.lines,
+      targets: formulation.targets ?? {},
       draftRevision: 0,
       validated: null,
     }),

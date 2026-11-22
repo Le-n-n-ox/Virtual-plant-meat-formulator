@@ -82,7 +82,7 @@ export function ChartFrame({
           type="button"
           aria-expanded={showTable}
           onClick={() => setShowTable((v) => !v)}
-          className="text-xs text-primary underline-offset-4 hover:underline"
+          className="text-xs text-primary underline underline-offset-4"
         >
           {showTable ? "Hide data table" : "Show data table"}
         </button>

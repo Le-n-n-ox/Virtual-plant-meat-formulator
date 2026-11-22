@@ -91,6 +91,26 @@ export function usePerformanceCheck(): PerformanceVerdict {
 
 const QUERY = "(prefers-reduced-motion: reduce)";
 
+/** True on a phone or tablet, where the DPR cap is lower (guide §12.11). */
+function subscribeCoarsePointer(onChange: () => void) {
+  const mql = window.matchMedia("(pointer: coarse)");
+  mql.addEventListener("change", onChange);
+  return () => mql.removeEventListener("change", onChange);
+}
+
+export function useIsCoarsePointer(): boolean {
+  return useSyncExternalStore(
+    subscribeCoarsePointer,
+    () => window.matchMedia("(pointer: coarse)").matches,
+    () => false,
+  );
+}
+
+/** Highest device-pixel ratio worth using: 2 on desktop, 1.5 on a phone. */
+export function useDprCap(): number {
+  return useIsCoarsePointer() ? 1.5 : 2;
+}
+
 function subscribeMotion(onChange: () => void) {
   const mql = window.matchMedia(QUERY);
   mql.addEventListener("change", onChange);
@@ -126,6 +146,7 @@ export function useResolvedView(): {
   reason: string | null;
 } {
   const viewMode = usePreferencesStore((s) => s.viewMode);
+  const performanceNotice = usePreferencesStore((s) => s.performanceNotice);
   const webgl = useWebGLSupport();
   const reducedMotion = useReducedMotionPreference();
   const { weak, reason: performanceReason } = usePerformanceCheck();
@@ -133,6 +154,7 @@ export function useResolvedView(): {
   if (webgl === null) return { view: "pending", reason: null };
   if (!webgl)
     return { view: "2d", reason: "WebGL is not available on this device." };
+  if (performanceNotice) return { view: "2d", reason: performanceNotice };
   if (viewMode === "2d") return { view: "2d", reason: null };
   if (viewMode === "3d") return { view: "3d", reason: null };
   if (weak) return { view: "2d", reason: performanceReason };

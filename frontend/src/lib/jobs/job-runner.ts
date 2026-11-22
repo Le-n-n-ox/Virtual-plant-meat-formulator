@@ -10,9 +10,9 @@ import {
   openJobEventStream,
   type JobEventStream,
 } from "@/lib/sse/jobEventSource";
-import { useJobStore } from "@/stores/jobStore";
+import { isTerminal, useJobStore } from "@/stores/jobStore";
 import { useResultStore } from "@/stores/resultStore";
-import type { JobEvent, TextureResult } from "@/types";
+import type { JobEvent, JobType, TextureResult } from "@/types";
 
 let stream: JobEventStream | null = null;
 
@@ -82,23 +82,17 @@ async function finishJob(
 }
 
 /**
- * Starts a job for the saved formulation version and feeds the real SSE events
- * into the job store (which drives the timeline and 3D scene). Throws ApiError
- * if the job could not be created.
+ * Opens the event stream for a job and feeds real events into the job store.
+ * Shared by `runJob` (a job we just created) and `reattachToJob` (one that was
+ * already running when the page loaded).
  */
-export async function runJob(
+function attachStream(
+  jobId: string,
   formulationId: string,
   version: number,
-  body: StartJobBody,
-): Promise<void> {
-  stopJobStream();
-  const results = useResultStore.getState();
-  results.setError(null);
-  results.setLoading(false);
-  const created = await startJob(formulationId, { ...body, version });
-  const jobs = useJobStore.getState();
-  jobs.startJob(created.job_id, body.type);
-  stream = openJobEventStream(created.job_id, {
+  type: StartJobBody["type"],
+): void {
+  stream = openJobEventStream(jobId, {
     onOpen: () => {
       if (useJobStore.getState().connection !== "closed")
         useJobStore.getState().setConnection("open");
@@ -115,14 +109,71 @@ export async function runJob(
           event.event === "job.failed" ||
           event.event === "job.cancelled")
       ) {
-        void finishJob(
-          created.job_id,
-          event,
-          formulationId,
-          version,
-          body.type,
-        );
+        void finishJob(jobId, event, formulationId, version, type);
       }
     },
   });
+}
+
+/**
+ * Starts a job for the saved formulation version and feeds the real SSE events
+ * into the job store (which drives the timeline and 3D scene). Throws ApiError
+ * if the job could not be created.
+ */
+export async function runJob(
+  formulationId: string,
+  version: number,
+  body: StartJobBody,
+): Promise<void> {
+  stopJobStream();
+  const results = useResultStore.getState();
+  results.setError(null);
+  results.setLoading(false);
+  const created = await startJob(formulationId, { ...body, version });
+  const jobs = useJobStore.getState();
+  jobs.startJob(created.job_id, body.type);
+  attachStream(created.job_id, formulationId, version, body.type);
+}
+
+/**
+ * Resumes a job that is already queued or running for this formulation — one
+ * started in another tab, or before a reload. The store is rebuilt from
+ * `GET /api/jobs/{id}` instead of being reset, then the stream is reattached so
+ * the timeline and scene continue from where the job actually is.
+ *
+ * Returns false when the job could not be read (it may have finished between the
+ * list and the fetch), in which case the caller leaves the store alone.
+ */
+export async function reattachToJob(jobId: string): Promise<boolean> {
+  stopJobStream();
+  let job: Awaited<ReturnType<typeof getJob>>;
+  try {
+    job = await getJob(jobId);
+  } catch {
+    return false;
+  }
+
+  useJobStore.getState().hydrate({
+    id: job.id,
+    type: job.type as JobType,
+    status: job.status,
+    stage: job.stage,
+    stageLabel: job.stage_label,
+    progressPercent: job.progress_percent,
+    message: job.message,
+    candidateIds: job.candidate_ids,
+    lastSeq: job.last_event_seq,
+  });
+
+  if (isTerminal(job.status)) {
+    useJobStore.getState().setConnection("closed");
+    return true;
+  }
+  attachStream(
+    job.id,
+    job.formulation_id,
+    job.formulation_version,
+    job.type as StartJobBody["type"],
+  );
+  return true;
 }

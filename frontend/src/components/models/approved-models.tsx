@@ -27,7 +27,7 @@ export function ApprovedModels() {
   );
 
   const { data, error, loading } = useApiQuery(
-    "methodology-models",
+    ["models", { status: "approved", page_size: 100 }],
     () => listModels({ status: "approved", page_size: 100 }),
     hasToken,
   );
@@ -38,7 +38,7 @@ export function ApprovedModels() {
         Sign in to see the currently approved models.{" "}
         <Link
           href="/login"
-          className="text-primary underline-offset-4 hover:underline"
+          className="text-primary underline underline-offset-4"
         >
           Sign in
         </Link>
@@ -95,7 +95,7 @@ export function ApprovedModels() {
         Details and limitations of each model are on the{" "}
         <Link
           href="/models"
-          className="text-primary underline-offset-4 hover:underline"
+          className="text-primary underline underline-offset-4"
         >
           Models page
         </Link>

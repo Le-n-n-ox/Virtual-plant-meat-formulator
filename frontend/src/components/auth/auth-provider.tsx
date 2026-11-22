@@ -90,7 +90,11 @@ export function AuthGuard({ children }: { children: ReactNode }) {
             Could not verify your session. Is the API running?
           </p>
         ) : (
-          <Skeleton className="h-24 w-72" aria-label="Checking your session" />
+          <Skeleton
+            className="h-24 w-72"
+            role="status"
+            aria-label="Checking your session"
+          />
         )}
       </div>
     );

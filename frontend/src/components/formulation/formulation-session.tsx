@@ -4,8 +4,9 @@ import { useParams } from "next/navigation";
 import { useEffect } from "react";
 import { getFormulation, validateFormulation } from "@/lib/api/formulations";
 import { getIngredient } from "@/lib/api/ingredients";
+import { listJobs } from "@/lib/api/jobs";
 import { errorMessage } from "@/lib/format";
-import { stopJobStream } from "@/lib/jobs/job-runner";
+import { reattachToJob, stopJobStream } from "@/lib/jobs/job-runner";
 import { validateFormulationLocally } from "@/lib/validation/formulation";
 import { useFormulationStore } from "@/stores/formulationStore";
 import { useJobStore } from "@/stores/jobStore";
@@ -33,7 +34,6 @@ export function FormulationSession() {
     store.reset();
     store.setLoadState("loading");
     useSelectionStore.getState().clear();
-    useJobStore.getState().reset();
     useResultStore.getState().clear();
 
     (async () => {
@@ -42,10 +42,26 @@ export function FormulationSession() {
         const ingredients = await Promise.all(
           formulation.lines.map((l) => getIngredient(l.ingredient_id)),
         );
-        if (active)
-          useFormulationStore
-            .getState()
-            .loadFormulation(formulation, ingredients);
+        if (!active) return;
+        useFormulationStore
+          .getState()
+          .loadFormulation(formulation, ingredients);
+
+        // A job started in another tab, or before a reload, keeps running. Look
+        // for one and reattach instead of discarding the job store.
+        let reattached = false;
+        try {
+          const active = await listJobs({
+            formulation_id: id,
+            status: ["queued", "running"],
+            page_size: 20,
+          });
+          const job = active.items[0];
+          if (job) reattached = await reattachToJob(job.id);
+        } catch {
+          /* reattaching is best-effort; the store stays idle */
+        }
+        if (!reattached && active) useJobStore.getState().reset();
       } catch (error) {
         if (active)
           useFormulationStore

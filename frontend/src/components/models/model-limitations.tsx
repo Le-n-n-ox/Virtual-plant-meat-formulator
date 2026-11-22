@@ -12,9 +12,8 @@ import { errorMessage } from "@/lib/format";
  * result payload alone.
  */
 export function ModelLimitations({ modelId }: { modelId: string }) {
-  const { data, error, loading } = useApiQuery(
-    `model-limitations|${modelId}`,
-    () => getModel(modelId),
+  const { data, error, loading } = useApiQuery(["models", modelId], () =>
+    getModel(modelId),
   );
 
   if (loading) return <Skeleton className="h-12 w-full" />;

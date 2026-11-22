@@ -52,6 +52,7 @@ export function CandidateProduct({
       {/* Pedestal: Blender-authored GLB, procedural geometry as fallback */}
       <SceneModel
         url="/scene/assets/candidate-pedestal/pedestal.glb"
+        theme={theme}
         placeholder={<PedestalPlaceholder />}
         fallback={<PedestalShell theme={theme} />}
         tints={{ PedestalMetal: theme.metal }}
@@ -101,6 +102,7 @@ function FibreBody({ theme, fibre }: { theme: SceneTheme; fibre: string }) {
       {/* Patty body: Blender-authored GLB, procedural geometry as fallback */}
       <SceneModel
         url="/scene/assets/candidate-patty/patty.glb"
+        theme={theme}
         placeholder={<PattyPlaceholder />}
         fallback={<PattyShell theme={theme} />}
         tints={{ PattyCrust: theme.product }}

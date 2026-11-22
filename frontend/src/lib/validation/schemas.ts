@@ -109,13 +109,18 @@ export const aminoAcidPatternSchema = z.object({
   is_default: z.boolean().optional(),
 });
 
+/**
+ * The page envelope without its item type, so `Paged<T>` in `types/index.ts`
+ * can be derived from the same definition the runtime schema uses.
+ */
+export const pagedMetaSchema = z.object({
+  total: z.number().int().nonnegative(),
+  page: z.number().int().positive(),
+  page_size: z.number().int().positive(),
+});
+
 export const pagedSchema = <T extends z.ZodTypeAny>(item: T) =>
-  z.object({
-    items: z.array(item),
-    total: z.number().int().nonnegative(),
-    page: z.number().int().positive(),
-    page_size: z.number().int().positive(),
-  });
+  pagedMetaSchema.extend({ items: z.array(item) });
 
 /** A list endpoint that answers either a bare array or a page. */
 export const listOrPaged = <T extends z.ZodTypeAny>(item: T) =>
@@ -148,10 +153,10 @@ export const formulationSchema = z.object({
   name: z.string(),
   version: z.number().int().nonnegative(),
   lines: z.array(formulationLineSchema),
-  targets: recordNumber.optional(),
+  targets: recordNumber.nullable().optional(),
   updated_at: z.string(),
   description: optionalNullableString,
-  current_version: z.number().int().positive().optional(),
+  current_version: z.number().int().nonnegative().optional(),
   note: optionalNullableString,
   content_hash: z.string().optional(),
   archived: z.boolean().optional(),
@@ -161,7 +166,7 @@ export const formulationSchema = z.object({
 export const formulationListItemSchema = z.object({
   id: z.string(),
   name: z.string(),
-  current_version: z.number().int().positive(),
+  current_version: z.number().int().nonnegative(),
   last_job: z
     .object({
       id: z.string(),
@@ -241,9 +246,11 @@ export const jobCreatedSchema = z.object({
   job_id: z.string(),
   type: z.string(),
   status: jobStatusSchema,
-  formulation_id: z.string(),
-  formulation_version: z.number().int().positive(),
+  // A training job has no formulation.
+  formulation_id: z.string().nullable(),
+  formulation_version: z.number().int().positive().nullable(),
   created_at: z.string(),
+  idempotent_replay: z.boolean().optional(),
 });
 
 export const jobListItemSchema = z.object({
@@ -350,7 +357,9 @@ export const nearestEvidenceSchema = z.object({
 
 export const texturePredictionSchema = z.object({
   target: z.string(),
-  value: z.number().nullable(),
+  // An out-of-domain target carries no estimate at all: the key is absent
+  // rather than null. Both mean "no number", and neither is ever invented.
+  value: z.number().nullish(),
   unit: z.string(),
   interval: z.tuple([z.number(), z.number()]).optional(),
   model: modelMetaSchema,
@@ -449,7 +458,9 @@ export const modelDetailSchema = z.object({
   limitations: z.union([z.array(z.string()), z.string()]),
   feature_schema: z.record(z.string(), z.unknown()),
   applicability_domain: z.record(z.string(), z.unknown()),
-  holdout_metrics: recordNumber,
+  // Each metric is reported differently (a scalar, a per-fold array, a string),
+  // so the values are passed through rather than forced into one shape.
+  holdout_metrics: z.record(z.string(), z.unknown()),
   training_sources: z.array(z.unknown()).optional(),
   is_test_model: z.boolean().optional(),
 });
@@ -462,3 +473,22 @@ export const healthResponseSchema = z.object({
 });
 
 export const exportFormatSchema = z.enum(["pdf", "csv"]);
+
+// ---- Assistant (explanations; never a scientific value) ----
+
+export const assistantStatusSchema = z.object({
+  configured: z.boolean(),
+  model: z.string().nullable(),
+  role: z.literal("explanation_only"),
+});
+
+export const assistantExplanationSchema = z.object({
+  text: z.string(),
+  model: z.string(),
+  generated_at: z.string(),
+  disclaimer: z.string(),
+  numbers_check: z.object({
+    unverified_numbers: z.array(z.string()),
+    passed: z.boolean(),
+  }),
+});

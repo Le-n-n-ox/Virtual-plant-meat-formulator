@@ -9,5 +9,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     include: ["tests/**/*.test.{ts,tsx}"],
+    // The contract suite needs a live backend; run it with `npm run test:contract`.
+    exclude: ["tests/contract/**"],
   },
 });

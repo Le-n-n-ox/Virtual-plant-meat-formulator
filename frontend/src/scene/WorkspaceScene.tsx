@@ -3,6 +3,8 @@
 import {
   BoxIcon,
   InfoIcon,
+  MinusIcon,
+  PlusIcon,
   RotateCcwIcon,
   SquareIcon,
   XIcon,
@@ -20,10 +22,16 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getIngredient } from "@/lib/api/ingredients";
-import { getIngredientDragId, isIngredientDrag } from "@/lib/dnd";
 import { cn } from "@/lib/utils";
+import { useDragStore } from "@/stores/dragStore";
 import { useFormulationStore } from "@/stores/formulationStore";
+import { usePlacementStore } from "@/stores/placementStore";
+import { usePercentStep } from "./drag/usePercentDrag";
+import { stepPercent } from "./drag/percentDrag";
+import { DragChip, DragGhost2D } from "./drag/DragChip";
+import { Pantry, ReturnTray } from "./drag/Pantry";
+import { placeHeld } from "./drag/actions";
+import { PlacementBar } from "./drag/PlacementBar";
 import { useJobStore } from "@/stores/jobStore";
 import { usePreferencesStore } from "@/stores/preferencesStore";
 import { useSceneStore } from "@/stores/sceneStore";
@@ -73,31 +81,6 @@ export function WorkspaceScene({ className }: { className?: string }) {
     candidateScene !== null &&
     (candidateScene.visual_basis !== "illustrative" ||
       candidateScene.variables.some((v) => v.validated));
-
-  const [dropActive, setDropActive] = useState(false);
-  const [dropError, setDropError] = useState<string | null>(null);
-  const dragDepth = useRef(0);
-
-  /** Drop anywhere on the scene adds the dragged crop to the formulation. */
-  async function handleSceneDrop(event: React.DragEvent) {
-    event.preventDefault();
-    dragDepth.current = 0;
-    setDropActive(false);
-    const id = getIngredientDragId(event);
-    if (!id) return;
-    const store = useFormulationStore.getState();
-    if (store.draft.some((line) => line.ingredient_id === id)) {
-      setDropError(null);
-      return;
-    }
-    try {
-      const ingredient = store.catalog[id] ?? (await getIngredient(id));
-      useFormulationStore.getState().addIngredient(ingredient);
-      setDropError(null);
-    } catch {
-      setDropError("That ingredient could not be loaded.");
-    }
-  }
 
   return (
     <section
@@ -202,29 +185,8 @@ export function WorkspaceScene({ className }: { className?: string }) {
       </header>
 
       <div
-        className={cn(
-          "scene-panel relative min-h-[320px] flex-1",
-          dropActive && "ring-2 ring-primary ring-inset",
-        )}
-        onDragEnter={(e) => {
-          if (!isIngredientDrag(e)) return;
-          e.preventDefault();
-          dragDepth.current += 1;
-          setDropActive(true);
-        }}
-        onDragOver={(e) => {
-          if (!isIngredientDrag(e)) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "copy";
-        }}
-        onDragLeave={() => {
-          dragDepth.current -= 1;
-          if (dragDepth.current <= 0) {
-            dragDepth.current = 0;
-            setDropActive(false);
-          }
-        }}
-        onDrop={handleSceneDrop}
+        className="scene-panel relative min-h-[320px] flex-1"
+        id="scene-canvas-wrap"
       >
         {view === "pending" && <Skeleton className="size-full rounded-none" />}
         {view === "2d" && <Workspace2D />}
@@ -242,10 +204,10 @@ export function WorkspaceScene({ className }: { className?: string }) {
             {reason}
           </p>
         )}
-        {is3D && !dropActive && (
-          <p className="pointer-events-none absolute top-2 left-3 hidden text-[11px] text-muted-foreground md:block">
+        {is3D && (
+          <p className="pointer-events-none absolute top-2 left-2 hidden text-[11px] text-muted-foreground md:block">
             Drag to orbit · scroll or pinch to zoom · tap a bin to inspect ·
-            drop a crop here to add it
+            drag a crop from the pantry to the vessel to add it
           </p>
         )}
 
@@ -257,28 +219,27 @@ export function WorkspaceScene({ className }: { className?: string }) {
 
         <SceneSelectionCard />
 
-        {dropActive && (
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-primary/10 backdrop-blur-[1px]">
-            <div className="rounded-xl border border-primary/50 bg-popover/95 px-4 py-3 text-center shadow-lg">
-              <p className="text-sm font-medium">
-                Drop to add to the formulation
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Release to place it in the scene
-              </p>
-            </div>
-          </div>
-        )}
-        {dropError && (
-          <p className="absolute top-2 right-3 rounded-md bg-destructive/15 px-2 py-1 text-xs text-destructive">
-            {dropError}
-          </p>
-        )}
+        {/* Drag and drop (guide §12.3). */}
+        <Pantry />
+        <ReturnTray />
+        <PlacementBar />
+        <DragChip />
+        {view === "2d" && <DragGhost2D />}
+        <DragAnnouncer />
       </div>
 
       <SceneObjectList />
-      <SceneAnnouncer />
     </section>
+  );
+}
+
+/** Announces every pick-up, move over a target, drop, cancel and rejection. */
+function DragAnnouncer() {
+  const announcement = useDragStore((s) => s.announcement);
+  return (
+    <div aria-live="polite" className="sr-only">
+      {announcement}
+    </div>
   );
 }
 
@@ -310,8 +271,11 @@ function SceneObjectList() {
   const jobStatus = useJobStore((s) => s.status);
   const currentStage = useJobStore((s) => s.currentStage);
   const candidateIds = useJobStore((s) => s.candidateIds);
-  const [replaceTarget, setReplaceTarget] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const held = usePlacementStore((s) => s.held);
+  const hold = usePlacementStore((s) => s.hold);
+  const release = usePlacementStore((s) => s.release);
+  const removeIngredient = useFormulationStore((s) => s.removeIngredient);
   const itemsRef = useRef<Array<HTMLButtonElement | null>>([]);
   /** Mirror of activeIndex that updates synchronously, for key handling. */
   const activeRef = useRef(0);
@@ -352,12 +316,22 @@ function SceneObjectList() {
       case "ArrowRight":
       case "ArrowDown":
         event.preventDefault();
-        moveTo(activeRef.current + 1);
+        // Arrows adjust the percentage once the bin is selected; until then
+        // they move focus through the list.
+        if (selectedId && entries[activeRef.current]?.id === selectedId) {
+          adjustFocused(1, event.shiftKey);
+        } else {
+          moveTo(activeRef.current + 1);
+        }
         break;
       case "ArrowLeft":
       case "ArrowUp":
         event.preventDefault();
-        moveTo(activeRef.current - 1);
+        if (selectedId && entries[activeRef.current]?.id === selectedId) {
+          adjustFocused(-1, event.shiftKey);
+        } else {
+          moveTo(activeRef.current - 1);
+        }
         break;
       case "Home":
         event.preventDefault();
@@ -369,39 +343,55 @@ function SceneObjectList() {
         break;
       case "Escape":
         event.preventDefault();
+        if (held) release();
         selectIngredient(null);
         selectCandidate(null);
         break;
+      case " ":
+      case "Spacebar": {
+        event.preventDefault();
+        void togglePlace(entries[activeRef.current]);
+        break;
+      }
+      case "Delete":
+      case "Backspace": {
+        const entry = entries[activeRef.current];
+        if (!entry || entry.kind !== "ingredient") break;
+        event.preventDefault();
+        removeIngredient(entry.id);
+        if (held?.id === entry.id) release();
+        break;
+      }
       default:
         break;
     }
   }
 
-  /** Drop on a bin chip to swap that ingredient for the dragged one. */
-  function handleReplace(event: React.DragEvent, currentId: string) {
-    event.preventDefault();
-    event.stopPropagation();
-    setReplaceTarget(null);
-    const id = getIngredientDragId(event);
-    if (!id || id === currentId) return;
+  /** Arrow up/down on the focused bin, 0.5 steps, 0.1 with Shift. */
+  function adjustFocused(direction: 1 | -1, fine: boolean) {
+    const entry = entries[activeRef.current];
+    if (!entry || entry.kind !== "ingredient") return;
+    const store = useFormulationStore.getState();
+    const current =
+      store.draft.find((l) => l.ingredient_id === entry.id)?.percent ??
+      entry.percent;
+    store.setPercent(entry.id, stepPercent(current, direction, fine));
+  }
 
-    const apply = (ingredient: Awaited<ReturnType<typeof getIngredient>>) => {
-      const store = useFormulationStore.getState();
-      const percent =
-        store.draft.find((line) => line.ingredient_id === currentId)?.percent ??
-        0;
-      store.removeIngredient(currentId);
-      store.addIngredient(ingredient, percent);
-    };
-
-    const knownIngredient = useFormulationStore.getState().catalog[id];
-    if (knownIngredient) {
-      apply(knownIngredient);
+  /** Space again places what is held; a different row switches the held item. */
+  async function togglePlace(entry: SceneEntry) {
+    if (entry.kind !== "ingredient") return;
+    if (!held) {
+      hold({ kind: entry.kind, id: entry.id, label: entry.label });
       return;
     }
-    void getIngredient(id)
-      .then(apply)
-      .catch(() => undefined);
+    if (held.id === entry.id) {
+      const catalog = useFormulationStore.getState().catalog;
+      await placeHeld(held, "vessel", catalog);
+      release();
+      return;
+    }
+    hold({ kind: entry.kind, id: entry.id, label: entry.label });
   }
 
   return (
@@ -417,7 +407,7 @@ function SceneObjectList() {
         ) : (
           <ul
             className="flex flex-wrap gap-1.5"
-            aria-label="Scene objects. Arrow keys move, Enter inspects, Escape clears."
+            aria-label="Scene objects. Arrow keys move, Enter inspects, Space picks up and places, Delete removes, Escape clears. With a bin selected, arrow keys change its percentage."
             onKeyDown={handleListKeyDown}
           >
             {entries.map((entry, index) => {
@@ -425,8 +415,6 @@ function SceneObjectList() {
                 entry.kind === "ingredient"
                   ? selectedId === entry.id
                   : selectedCandidate === entry.id;
-              const replaceable =
-                entry.kind === "ingredient" && replaceTarget === entry.id;
               return (
                 <li key={`${entry.kind}-${entry.id}`}>
                   <Button
@@ -439,7 +427,7 @@ function SceneObjectList() {
                     aria-pressed={selected}
                     aria-label={
                       entry.kind === "ingredient"
-                        ? `${entry.label}, ${entry.percent} percent. Enter inspects. Drop a crop here to replace it.`
+                        ? `${entry.label}, ${entry.percent} percent. Enter inspects. Space picks up then places in the vessel. Delete removes.`
                         : `${entry.label}. Enter inspects.`
                     }
                     onClick={() => {
@@ -453,20 +441,9 @@ function SceneObjectList() {
                       activeRef.current = index;
                       setActiveIndex(index);
                     }}
-                    onDragOver={(e) => {
-                      if (entry.kind !== "ingredient" || !isIngredientDrag(e))
-                        return;
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setReplaceTarget(entry.id);
-                    }}
-                    onDragLeave={() => setReplaceTarget(null)}
-                    onDrop={(e) => {
-                      if (entry.kind === "ingredient") {
-                        handleReplace(e, entry.id);
-                      }
-                    }}
-                    className={cn(replaceable && "ring-2 ring-primary")}
+                    className={cn(
+                      held?.id === entry.id && "ring-2 ring-primary",
+                    )}
                   >
                     {entry.kind === "ingredient" ? (
                       <span
@@ -534,6 +511,10 @@ function SceneSelectionCard() {
   const issue = validated?.result.issues.find(
     (i) => i.ingredient_id === selectedId,
   );
+  const stepPercent = usePercentStep(
+    ingredient?.id ?? "",
+    () => line?.percent ?? 0,
+  );
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -567,6 +548,38 @@ function SceneSelectionCard() {
           <span className="text-lg font-semibold tabular-nums">
             {line.percent}%
           </span>
+          <div
+            className="flex items-center gap-0.5"
+            role="group"
+            aria-label="Percentage"
+          >
+            <Button
+              size="icon-xs"
+              variant="outline"
+              aria-label={`Decrease ${ingredient.common_name} percentage by half a percent`}
+              onClick={(e) => stepPercent(-1, e.shiftKey)}
+            >
+              <MinusIcon aria-hidden />
+            </Button>
+            <Button
+              size="icon-xs"
+              variant="outline"
+              aria-label={`Increase ${ingredient.common_name} percentage by half a percent`}
+              onClick={(e) => stepPercent(1, e.shiftKey)}
+            >
+              <PlusIcon aria-hidden />
+            </Button>
+          </div>
+          <Button
+            size="xs"
+            variant="outline"
+            onClick={() => {
+              useFormulationStore.getState().removeIngredient(ingredient.id);
+              selectIngredient(null);
+            }}
+          >
+            Remove
+          </Button>
           <Button
             ref={closeRef}
             size="icon-xs"
@@ -617,22 +630,6 @@ function SceneSelectionCard() {
       {issue && (
         <p className="mt-2 text-xs text-destructive">{issue.message}</p>
       )}
-    </div>
-  );
-}
-
-/** Announces stage changes for screen readers, e.g. "Predicting texture, running". */
-function SceneAnnouncer() {
-  const text = useJobStore((s) => {
-    if (s.status === "idle") return "";
-    const label = s.currentStage
-      ? (s.stageLabels[s.currentStage] ?? s.currentStage)
-      : "Job";
-    return `${label}, ${s.status}`;
-  });
-  return (
-    <div aria-live="polite" className="sr-only">
-      {text}
     </div>
   );
 }

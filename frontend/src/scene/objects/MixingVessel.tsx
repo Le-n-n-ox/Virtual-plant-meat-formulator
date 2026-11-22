@@ -109,6 +109,7 @@ export function MixingVessel({
       {/* Vessel shell: Blender-authored GLB, procedural geometry as fallback */}
       <SceneModel
         url="/scene/assets/mixing-vessel/mixing-vessel.glb"
+        theme={theme}
         placeholder={<VesselPlaceholder />}
         fallback={<VesselShell theme={theme} />}
         tints={{ VesselMetal: theme.metal, VesselGlass: theme.glass }}

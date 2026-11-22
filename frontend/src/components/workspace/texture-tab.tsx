@@ -95,7 +95,7 @@ export function TextureTab() {
       ? activeJobId
       : "";
   const query = useApiQuery(
-    `texture|${id}|${finishedJob}`,
+    ["results", "texture", { formulationId: id, finishedJob }],
     () => loadLatestTexture(id),
     ready,
   );
@@ -321,7 +321,7 @@ function LatestTexture({
             <li key={m.id}>
               <Link
                 href="/models"
-                className="text-primary underline-offset-4 hover:underline"
+                className="text-primary underline underline-offset-4"
               >
                 {humanizeKey(m.target)}: {m.algorithm} v{m.version}
               </Link>{" "}

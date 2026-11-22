@@ -17,6 +17,7 @@ The backend implements the [backend guide](docs/backend-guide.md):
 
 - [Frontend development guide](docs/frontend-guide.md)
 - [Backend development guide](docs/backend-guide.md)
+- [Frontend README](frontend/README.md) — what the frontend implements today, and what is still missing
 
 ## Prerequisites
 

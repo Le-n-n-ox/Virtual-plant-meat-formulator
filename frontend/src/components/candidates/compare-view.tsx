@@ -56,7 +56,7 @@ export function CompareView() {
     .filter(Boolean);
   const valid = ids.length === 2 && ids[0] !== ids[1];
   const { data, error, loading } = useApiQuery(
-    `compare|${ids.join(",")}`,
+    ["compare", ids[0], ids[1]],
     () => compareCandidates(ids[0], ids[1]),
     valid,
   );
@@ -126,7 +126,7 @@ export function CompareView() {
             and press Compare. You can also browse formulations from the{" "}
             <Link
               href="/formulations"
-              className="text-primary underline-offset-4 hover:underline"
+              className="text-primary underline underline-offset-4"
             >
               formulations list
             </Link>

@@ -24,6 +24,8 @@ import {
   NOT_REPORTED,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { displayNutrientValue, nutrientKind } from "@/lib/units";
+import { usePreferencesStore } from "@/stores/preferencesStore";
 import type { IngredientDetail, TexturePrediction } from "@/types";
 
 const SUMMARY_NUTRIENTS = [
@@ -36,23 +38,24 @@ const SUMMARY_NUTRIENTS = [
 
 export function ReportTab() {
   const { id, version: current, ready, loadState } = useSavedVersion();
+  const prefs = usePreferencesStore();
   const [chosen, setChosen] = useState<number | null>(null);
   const version = chosen ?? current;
   const [busy, setBusy] = useState<ExportFormat | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const versions = useApiQuery(
-    `report-versions|${id}|${current}`,
+    ["formulations", id, "versions", { page_size: 100 }],
     () => listVersions(id, { page_size: 100 }),
     ready,
   );
   const detail = useApiQuery(
-    `report-version|${id}|${version}`,
+    ["formulations", id, "versions", version],
     () => getVersion(id, version),
     ready,
   );
   const nutrition = useApiQuery(
-    `report-nutrition|${id}|${version}`,
+    ["results", "nutrition", { formulationId: id, version }],
     async () => {
       try {
         return await getNutrition(id, version);
@@ -64,7 +67,7 @@ export function ReportTab() {
     ready,
   );
   const texture = useApiQuery(
-    `report-texture|${id}|${version}`,
+    ["results", "texture", { formulationId: id, version }],
     () => loadLatestTexture(id, version),
     ready,
   );
@@ -75,7 +78,7 @@ export function ReportTab() {
     ...new Set(detail.data?.lines.map((l) => l.ingredient_id) ?? []),
   ];
   const details = useApiQuery(
-    `report-ingredients|${id}|${version}|${lineIds.join(",")}`,
+    ["ingredients", { formulationId: id, version, lineIds }],
     () =>
       Promise.all(
         lineIds.map(
@@ -219,11 +222,19 @@ export function ReportTab() {
                       {x.name ?? humanizeKey(x.key)}
                     </dt>
                     <dd className="tabular-nums">
-                      {x.value === null ? (
-                        <span className="text-muted-foreground">missing</span>
-                      ) : (
-                        `${formatNumber(x.value)} ${x.unit}`
-                      )}
+                      {(() => {
+                        const shown = displayNutrientValue(
+                          x.value,
+                          x.unit,
+                          nutrientKind(x.key),
+                          prefs,
+                        );
+                        return shown ? (
+                          `${formatNumber(shown.value)} ${shown.unit}`
+                        ) : (
+                          <span className="text-muted-foreground">missing</span>
+                        );
+                      })()}
                     </dd>
                   </div>
                 ))}
@@ -383,7 +394,7 @@ export function ReportTab() {
               <>
                 <Link
                   href={`/jobs/${texture.data.jobId}`}
-                  className="text-primary underline-offset-4 hover:underline"
+                  className="text-primary underline underline-offset-4"
                 >
                   {texture.data.jobId}
                 </Link>

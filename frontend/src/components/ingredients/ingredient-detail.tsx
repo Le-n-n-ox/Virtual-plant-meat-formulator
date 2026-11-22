@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { AminoAcidChart } from "@/components/ingredients/amino-acid-chart";
+import { AddToFormulation } from "@/components/ingredients/add-to-formulation";
 import { getIngredient } from "@/lib/api/ingredients";
 import {
   errorMessage,
@@ -29,6 +30,12 @@ import {
   humanizeKey,
   NOT_REPORTED,
 } from "@/lib/format";
+import {
+  displayNutrientValue,
+  nutrientKind,
+  type NutrientKind,
+} from "@/lib/units";
+import { usePreferencesStore } from "@/stores/preferencesStore";
 import type { NutrientValue } from "@/types";
 
 const KFCT_NOTE = "Non-commercial research use with acknowledgement";
@@ -37,11 +44,15 @@ function ValueTable({
   title,
   rows,
   empty,
+  kindOf,
 }: {
   title: string;
   rows: NutrientValue[];
   empty: string;
+  /** Classify each row so the right display unit applies. */
+  kindOf: (row: NutrientValue) => NutrientKind;
 }) {
+  const prefs = usePreferencesStore();
   return (
     <Card>
       <CardHeader>
@@ -56,6 +67,7 @@ function ValueTable({
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead className="text-right">Value</TableHead>
+                <TableHead>Range</TableHead>
                 <TableHead>Quality</TableHead>
               </TableRow>
             </TableHeader>
@@ -64,16 +76,31 @@ function ValueTable({
                 <TableRow key={n.key}>
                   <TableCell>{n.name ?? humanizeKey(n.key)}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {n.value === null ? (
-                      <span className="text-muted-foreground">
-                        {NOT_REPORTED}
-                      </span>
-                    ) : (
-                      <>
-                        {formatNumber(n.value)}{" "}
-                        <span className="text-muted-foreground">{n.unit}</span>
-                      </>
-                    )}
+                    {(() => {
+                      const shown = displayNutrientValue(
+                        n.value,
+                        n.unit,
+                        kindOf(n),
+                        prefs,
+                      );
+                      return shown ? (
+                        <>
+                          {formatNumber(shown.value)}{" "}
+                          <span className="text-muted-foreground">
+                            {shown.unit}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          {NOT_REPORTED}
+                        </span>
+                      );
+                    })()}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground tabular-nums">
+                    {n.range
+                      ? `${formatNumber(n.range[0])}–${formatNumber(n.range[1])}`
+                      : "—"}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {n.flag}
@@ -90,7 +117,7 @@ function ValueTable({
 
 export function IngredientDetailView() {
   const { id } = useParams<{ id: string }>();
-  const { data, error, loading } = useApiQuery(`ingredient|${id}`, () =>
+  const { data, error, loading } = useApiQuery(["ingredients", id], () =>
     getIngredient(id),
   );
 
@@ -138,30 +165,40 @@ export function IngredientDetailView() {
                 : `${formatNumber(data.moisture_percent)}%`}
               {" · "}Origin: {data.origin ?? NOT_REPORTED}
             </p>
+            <div className="mt-2">
+              <AddToFormulation ingredient={data} />
+            </div>
           </header>
 
           <ValueTable
             title="Nutrients (per 100 g)"
             rows={data.nutrients}
             empty="No nutrient values are recorded for this ingredient."
+            kindOf={(n) => nutrientKind(n.key)}
           />
           <ValueTable
             title="Amino acids"
             rows={data.amino_acids}
             empty="No amino acid profile is reported for this ingredient."
+            kindOf={() => "amino_acid"}
           />
           {data.amino_acids.some((a) => a.value === null) && (
-            <p className="text-xs text-destructive">
-              {data.amino_acids
-                .filter((a) => a.value === null)
-                .map((a) => a.name ?? humanizeKey(a.key))
-                .join(", ")}{" "}
-              {data.amino_acids.filter((a) => a.value === null).length === 1
-                ? "has"
-                : "have"}{" "}
-              no reported value, so any amino-acid score for this ingredient is
-              partial.
-            </p>
+            <div
+              role="alert"
+              className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm"
+            >
+              <p className="font-medium">Incomplete amino-acid profile</p>
+              <p className="text-muted-foreground">
+                No reported value for{" "}
+                <span className="font-medium text-foreground">
+                  {data.amino_acids
+                    .filter((a) => a.value === null)
+                    .map((a) => a.name ?? humanizeKey(a.key))
+                    .join(", ")}
+                </span>
+                . Any amino-acid score for this ingredient will be partial.
+              </p>
+            </div>
           )}
           <AminoAcidChart aminoAcids={data.amino_acids} />
 

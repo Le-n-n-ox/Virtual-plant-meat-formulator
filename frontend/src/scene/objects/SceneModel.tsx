@@ -3,6 +3,7 @@
 import { Suspense, useMemo, type ReactNode } from "react";
 import { useGLTF } from "@react-three/drei";
 import { Mesh, type MeshStandardMaterial } from "three";
+import { applyMaterialTints, type SceneTheme } from "../theme/sceneTheme";
 import { SceneErrorBoundary } from "../SceneErrorBoundary";
 
 export interface SceneModelProps {
@@ -18,16 +19,21 @@ export interface SceneModelProps {
   /**
    * Maps a Blender material name to a theme colour, e.g.
    * `{ PattyCrust: theme.product }`. Keeps a GLB on the same tokens as the
-   * procedural geometry it replaces.
+   * procedural geometry it replaces. `MAT_*` names are tinted automatically
+   * from the theme; these are per-instance overrides (for example `MAT_Crop`).
    */
   tints?: Record<string, string>;
+  /** Current scene theme, used to tint the `MAT_*` materials. */
+  theme: SceneTheme;
 }
 
 function LoadedModel({
   url,
+  theme,
   tints,
 }: {
   url: string;
+  theme: SceneTheme;
   tints?: Record<string, string>;
 }) {
   const { scene } = useGLTF(url);
@@ -35,6 +41,7 @@ function LoadedModel({
   // the same asset (e.g. every ingredient bin) can be mounted at once.
   const clone = useMemo(() => {
     const copy = scene.clone(true);
+    applyMaterialTints(copy, theme, tints);
     copy.traverse((child) => {
       const mesh = child as Mesh;
       if (!mesh.isMesh) return;
@@ -43,8 +50,6 @@ function LoadedModel({
       ) as MeshStandardMaterial[];
       let glass = false;
       for (const material of materials) {
-        const tint = tints?.[material.name];
-        if (tint && material.color) material.color.set(tint);
         if (material.transparent && material.opacity < 0.6) glass = true;
       }
       // Glass must not cast a solid shadow; the shells should.
@@ -52,7 +57,7 @@ function LoadedModel({
       mesh.receiveShadow = true;
     });
     return copy;
-  }, [scene, tints]);
+  }, [scene, theme, tints]);
   return <primitive object={clone} />;
 }
 
@@ -63,6 +68,7 @@ function LoadedModel({
  */
 export function SceneModel({
   url,
+  theme,
   placeholder,
   fallback,
   tints,
@@ -70,7 +76,7 @@ export function SceneModel({
   return (
     <SceneErrorBoundary fallback={fallback} label={`Scene asset ${url}`}>
       <Suspense fallback={placeholder}>
-        <LoadedModel url={url} tints={tints} />
+        <LoadedModel url={url} theme={theme} tints={tints} />
       </Suspense>
     </SceneErrorBoundary>
   );

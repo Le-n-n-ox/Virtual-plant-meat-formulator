@@ -15,6 +15,7 @@ Local conventions (Blender Z-up, converted to glTF Y-up on export):
   * +Z is up in Blender, which becomes +Y in the GLB
 """
 
+import math
 import os
 
 import bpy
@@ -201,6 +202,190 @@ def build_candidate_patty():
     )
 
 
+def socket(name, loc):
+    """A drop point or label anchor. Exports as a named node."""
+    bpy.ops.object.empty_add(type="PLAIN_AXES", location=loc)
+    obj = bpy.context.active_object
+    obj.name = name
+    obj.empty_display_size = 0.12
+    return obj
+
+
+def sphere(name, radius, loc, mat, segments=16):
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=segments, ring_count=8, radius=radius, location=loc
+    )
+    obj = bpy.context.active_object
+    obj.name = name
+    return assign(obj, mat)
+
+
+# ---------------------------------------------------------------- bench (12.8)
+
+# Bench layout matches the scene in 12.2: the vessel sits at the origin, the
+# bins arc to its left, the product board at +X and the pantry to the far left.
+BENCH_HALF_X = 8.2
+BENCH_HALF_Y = 4.4
+
+
+def build_bench():
+    bench = make_material("MAT_Bench", (0.62, 0.64, 0.66), 0.0, 0.72)
+    surface = make_material("MAT_Surface", (0.74, 0.75, 0.76), 0.0, 0.6)
+    metal = make_material("MAT_Metal", (0.58, 0.62, 0.66), 1.0, 0.35)
+    dark = make_material("MAT_Dark", (0.30, 0.33, 0.36), 0.2, 0.55)
+    accent = make_material("MAT_Accent", (0.10, 0.55, 0.50), 0.0, 0.5)
+
+    parts = [
+        # Bench top, bevelled so the edges catch the key light.
+        cube(
+            "Bench_Top",
+            (BENCH_HALF_X * 2, BENCH_HALF_Y * 2, 0.42),
+            (0.8, 0, -0.21),
+            bench,
+            bevel=0.09,
+        ),
+        cube(
+            "Bench_Apron",
+            (BENCH_HALF_X * 2 - 0.6, BENCH_HALF_Y * 2 - 0.6, 0.34),
+            (0.8, 0, -0.55),
+            surface,
+            bevel=0.05,
+        ),
+        # Pantry shelf on the left, two rows of four slots.
+        cube("Pantry_Shelf", (2.6, 3.4, 0.16), (-4.9, 0, 0.86), surface, bevel=0.04),
+        cube("Pantry_Back", (2.6, 0.12, 1.7), (-4.9, -1.64, 1.7), bench, bevel=0.03),
+    ]
+    for side in (-1, 1):
+        parts.append(
+            cube(
+                f"Pantry_Leg{side}",
+                (0.14, 3.2, 0.86),
+                (-4.9 + side * 1.24, 0, 0.43),
+                dark,
+            )
+        )
+    for column in range(4):
+        for row in range(2):
+            x = -4.9 - 0.9 + column * 0.6
+            y = -0.72 + row * 1.44
+            parts.append(
+                cube(
+                    f"Pantry_Slot_{column}_{row}",
+                    (0.5, 1.2, 0.05),
+                    (x, y, 0.96),
+                    accent,
+                )
+            )
+            parts.append(socket(f"Socket_Pantry_{column * 2 + row + 1:02d}", (x, y, 1.0)))
+
+    # Return tray, just in front of the vessel.
+    parts.append(cube("Return_Tray", (1.5, 1.1, 0.14), (2.0, 2.5, 0.07), dark, bevel=0.04))
+    for index, offset in enumerate(((-0.62, 0), (0.62, 0))):
+        parts.append(
+            cube(f"Return_Wall{index}", (0.08, 1.0, 0.26), (2.0 + offset[0], 2.5, 0.2), metal)
+        )
+    parts.append(socket("Socket_Return", (2.0, 2.5, 0.3)))
+
+    # Product board at the end of the line.
+    parts.append(
+        cube("Product_Board", (2.4, 2.4, 0.18), (6.9, 0, 0.09), surface, bevel=0.05)
+    )
+    parts.append(socket("Socket_Product", (6.9, 0, 0.4)))
+
+    # Two compare plinths beside the board.
+    for label, y in (("A", 2.0), ("B", -2.0)):
+        parts.append(
+            cylinder(f"Plinth_{label}", 0.85, 0.95, 0.5, (6.9, y, 0.25), metal)
+        )
+        parts.append(socket(f"Socket_Compare_{label}", (6.9, y, 0.75)))
+
+    return export(parts, "bench", "bench")
+
+
+# ---------------------------------------------------------------- crops (12.8)
+
+CONTAINERS = {
+    "crate": {"size": (0.62, 0.62, 0.5), "z": 0.25, "bevel": 0.05},
+    "sack": {"size": (0.56, 0.5, 0.72), "z": 0.36, "bevel": 0.1},
+    "jar": {"size": (0.44, 0.44, 0.6), "z": 0.3, "bevel": 0.06},
+    "bottle": {"size": (0.34, 0.34, 0.82), "z": 0.41, "bevel": 0.06},
+}
+
+# Toppers the kit models, keyed by the crop names the catalogue uses. Anything
+# not listed falls back to Crop_Generic.
+CROPS = [
+    ("Sorghum", "sorghum", (0.42, 0.20, 0.12)),
+    ("Millet", "millet", (0.78, 0.68, 0.34)),
+    ("Maize", "maize", (0.92, 0.74, 0.24)),
+    ("Cowpea", "cowpea", (0.86, 0.80, 0.62)),
+    ("PigeonPea", "pigeonpea", (0.72, 0.52, 0.26)),
+    ("GreenGram", "greengram", (0.36, 0.58, 0.24)),
+    ("Beans", "beans", (0.55, 0.22, 0.20)),
+    ("MungBean", "mungbean", (0.40, 0.62, 0.28)),
+    ("Sesame", "sesame", (0.88, 0.82, 0.66)),
+    ("Sunflower", "sunflower", (0.48, 0.48, 0.50)),
+    ("Groundnut", "groundnut", (0.80, 0.68, 0.48)),
+    ("Cassava", "cassava", (0.84, 0.78, 0.68)),
+]
+
+
+def build_crops():
+    """Four containers and the crop toppers. Each group is offset along X so the
+    whole kit can be inspected at once; the scene picks one container and one
+    topper by name."""
+    natural = make_material("MAT_Natural", (0.72, 0.68, 0.58), 0.0, 0.7)
+    neutral = make_material("MAT_Surface", (0.74, 0.75, 0.76), 0.0, 0.6)
+    parts = []
+
+    for index, (name, spec) in enumerate(CONTAINERS.items()):
+        x = index * 1.4
+        parts.append(
+            cube(
+                f"Container_{name}",
+                spec["size"],
+                (x, 0, spec["z"]),
+                neutral,
+                bevel=spec["bevel"],
+            )
+        )
+
+    def heap(prefix, origin_x, count, radius, spread):
+        """A small heap of grains sharing the one MAT_Natural material, parented
+        to an empty named after the crop so the code can place the whole topper
+        as one node."""
+        parent = socket(prefix, (origin_x, 0, 0))
+        grains = []
+        for index in range(count):
+            angle = index * 2.399963  # golden angle, an even pile
+            distance = spread * (0.35 + 0.65 * (index / max(1, count - 1)))
+            x = origin_x + math.cos(angle) * distance
+            y = math.sin(angle) * distance
+            z = 0.52 + radius * (0.4 + 0.6 * ((index * 7) % 5) / 5)
+            grains.append(
+                sphere(
+                    f"{prefix}_Grain{index}",
+                    radius * (0.8 + 0.35 * ((index * 3) % 4) / 4),
+                    (x, y, z),
+                    natural,
+                    segments=10,
+                )
+            )
+        bpy.ops.object.select_all(action="DESELECT")
+        for grain in grains:
+            grain.select_set(True)
+        parent.select_set(True)
+        bpy.context.view_layer.objects.active = parent
+        bpy.ops.object.parent_set(type="OBJECT", keep_transform=True)
+        parts.append(parent)
+        parts.extend(grains)
+
+    for index, (name, _key, _color) in enumerate(CROPS):
+        heap(f"Crop_{name}", index * 1.1, 9, 0.085, 0.2)
+
+    heap("Crop_Generic", len(CROPS) * 1.1, 9, 0.09, 0.22)
+    return export(parts, "crops", "crops")
+
+
 def main():
     reset_scene()
     write_readme(
@@ -232,6 +417,22 @@ def main():
         "patty",
         "Schematic beveled patty body for the candidate preview. Crust, fibre "
         "striations and the cut face stay procedural. Illustrative only.",
+    )
+    write_readme(
+        build_bench(),
+        "bench",
+        "Bench top with the pantry shelf (eight sockets), the return tray, the "
+        "product board and two compare plinths. Drop points are Empty objects "
+        "named Socket_*, which export as named nodes. Materials use the MAT_* "
+        "names from guide 12.9 so the code can tint them from the theme tokens.",
+    )
+    write_readme(
+        build_crops(),
+        "crops",
+        "Four ingredient containers and twelve crop toppers plus Crop_Generic. "
+        "An ingredient is shown as a container chosen by its form with a topper "
+        "chosen by its crop; MAT_Natural is shared by every topper so the crops "
+        "keep their own colours and stay cheap.",
     )
 
 

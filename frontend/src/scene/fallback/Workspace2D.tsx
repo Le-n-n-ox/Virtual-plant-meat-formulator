@@ -5,12 +5,16 @@ import { useShallow } from "zustand/react/shallow";
 import { useFormulationStore } from "@/stores/formulationStore";
 import { type StageStatus, useJobStore } from "@/stores/jobStore";
 import { useSelectionStore } from "@/stores/selectionStore";
+import { usePlacementStore } from "@/stores/placementStore";
+import { placeHeld } from "../drag/actions";
+import { startPointerDrag } from "../drag/startPointerDrag";
 import {
   PROCESS_STATIONS,
   STAGE_STATUS_TEXT,
   stationStatuses,
 } from "../stations";
 import { cropVar } from "../theme/sceneTheme";
+import { DragLayer2D } from "../drag/DragLayer2D";
 
 const STATUS_FILL: Record<StageStatus | "idle", string> = {
   idle: "var(--scene-idle)",
@@ -51,7 +55,15 @@ export function Workspace2D() {
   const candidateId = selectedCandidate ?? candidateIds.at(-1) ?? null;
 
   const lines = validated?.lines ?? [];
+  const draft = useFormulationStore((s) => s.draft);
   const invalid = new Set(validated?.result.issues.map((i) => i.ingredient_id));
+  /** Dropped but not yet in a validation snapshot: translucent and dashed. */
+  const pendingIds = new Set(
+    draft
+      .map((l) => l.ingredient_id)
+      .filter((id) => !lines.some((l) => l.ingredient_id === id)),
+  );
+  const held = usePlacementStore((s) => s.held);
   const binsX = 40;
   const running = status === "running" || status === "queued";
   const total = lines.reduce(
@@ -90,12 +102,14 @@ export function Workspace2D() {
 
   return (
     <svg
+      id="scene-2d"
       viewBox="0 0 800 760"
       className="scene-panel h-full w-full"
       role="group"
       aria-label="2D process schematic"
       preserveAspectRatio="xMidYMid meet"
     >
+      <DragLayer2D />
       <defs>
         <pattern
           id="scene-grid"
@@ -188,7 +202,13 @@ export function Workspace2D() {
               selectIngredient(selected ? null : line.ingredient_id)
             }
             onKeyDown={onKey(line.ingredient_id)}
-            className="cursor-pointer outline-none"
+            onPointerDown={startPointerDrag({
+              kind: "bin",
+              id: line.ingredient_id,
+              label: name,
+              source: "view2d",
+            })}
+            className="cursor-grab outline-none active:cursor-grabbing"
           >
             <defs>
               <clipPath id={clipId}>
@@ -220,7 +240,7 @@ export function Workspace2D() {
               height={BIN_H}
               rx="12"
               fill="var(--scene-metal)"
-              fillOpacity="0.25"
+              fillOpacity={pendingIds.has(line.ingredient_id) ? 0.12 : 0.25}
               stroke={
                 bad
                   ? "var(--scene-failed)"
@@ -229,6 +249,9 @@ export function Workspace2D() {
                     : "var(--scene-line)"
               }
               strokeWidth={bad || selected ? 3.5 : 1.5}
+              strokeDasharray={
+                pendingIds.has(line.ingredient_id) ? "6 4" : undefined
+              }
             />
             <g clipPath={`url(#${clipId})`}>
               <rect
@@ -286,8 +309,18 @@ export function Workspace2D() {
 
       {/* Mixing vessel */}
       <g
+        id="drag-target-vessel"
         aria-label={`Mixing: ${STAGE_STATUS_TEXT[statuses.mixing ?? "idle"]}`}
         role="img"
+        onClick={() => {
+          if (!held) return;
+          void placeHeld(
+            held,
+            "vessel",
+            useFormulationStore.getState().catalog,
+          );
+        }}
+        className="cursor-pointer"
       >
         <path
           d="M 550 380 C 610 380, 590 470, 640 470"

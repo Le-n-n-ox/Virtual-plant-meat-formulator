@@ -60,7 +60,7 @@ export function NutritionTab() {
   const finishedJob =
     jobType === "nutrition" && status === "completed" ? activeJobId : "";
   const query = useApiQuery(
-    `nutrition|${id}|${version}|${finishedJob}`,
+    ["results", "nutrition", { formulationId: id, version, finishedJob }],
     () => getNutrition(id, version),
     ready,
   );

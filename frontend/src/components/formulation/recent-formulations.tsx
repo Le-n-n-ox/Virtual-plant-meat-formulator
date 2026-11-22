@@ -10,8 +10,9 @@ import { listFormulations } from "@/lib/api/formulations";
 import { errorMessage, formatDateTime } from "@/lib/format";
 
 export function RecentFormulations() {
-  const { data, error, loading } = useApiQuery("recent", () =>
-    listFormulations({ page_size: 5 }),
+  const { data, error, loading } = useApiQuery(
+    ["formulations", { page_size: 5 }],
+    () => listFormulations({ page_size: 5 }),
   );
 
   if (error)

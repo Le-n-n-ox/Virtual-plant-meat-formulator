@@ -42,6 +42,7 @@ import {
   formatNumber,
   humanizeKey,
 } from "@/lib/format";
+import { useInvalidateResource } from "@/lib/query/invalidate";
 import type { ModelDetail } from "@/types";
 
 type Action = { kind: "approve" | "retire"; model: ModelListItem };
@@ -49,8 +50,10 @@ type Action = { kind: "approve" | "retire"; model: ModelListItem };
 export function ModelRegistry() {
   const { user } = useAuth();
   const isAdmin = user.role === "admin";
-  const { data, error, loading, reload } = useApiQuery("models", () =>
-    listModels({ status: "all", page_size: 100 }),
+  const invalidate = useInvalidateResource();
+  const { data, error, loading } = useApiQuery(
+    ["models", { status: "all", page_size: 100 }],
+    () => listModels({ status: "all", page_size: 100 }),
   );
   const [action, setAction] = useState<Action | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -65,7 +68,7 @@ export function ModelRegistry() {
       if (action.kind === "approve") await approveModel(action.model.id);
       else await retireModel(action.model.id);
       setAction(null);
-      reload();
+      invalidate("models");
     } catch (e) {
       setActionError(errorMessage(e));
     } finally {
@@ -255,9 +258,7 @@ function ModelDetailSheet({
   model: ModelListItem;
   onClose: () => void;
 }) {
-  const detail = useApiQuery(`model-detail|${model.id}`, () =>
-    getModel(model.id),
-  );
+  const detail = useApiQuery(["models", model.id], () => getModel(model.id));
   const record: ModelDetail | null = detail.data;
   const limitations = record
     ? Array.isArray(record.limitations)

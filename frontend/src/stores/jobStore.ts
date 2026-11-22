@@ -50,6 +50,18 @@ interface JobState {
   connection: ConnectionState;
 
   startJob: (jobId: string, type: JobType) => void;
+  /** Restores a job that is still running elsewhere (reload, another tab). */
+  hydrate: (job: {
+    id: string;
+    type: JobType;
+    status: JobStatus;
+    stage: string | null;
+    stageLabel: string | null;
+    progressPercent: number | null;
+    message: string | null;
+    candidateIds: string[];
+    lastSeq: number | null;
+  }) => void;
   applyEvent: (event: JobEvent) => boolean;
   setConnection: (connection: ConnectionState) => void;
   reset: () => void;
@@ -102,6 +114,27 @@ export const useJobStore = create<JobState>((set, get) => ({
     }),
 
   setConnection: (connection) => set({ connection }),
+
+  /**
+   * Rebuilds the store from a job status response rather than starting fresh, so
+   * a reload resumes the timeline and scene where the job actually is. Events
+   * already delivered before the reload are replayed by the stream; `lastSeq`
+   * makes the store drop the duplicates.
+   */
+  hydrate: (job) =>
+    set({
+      ...initial,
+      activeJobId: job.id,
+      jobType: job.type,
+      status: job.status,
+      currentStage: job.stage,
+      stageLabels: job.stage ? { [job.stage]: job.stageLabel ?? "" } : {},
+      progressPercent: job.progressPercent,
+      message: job.message,
+      candidateIds: job.candidateIds,
+      lastSeq: job.lastSeq,
+      connection: isTerminal(job.status) ? "closed" : "connecting",
+    }),
 
   reset: () => set(initial),
 

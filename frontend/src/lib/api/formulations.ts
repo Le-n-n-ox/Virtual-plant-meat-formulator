@@ -1,9 +1,8 @@
 import type {
   Formulation,
   FormulationLine,
+  FormulationListItem,
   FormulationVersionSummary,
-  JobStatus,
-  JobType,
   Paged,
   ValidationResult,
 } from "@/types";
@@ -16,23 +15,11 @@ import {
   validationResultSchema,
 } from "@/lib/validation/schemas";
 
+export type { FormulationListItem };
+
 export interface PagingParams {
   page?: number;
   page_size?: number;
-}
-
-export interface FormulationListItem {
-  id: string;
-  name: string;
-  current_version: number;
-  last_job: {
-    id: string;
-    type: JobType | string;
-    status: JobStatus;
-    finished_at: string | null;
-  } | null;
-  updated_at: string;
-  archived?: boolean;
 }
 
 export interface SaveFormulationBody {

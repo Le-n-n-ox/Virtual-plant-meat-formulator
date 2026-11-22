@@ -1,42 +1,42 @@
 # Virtual Plant-Meat Formulator: Frontend Development Guide
 
-Nov 13, 2026 · @Lennox Wanyela · Status updated Nov 19, 2026
+Nov 13, 2026 · @Lennox Wanyela · Status updated Nov 22, 2026
 
 The frontend is a scientific workstation in the browser: a food scientist builds a formulation from indigenous Kenyan crops, runs calculations or optimization, and watches both the numerical results and a live 3D process scene update. This guide takes the frontend from an empty repository to a working prototype, and was written against the *Virtual Plant-Meat Formulator / Technology Plan* (proposed architecture, 12 November 2026).
 
-## Implementation status (19 November 2026)
+## Implementation status (22 November 2026)
 
 This guide was written as a plan, before any frontend code existed. All 17 screens now exist in `frontend/` and run against the real backend. Sections 1 to 11 remain the specification, and section 12 specifies the rebuilt 3D scene. Each page in section 5 carries a **Status** line, and other sections carry a **Current state** note where the code differs from the plan. This section is the summary.
 
 | Phase (section 10) | Status | What is left |
 | --- | --- | --- |
 | F0 Setup | Done | The mock API (MSW) was never added |
-| F1 Shell and catalogue | Mostly done | Catalogue source and analytical/estimated filters, sorting, filters in the URL; ingredient ranges and "Add to formulation"; dashboard jobs panel; units setting |
-| F2 Formulation and nutrition | Mostly done | Template, duplicate and archive in the UI; targets panel; version diff; charts |
-| F3 3D foundation | First version built; to be rebuilt | The scene is a click-only schematic. The agreed drag-and-drop bench, with Blender-made assets, is specified in section 12 |
-| F4 Jobs and SSE | Partly done | The scene's stations do not react to stage events (sections 7 and 12.7); job detail timeline, event log, cancel and live re-attach; re-attach after a page reload |
-| F5 Results and optimization | Partly done | Every chart; candidate preview in 3D and cutaway; 3D in compare |
-| F6 Integration and hardening | Started | Response validation at run time, contract tests, accessibility checks, component tests, performance benchmark, demo script |
+| F1 Shell and catalogue | Done | — |
+| F2 Formulation and nutrition | Done | — |
+| F3 3D foundation | Done | Drag-and-drop bench over `dragStore` with Blender-exported GLB assets. The look-development pass of section 12.14 is still open |
+| F4 Jobs and SSE | Done | Touch testing on a real phone and tablet |
+| F5 Results and optimization | Done | — |
+| F6 Integration and hardening | Done | Manual keyboard-only run of the main journey; touch testing |
 
 **Built differently from the plan**
 
 - **No mock API.** The app talks only to the real backend. There is no `src/mocks/`, MSW is not installed, and `NEXT_PUBLIC_USE_MOCKS` is not read (section 8).
-- **Routes.** `/` is a public landing page and the dashboard is at `/dashboard`. `/methodology` requires sign-in (section 4).
+- **Routes.** `/` is a public landing page and the dashboard is at `/dashboard`. `/methodology` is public too, in a `(public)` route group (FE-3).
 - **Auth.** Sign-in uses the backend's local auth mode: `POST /api/auth/login` returns a bearer token that the client keeps in `localStorage`. Supabase Auth is not used.
-- **Data fetching.** Pages fetch with a small hook, `hooks/use-api-query.ts`. TanStack Query is installed and its provider is mounted, but no component runs a query through it.
-- **Forms.** All forms use React state. React Hook Form is installed but unused.
-- **Response validation.** API responses are typed but not validated at run time. The Zod schemas in `lib/validation/schemas.ts` are exercised only by a unit test.
-- **Charts.** There are none. Plotly and Recharts are installed but unused; every result is shown as a table.
-- **3D scene.** The scene is built from code-generated geometry, loads no GLB file, and has no drag and drop. This is not the scene the team agreed on. Section 12 specifies the replacement: a drag-and-drop workbench with assets modelled in Blender.
-- **Candidates and compare** are tables without 3D views.
+- **Data fetching.** Pages fetch through `hooks/use-api-query.ts`, which is now a thin wrapper over TanStack Query's `useQuery`. Every query key is an array starting with the resource name, so `lib/query/invalidator.tsx` refetches a whole resource by prefix when a job finishes (FE-7).
+- **Forms.** All forms use React state. React Hook Form and `@hookform/resolvers` were removed from `package.json` (FE-7).
+- **Response validation.** Every function in `src/lib/api/` validates its response through the Zod schemas in `lib/validation/schemas.ts` and throws `ApiError` code `contract_mismatch` on a mismatch; SSE events are validated too (FE-4).
+- **Charts.** Six charts exist: the ingredient amino-acid profile, the macronutrient bars, the amino-acid score with a reference line at 1.0, the texture interval chart, the candidate scatter and the compare bars. **They are built with Plotly, not with Recharts as recommended in FE-6.** `recharts` has been removed from `package.json`; every chart keeps a data-table alternative.
+- **3D scene.** The scene loads Blender-exported GLB assets with `useGLTF`, with a loading placeholder and an error fallback to the 2D view, and has a pointer-based drag-and-drop bench over `dragStore` (section 12).
+- **Candidates and compare** have 3D views: the candidate product appears in the scene with a cutaway offered only when a validated variable backs it, and compare shows two viewports whose cameras are locked together.
 
-**Known defect**
+**Resolved: the station defect (FE-1)**
 
-The process stations in the 3D scene and the 2D view never light up during a real job. The stations are keyed by job type (`mixing`, `nutrition`, `texture_prediction`, `optimization` in `scene/stations.ts`), but the job store keys stage status by the backend's stage names (`validating`, `calculating`, `searching` and so on). Nothing matches, so every station stays "Idle". The job timeline beside the scene is unaffected and shows the real stages. See section 7 for the cause and section 12.7 for the intended mapping.
+`stationStatuses()` in `scene/stations.ts` derives each station's status from the job's type, its terminal status and the real stage names in `jobStore`, so the vessel, analyser, extruder and optimizer now follow a job in the 3D scene, the 2D view and the "Stage status" list. `tests/stations.test.ts` feeds the real stage sequences for all three job types through `jobStore.applyEvent` and asserts each station at every step, including a warning, a failure and a cancellation.
 
 **Fix list**
 
-Section 13 turns the audit's findings into seven pieces of work (FE-1 to FE-7), each with the files involved, the steps and a "done when" check: the station defect above, the broken landing-page link, the public methodology page, run-time response validation, the scripted job-stream scenarios, the charts, and the unused libraries.
+Section 13 turns the audit's findings into seven pieces of work (FE-1 to FE-7), each with the files involved, the steps and a "done when" check. **All seven are done**: the station defect, the broken landing-page link, the public methodology page, run-time response validation, the scripted job-stream scenarios, the six charts, and the unused libraries — TanStack Query adopted, React Hook Form and Recharts removed.
 
 **Added beyond the plan**
 
@@ -82,14 +82,14 @@ The frontend uses the stack chosen in the technology plan. Versions are set in `
 | Shared state | Zustand | Formulation, job and selected-object state | In use |
 | UI motion | Motion for React | Panel, badge and status transitions | In use |
 | Themes | `next-themes` with CSS tokens | Six themes for the interface and the scene | In use (added) |
-| Charts | Plotly.js (scientific), Recharts (simple dashboard charts) | Nutrition, amino-acid, texture, trade-off charts | Installed, not used yet |
-| Server data | TanStack Query (recommended addition) | Caching and refetching REST data | Provider mounted; no queries. Pages use `hooks/use-api-query.ts` |
-| Forms and validation | React Hook Form + Zod (recommended addition) | Formulation editor, mirrored backend rules | Installed. React Hook Form is unused; Zod schemas exist but only a test imports them |
+| Charts | Plotly.js | Nutrition, amino-acid, texture, trade-off charts | Done — six charts through `components/charts/plotly-chart.tsx`; `recharts` removed |
+| Server data | TanStack Query | Caching and refetching REST data | Done — `use-api-query.ts` wraps `useQuery`, keys are resource-prefixed arrays |
+| Forms and validation | React state + Zod | Formulation editor, mirrored backend rules | Done — React Hook Form removed; every API response is validated by a Zod schema |
 | Mocking | MSW (recommended addition) | Fake REST and SSE until the backend exists | Not installed; no longer needed for daily work |
 | Testing | Vitest, Testing Library, Playwright | Unit, component and end-to-end tests | Unit and end-to-end tests in use; no real component tests |
 | Tooling | ESLint, Prettier, Husky, GitHub Actions | Quality gates on every pull request | In use. The pre-commit hook runs Prettier only |
 
-TanStack Query, React Hook Form, Zod and MSW are not in the technology plan; they are suggested here because they reduce hand-written plumbing. Drop them if the team prefers otherwise. *Decision needed: four installed libraries (TanStack Query, React Hook Form, Plotly, Recharts) carry no working code. Either adopt them or remove them from `package.json`.*
+TanStack Query, React Hook Form, Zod and MSW are not in the technology plan; they are suggested here because they reduce hand-written plumbing. *Resolved: TanStack Query and Zod are adopted, React Hook Form and Recharts are removed, and Plotly is the chart library.*
 
 Next.js 16 differs from earlier versions in ways that matter when writing code. `frontend/AGENTS.md` points to the bundled documentation in `node_modules/next/dist/docs/`; read the relevant page before using an unfamiliar API.
 
@@ -191,25 +191,25 @@ Two developers work in parallel on separate branches that merge into `develop`; 
 
 The app has 17 screens. The formulation workspace is the centre of the product: its layout keeps the 3D scene mounted while the user moves between its tabs, so the scene never reloads when switching from Editor to Results. Phases (F0 to F6) are defined in section 10.
 
-| # | Route | Page | Owner | Phase | Status (19 Nov 2026) |
+| # | Route | Page | Owner | Phase | Status (22 Nov 2026) |
 | --- | --- | --- | --- | --- | --- |
 | 1 | `/login` | Sign in | Steve | F1 | Done |
-| 2 | `/dashboard` (planned as `/`) | Dashboard | Steve | F1 | Partly |
-| 3 | `/ingredients` | Ingredient catalogue | Steve | F1 | Partly |
-| 4 | `/ingredients/[id]` | Ingredient detail and provenance | Steve | F1 | Partly |
-| 5 | `/formulations` | Formulation list and "new formulation" | Steve | F2 | Partly |
-| 6 | `/formulations/[id]` | Workspace: editor + live 3D scene | Both | F2, F3 | Mostly done |
-| 7 | `/formulations/[id]/nutrition` | Nutrition and amino-acid results | Steve | F2 | Done except charts |
-| 8 | `/formulations/[id]/texture` | Texture prediction results | Steve | F5 | Mostly done |
-| 9 | `/formulations/[id]/optimize` | Optimization setup and run | Both | F5 | Done except the chart |
-| 10 | `/formulations/[id]/candidates` | Candidate list and 3D preview | Both | F5 | Partly: no 3D preview |
-| 11 | `/compare?ids=a,b` | Side-by-side candidate comparison | Both | F5 | Partly: no 3D, no chart |
-| 12 | `/formulations/[id]/versions` | Saved versions and diff | Steve | F2 | Done except the diff |
+| 2 | `/dashboard` (planned as `/`) | Dashboard | Steve | F1 | Done |
+| 3 | `/ingredients` | Ingredient catalogue | Steve | F1 | Done |
+| 4 | `/ingredients/[id]` | Ingredient detail and provenance | Steve | F1 | Done |
+| 5 | `/formulations` | Formulation list and "new formulation" | Steve | F2 | Done |
+| 6 | `/formulations/[id]` | Workspace: editor + live 3D scene | Both | F2, F3 | Done |
+| 7 | `/formulations/[id]/nutrition` | Nutrition and amino-acid results | Steve | F2 | Done |
+| 8 | `/formulations/[id]/texture` | Texture prediction results | Steve | F5 | Done |
+| 9 | `/formulations/[id]/optimize` | Optimization setup and run | Both | F5 | Done |
+| 10 | `/formulations/[id]/candidates` | Candidate list and 3D preview | Both | F5 | Done |
+| 11 | `/compare?ids=a,b` | Side-by-side candidate comparison | Both | F5 | Done |
+| 12 | `/formulations/[id]/versions` | Saved versions and diff | Steve | F2 | Done |
 | 13 | `/formulations/[id]/report` | Formulation summary and download | Steve | F5 | Done |
-| 14 | `/jobs` and `/jobs/[id]` | Job history and job detail timeline | Lennox | F4 | Partly: no timeline on the detail page |
+| 14 | `/jobs` and `/jobs/[id]` | Job history and job detail timeline | Lennox | F4 | Done |
 | 15 | `/models` | Model registry (versions, metrics, limits) | Steve | F5 | Done |
-| 16 | `/methodology` | Data sources, method notes, labelling rules | Steve | F2 | Mostly done |
-| 17 | `/settings` | Units, reduced motion, force 2D mode | Steve | F1 | Done except units |
+| 16 | `/methodology` | Data sources, method notes, labelling rules | Steve | F2 | Done |
+| 17 | `/settings` | Units, reduced motion, force 2D mode | Steve | F1 | Done |
 | — | `/` | Public landing page (added) | — | — | Done |
 
 Section 5 gives the detail behind each status.
@@ -253,7 +253,7 @@ Each page lists its purpose, main components, the endpoints it calls (full contr
 - **Endpoints:** `GET /api/formulations?limit=5`, `GET /api/jobs?limit=5&status=running,failed,completed`.
 - **States:** first-time user with no formulations shows a single "Create your first formulation" call to action.
 - **Done when:** clicking a recent item opens the correct workspace or job.
-- **Status: partly done.** Built: quick actions, recent formulations with the first-time empty state, a backend status indicator and a "Trust rules" card. Missing: the running and recent jobs panel, and the data-quality notice.
+- **Status: done.** Built: quick actions, recent formulations with the first-time empty state, a backend status indicator, a "Trust rules" card, the running and recent jobs panel (five rows with a status chip and a link to `/jobs/[id]`), and a data-quality notice that counts the catalogue rows flagged as estimated and links to the catalogue.
 
 ### Page 3: Ingredient catalogue (`/ingredients`)
 
@@ -262,7 +262,7 @@ Each page lists its purpose, main components, the endpoints it calls (full contr
 - **Endpoints:** `GET /api/ingredients?q=&crop=&form=&source=&page=&page_size=`.
 - **States:** no results (offer to clear filters); missing data shown explicitly as "not reported", never as zero.
 - **Done when:** filters and search are reflected in the URL so a filtered view can be shared.
-- **Status: partly done.** Built: debounced search, form and crop filters fed by `GET /api/ingredients/facets`, a "Hide meat, fish and dairy" toggle, quality and amino-acid badges, and Previous/Next paging. Missing: the source filter, the analytical or estimated filter, sortable columns (the sort is fixed to name), and filters in the URL.
+- **Status: done.** Built: debounced search; form, crop, data-source and analytical/estimated filters fed by `GET /api/ingredients/facets`; a "Hide meat, fish and dairy" toggle; quality and amino-acid badges; sortable ingredient and protein columns; and Previous/Next paging. `q`, `crop`, `form`, `source`, `flag`, `sort` and `page` are reflected in the URL, so a filtered view can be shared and restored on reload.
 
 ### Page 4: Ingredient detail (`/ingredients/[id]`)
 
@@ -271,7 +271,7 @@ Each page lists its purpose, main components, the endpoints it calls (full contr
 - **Endpoints:** `GET /api/ingredients/{id}`.
 - **States:** incomplete amino-acid profile shows which acids are missing and warns that amino-acid scores will be partial.
 - **Done when:** every number on the page has a visible unit and source.
-- **Status: partly done.** Built: the header badges, nutrient and amino-acid tables with value, unit and flag, and a "Source and licence" card with licence status and dataset version. Missing: the range column, the amino-acid chart, the "Add to formulation" button, and an explicit warning that names the missing amino acids.
+- **Status: done.** Built: the header badges; nutrient and amino-acid tables with value, unit, range (an explicit dash when the source reports none) and flag; an amino-acid profile chart; an "Add to formulation" picker that lists the user's formulations, adds the ingredient at 0% to the chosen draft and routes to its workspace; and a warning that names every amino acid with no reported value and states that the score will be partial.
 
 ### Page 5: Formulation list (`/formulations`)
 
@@ -280,7 +280,7 @@ Each page lists its purpose, main components, the endpoints it calls (full contr
 - **Endpoints:** `GET /api/formulations`, `POST /api/formulations`.
 - **States:** creation failure keeps the dialog open with the server message.
 - **Done when:** creating a formulation routes straight to its workspace.
-- **Status: partly done.** Built: the table with search and paging, and a create dialog with name and description. Missing: the template choice, and the duplicate and archive row actions. The client functions for `duplicate` and `PATCH` exist in `lib/api/formulations.ts` but no screen calls them.
+- **Status: done.** Built: the table with search, status/type/formulation filters, paging and a "Show archived" toggle; a create dialog with name, description and an optional "Start from" template; and per-row Duplicate (which routes to the copy) and Archive (behind a confirmation, with Restore). A creation failure keeps the dialog open with the server message.
 
 ### Page 6: Formulation workspace (`/formulations/[id]`)
 
@@ -303,11 +303,10 @@ This is the core screen. It is a two-pane layout: the 3D scene (or 2D fallback) 
   4. Closing or reloading the page does not cancel a job; on return the app calls `GET /api/jobs/{job_id}` and reattaches to the stream.
 - **States:** validation failure (amber or red highlight on the ingredient in both table and scene, text explanation), job failed or cancelled (animation stops, terminal state and next action shown), connection lost (banner with automatic retry), WebGL unavailable (2D view with the same controls).
 - **Done when:** adding and removing an ingredient changes the table, totals bar and scene from the same validated state, and a job's real events change the scene.
-- **Status: mostly done.**
-  - Built: the ingredient picker, percentage inputs and totals bar; a debounced `POST /validate` (300 ms) whose stale replies are dropped, with the scene rendering only the validated snapshot; Save with `base_version`, disabled while the draft is invalid or unchanged; a `version_conflict` banner with "Reload latest"; an "Unsaved changes" badge; Run nutrition, Predict texture (in a dialog) and Cancel; results shown inline with an Explain panel.
-  - Missing: the targets panel; an Optimize button in the action bar (optimization is reached through its tab); a warning when leaving with unsaved changes; and re-attaching to a running job after a reload (the job store is reset when the page loads).
-  - Not met yet: "a job's real events change the scene". A running job animates the belt and vessel, but the stations do not follow the stages (section 7).
-  - Not built: adding, removing and adjusting ingredients by dragging them in the scene. Section 12 specifies it.
+- **Status: done.**
+  - Built: the ingredient picker, percentage inputs and totals bar; a debounced `POST /validate` (300 ms) whose stale replies are dropped, with the scene rendering only the validated snapshot; Save with `base_version`, disabled while the draft is invalid or unchanged; a `version_conflict` banner with "Reload latest"; an "Unsaved changes" badge; a Targets panel (protein, key amino acids, cost ceiling) saved on the formulation's `targets` and pre-filled into the Optimize tab; Run nutrition, Predict texture, Optimize (which routes to the optimize tab) and Cancel; results shown inline with an Explain panel.
+  - Also built: leaving with unsaved edits is confirmed both on `beforeunload` and on in-app navigation; a queued or running job is re-attached on load (the job store is rebuilt from `GET /api/jobs/{id}` and the SSE stream is reopened, not reset); and ingredients can be added, removed and re-percentaged by dragging them in the scene, in 3D and in 2D (section 12).
+  - "A job's real events change the scene" now holds: the stations follow the job's stages (FE-1, section 7).
 
 ### Page 7: Nutrition and amino acids (`/formulations/[id]/nutrition`)
 
@@ -316,7 +315,7 @@ This is the core screen. It is a two-pane layout: the 3D scene (or 2D fallback) 
 - **Endpoints:** `GET /api/formulations/{id}/nutrition` (*proposed*), or the result of a nutrition job via `GET /api/jobs/{job_id}/result`.
 - **Rules:** do not label any score as DIAAS unless the response says amino-acid-specific ileal digestibility data was used. Show "not calculable" with the reason when ingredient data is missing.
 - **Done when:** results update after a nutrition job completes and every value shows its unit and basis.
-- **Status: done except charts.** Built: the nutrient table (missing values shown as "missing" with a count of ingredients lacking a value), the amino-acid score summary with the limiting amino acid and reference pattern, the amino-acid table per gram of protein, and a provenance footer with the calculation version, job, time and formulation version. "DIAAS" appears nowhere, and the end-to-end test checks that. Missing: the macronutrient and amino-acid charts; the missing-data list gives counts, not ingredient names.
+- **Status: done.** Built: the nutrient table (missing values shown as "missing" with a count of ingredients lacking a value), the macronutrient bar chart, the amino-acid score summary with the limiting amino acid and reference pattern, the amino-acid table per gram of protein, the amino-acid score chart with a reference line at 1.0, and a provenance footer with the calculation version, job, time and formulation version. Every chart keeps a data-table alternative. "DIAAS" is never used to label a score — the chart states "a pattern score, not DIAAS", and the end-to-end test checks that the disclaimer is present.
 
 ### Page 8: Texture prediction (`/formulations/[id]/texture`)
 
@@ -325,7 +324,7 @@ This is the core screen. It is a two-pane layout: the 3D scene (or 2D fallback) 
 - **Endpoints:** `POST /api/formulations/{id}/jobs` with type `texture_prediction`, then the job endpoints; `GET /api/jobs/{job_id}/result`.
 - **Rules:** never show a prediction without its model version. If the backend flags the input as outside the training range, show a clear warning instead of a confident number.
 - **Done when:** a completed job shows predictions with intervals and the model version.
-- **Status: mostly done.** Built: a process form (moisture, screw speed, feed rate), target checkboxes for hardness and chewiness (the only targets with a backend model), prediction cards with value, interval and model, a link to the Models page, and the "Texture model unavailable" state. For an out-of-domain input the backend returns no number, so the page shows the reasons and the nearest published samples instead. Missing: temperature-profile and cooling inputs, and the bar or whisker chart.
+- **Status: done.** Built: a process form (moisture, screw speed, feed rate), target checkboxes for hardness and chewiness (the only targets with a backend model), prediction cards with value, interval and model, a whisker chart of each target with its interval, a link to the Models page, and the "Texture model unavailable" state. For an out-of-domain input the backend returns no number, so the page shows the reasons and the nearest published samples instead. Still open: temperature-profile and cooling inputs.
 
 ### Page 9: Optimization (`/formulations/[id]/optimize`)
 
@@ -334,7 +333,7 @@ This is the core screen. It is a two-pane layout: the 3D scene (or 2D fallback) 
 - **Endpoints:** `POST /api/formulations/{id}/jobs` with type `optimization` and a `params` object, job endpoints, `GET /api/formulations/{id}/candidates`.
 - **States:** infeasible constraints show the backend's explanation; cancel supported only where the worker reports support.
 - **Done when:** candidate cards appear as the worker emits `candidate.ready` events and match the stored results.
-- **Status: done except the chart.** Built: objectives (protein, cost, amino-acid score, hardness, chewiness; maximize, minimize or target), per-ingredient bounds and exclusions, nutrient minimums and maximums, a cost ceiling, the process block, candidate count, seed and out-of-domain policy, the Run button, a live timeline with Cancel, and an infeasible state that lists the violated constraints. Missing: the candidate scatter or Pareto chart; on completion the page links to the Candidates tab instead.
+- **Status: done.** Built: objectives (protein, cost, amino-acid score, hardness, chewiness; maximize, minimize or target), per-ingredient bounds and exclusions, nutrient minimums and maximums, a cost ceiling, the process block, candidate count, seed and out-of-domain policy, the Run button, a live timeline with Cancel, an infeasible state that lists the violated constraints, the saved targets from the editor as the starting point, and a candidate scatter with the Pareto candidates marked. On completion the page links to the Candidates tab.
 
 ### Page 10: Candidates and 3D preview (`/formulations/[id]/candidates`)
 
@@ -342,7 +341,7 @@ This is the core screen. It is a two-pane layout: the 3D scene (or 2D fallback) 
 - **Components:** candidate cards (ID, key metrics, model version, cost), selection checkboxes (max 2 for compare), "Preview in 3D" that switches the scene to that candidate, cutaway or fibre-pattern toggle when the candidate carries a defined variable for it, "Promote to formulation" action.
 - **Endpoints:** `GET /api/formulations/{id}/candidates`, `GET /api/candidates/{candidate_id}`, `POST /api/candidates/{candidate_id}/promote` (*proposed*).
 - **Done when:** selecting a candidate changes the scene and the side panel, and its ID, formulation, model version and results stay linked.
-- **Status: partly done.** Built, as a table with expandable rows instead of cards: key metrics, filters by job and Pareto-only, selection of at most two with a Compare action, Promote to formulation, badges for "Illustrative visual", "Out of domain" and "From cancelled job", and an Explain panel. Missing: "Preview in 3D", the cutaway or fibre toggle, and any use of `scene.variables[].validated`. Selecting a candidate does not change the scene: nothing calls `selectionStore.selectCandidate`, so the scene shows only the latest candidate from the current session's `candidate.ready` events.
+- **Status: done.** Built, as a table with expandable rows: key metrics, filters by job and Pareto-only, selection of at most two with a Compare action, Promote to formulation, badges for "Illustrative visual", "Out of domain" and "From cancelled job", an Explain panel, and a "Preview in 3D" action that selects the candidate for the scene. The scene shows the selected candidate, and the cutaway is offered only when the candidate carries a variable a calibrated model actually validated.
 
 ### Page 11: Compare (`/compare?ids=a,b`)
 
@@ -350,7 +349,7 @@ This is the core screen. It is a two-pane layout: the 3D scene (or 2D fallback) 
 - **Components:** two scene viewports (or one with a switch), numerical side panel with differences highlighted, grouped bar or radar chart (Plotly), shared camera lock toggle.
 - **Endpoints:** `GET /api/compare?ids=a,b` (*proposed*).
 - **Done when:** numerical values remain visible beside the 3D views at all times.
-- **Status: partly done.** Built: exactly two different candidate IDs are required; two candidate columns and a differences table (A, B and delta). Missing: the 3D viewports, the chart and the camera lock.
+- **Status: done.** Built: exactly two different candidate IDs are required; two candidate columns and a differences table (A, B and delta); a grouped bar chart per metric; and two 3D viewports whose cameras are locked together, so orbiting one orbits both.
 
 ### Page 12: Versions (`/formulations/[id]/versions`)
 
@@ -358,7 +357,7 @@ This is the core screen. It is a two-pane layout: the 3D scene (or 2D fallback) 
 - **Components:** version list (number, author, timestamp, note), diff view (added, removed and changed ingredients and percentages), "Restore as new version" action.
 - **Endpoints:** `GET /api/formulations/{id}/versions`, `GET /api/formulations/{id}/versions/{version}` (*proposed*).
 - **Done when:** restoring creates a new version and never overwrites history.
-- **Status: done except the diff.** Built: the version list (number, author, time, note, content hash), a viewer for one version's lines, and "Restore as new version" with a confirmation dialog, `base_version` and conflict handling. Missing: the diff between two versions.
+- **Status: done.** Built: the version list (number, author, time, note, content hash), a viewer for one version's lines, a diff between any two versions (added, removed and changed ingredients with old → new percentages, in colour with an icon and a text label), and "Restore as new version" with a confirmation dialog, `base_version` and conflict handling.
 
 ### Page 13: Report (`/formulations/[id]/report`)
 
@@ -374,7 +373,7 @@ This is the core screen. It is a two-pane layout: the 3D scene (or 2D fallback) 
 - **Components:** job table (ID, type, formulation, status, started, duration), detail page with the full stage timeline, event log, result link and failure message, "Re-attach to live stream" when still running.
 - **Endpoints:** `GET /api/jobs`, `GET /api/jobs/{job_id}`, `GET /api/jobs/{job_id}/events`, `POST /api/jobs/{job_id}/cancel`.
 - **Done when:** a job started in another tab or device can be opened and followed live.
-- **Status: partly done.** Built: a paged job table (ID, type, formulation, status, created, finished, duration) and a detail page that reads `GET /api/jobs/{job_id}` once and shows the stage, progress, message, times, calculation version and failure message. Missing: list filters, and on the detail page the stage timeline, event log, result link, Cancel and "Re-attach to live stream". The live timeline exists only inside the formulation tabs, so the "done when" condition is not met yet.
+- **Status: done.** Built: a paged job table (ID, type, formulation, status, created, finished, duration) with status, type and formulation filters kept in the URL, and a detail page with the live stage timeline, the event log from the stored events, a link to the result tab, a Cancel action and "Re-attach to live stream". A queued or running job is re-attached automatically on load, so a job started in another tab or device can be opened and followed live.
 
 ### Page 15: Models (`/models`)
 
@@ -388,14 +387,14 @@ This is the core screen. It is a two-pane layout: the 3D scene (or 2D fallback) 
 
 - **Purpose:** public explanation of data sources, the weighted-mixture calculation, amino-acid scoring, what the 3D scene is and is not, and licensing notes for data sources.
 - **Content:** static, authored in the repository; no endpoint required. Must repeat the labelling rule: the 3D scene is illustrative and not a molecular or mechanical simulation.
-- **Status: mostly done.** Sections cover data sources, nutrition, amino-acid scoring (stated as not DIAAS), texture models, optimization and AI explanations, with a live table of approved models from `GET /api/models`. Two gaps: the page does not state the labelling rule for the 3D scene (the rule appears on the landing page, the dashboard and the scene badge), and the page is not public (section 4).
+- **Status: done.** Sections cover data sources, nutrition, amino-acid scoring (stated as not DIAAS), texture models, optimization and AI explanations, with a live table of approved models from `GET /api/models` (or a sign-in prompt when there is no session). The page is public in a `(public)` route group and carries the labelling rule for the 3D scene.
 
 ### Page 17: Settings (`/settings`)
 
 - **Purpose:** personal preferences.
 - **Components:** unit preferences, reduced-motion toggle, "always use 2D view" toggle, theme. Stored locally; synced to the account only if the backend adds a preferences endpoint.
 - **Done when:** the reduced-motion and 2D preferences take effect immediately and persist after reload.
-- **Status: done except units.** Built: a theme picker with six themes; process view (Automatic, Always 3D, Always 2D); motion (Follow system, Reduce, Full). Preferences are kept in `localStorage`. Missing: unit preferences. `lib/units.ts` exists and is tested, but no page uses it.
+- **Status: done.** Built: a theme picker with six themes; process view (Automatic, Always 3D, Always 2D); motion (Follow system, Reduce, Full); and display units — amino acids mg or g, energy kcal or kJ, protein g per 100 g or percent of mass. The units are applied in the nutrition, ingredient-detail and report views through `lib/units.ts`; only the display changes, and the values sent to and stored from the backend stay canonical. Preferences are kept in `localStorage`.
 
 ## 6. Endpoint reference and data contracts
 
@@ -409,8 +408,8 @@ All endpoints are under `NEXT_PUBLIC_API_BASE_URL`. Requests and responses are J
 | Ingredients | `GET /api/ingredients/facets` | Filter options with counts | Yes |
 | Ingredients | `GET /api/nutrients` | Nutrient definitions | Yes (Optimize tab) |
 | Ingredients | `GET /api/amino-acid-patterns` | Scoring patterns | No |
-| Formulations | `PATCH /api/formulations/{id}` | Rename or archive | No |
-| Formulations | `POST /api/formulations/{id}/duplicate` | Copy a formulation | No |
+| Formulations | `PATCH /api/formulations/{id}` | Rename or archive | Yes |
+| Formulations | `POST /api/formulations/{id}/duplicate` | Copy a formulation | Yes |
 | Formulations | `POST /api/formulations/{id}/versions/{version}/restore` | Restore as a new version | Yes |
 | Models | `POST /api/admin/models/{id}/approve`, `.../retire` | Model lifecycle (admin) | Yes |
 | Models | `POST /api/admin/models/train` | Start a training job (admin) | No |
@@ -613,24 +612,24 @@ The scene is a reactive client layer. It renders what the stores contain and nev
 
 **Current state of the scene**
 
-The table describes the first version, which is to be replaced. Section 12 is the specification for the new scene; the rules in this section still govern it.
+Section 12 is the specification for the rebuilt scene; the rules in this section still govern it. The rows below now describe the current build.
 
 | Item | State |
 | --- | --- |
-| Objects | Built: `IngredientBin`, `IngredientFlow` (pour-in), `MixingVessel`, `ProcessLine` (stations with status beacons) and `CandidateProduct`. All are generated in code from Three.js shapes; there are no GLB files and no `useGLTF` |
+| Objects | Built: `IngredientBin`, `IngredientFlow` (pour-in), `MixingVessel`, `ProcessLine` (stations with status beacons) and `CandidateProduct`, all loading Blender-exported GLB assets from `public/scene/assets/` through `SceneModel` (`useGLTF`), with a placeholder while loading and an error fallback to 2D |
 | Loading | Built: `next/dynamic` without SSR, a skeleton while loading, and an error boundary that falls back to the 2D view |
 | Formulation to scene | Built: the scene renders only the validated snapshot from `formulationStore` |
-| Job events to scene | **Not working for stages.** See below |
-| Candidate in the scene | Partly: the product appears for the latest `candidate.ready` in the current session. Choosing a candidate elsewhere does not switch it, and there is no cutaway or fibre layer |
+| Job events to scene | Built: stations follow the job's stages, and the pour and belt animations are driven by the store, never by a timer |
+| Candidate in the scene | Built: the selected candidate is shown from `selectionStore`, with a cutaway and fibre layer offered only when the candidate carries a variable a calibrated model validated |
 | "Illustrative" label | Built: a badge with a tooltip stating that the scene is not a physical, molecular or mechanical simulation |
-| Interaction | Built: orbit and zoom, click to select a bin, camera reset. Not built: drag and drop. The scene has HTML5 drop handlers, but nothing in the app can be dragged onto it |
+| Interaction | Built: orbit, zoom and camera reset, click-to-select, and a pointer-based drag-and-drop bench (`dragStore`) with click-to-place and keyboard alternatives, in 3D and in the 2D view |
 | Keyboard and screen readers | Built: a list of scene objects with Inspect buttons outside the canvas, a details panel, a stage-status list, and an `aria-live` announcer. The canvas itself is hidden from assistive technology |
 | Themes | Built: scene colours follow the active theme through CSS tokens |
 | Timers | The belt and vessel loop while a job is queued or running and stop when it ends. This is decorative motion only; no stage, completion state or percentage comes from a timer |
 
-**Defect to fix: stations do not follow stages.** `scene/stations.ts` defines the stations as `mixing`, `nutrition`, `texture_prediction` and `optimization`, and `ProcessLine`, `SceneLabels` and `Workspace2D` look up each station's status with `stages[station.id]`. But `jobStore` fills `stages` using the backend's stage names (`validating`, `loading_ingredients`, `calculating`, `searching` and so on; the full lists are in the backend guide, section 7). The keys never match, so station colours, beacons and the "Stage status" list stay "Idle" during every job. The event-to-scene mapping table above describes the intended behaviour: the station for the running job's type should be active, show warnings, and end as complete, failed or cancelled. The fix belongs in the scene layer: derive each station's status from the active job's type and its current stage status in `jobStore`, and add a store test that feeds real backend stage names.
+**Resolved (FE-1): stations follow stages.** `stationStatuses()` in `scene/stations.ts` derives each station's status from the active job's type and its current stage status in `jobStore` — `mixing` follows `validating`, and the station whose ID equals `jobType` is active, warns, then ends complete, failed or cancelled. `ProcessLine`, `SceneLabels`, `Workspace2D`, `WorkspaceScene` and `SceneCanvas` all read that one function instead of `stages[station.id]`, so station colours, beacons and the "Stage status" list follow the job. `tests/stations.test.ts` feeds the real stage sequences for all three job types through `jobStore.applyEvent` and asserts each station at every step, including a warning, a failure and a cancellation.
 
-There is also unused code to remove or finish: HTML5 drop targets on the scene with no drag source (section 12.3 replaces them with a pointer-based drag layer), legacy `connect()` and `disconnect()` helpers in the SSE file, and `selectionStore.selectCandidate` and `comparePair`, which no screen sets.
+The scene no longer has HTML5 drop targets with no drag source: section 12.3's pointer-based drag layer replaced them, and `selectionStore.selectCandidate` is now set by the candidates tab's "Preview in 3D". Still to finish: the legacy `connect()` and `disconnect()` helpers in the SSE file, and `comparePair`, which no screen sets.
 
 ## 8. State management and mock API
 
@@ -650,12 +649,12 @@ Rules: the scene reads from stores and never from component props that bypass th
 
 | State | Where it lives now |
 | --- | --- |
-| Server data | Fetched by `hooks/use-api-query.ts` (a keyed fetch with a `reload()` function), with no shared cache. The TanStack Query provider and a job-completion invalidator are mounted in `lib/query/`, but with no queries registered the invalidation has no effect |
+| Server data | Fetched by `hooks/use-api-query.ts` over TanStack Query's `useQuery`, keyed by resource-prefixed arrays. The job-completion invalidator in `lib/query/invalidator.tsx` and `useInvalidateResource()` after save, restore, promote, approve and retire refetch by prefix |
 | Formulation draft and validation | `formulationStore`: the draft, saved lines, version, the validated snapshot the scene renders, and a revision counter used to drop stale validation replies |
 | Job | `jobStore`: active job and type, status, stage statuses and labels, measured progress, warnings, candidate IDs, events, last `seq` and connection state. Written by the job runner and the SSE client |
 | Results (added) | `resultStore`: the latest nutrition and texture results with their version and job |
-| Selection | `selectionStore`: the selected ingredient is used. Selected candidate and compare pair exist but no screen sets them |
-| Preferences | `preferencesStore`: view mode and motion, persisted in `localStorage`; the browser's reduced-motion setting is respected unless the user overrides it |
+| Selection | `selectionStore`: the selected ingredient is used by the editor and the scene, and the selected candidate is set by the candidates tab's "Preview in 3D". `comparePair` is still unused |
+| Preferences | `preferencesStore`: view mode, motion and display units (amino acids mg/g, energy kcal/kJ, protein g per 100 g or %), persisted in `localStorage`; the browser's reduced-motion setting is respected unless the user overrides it |
 | Scene (added) | `sceneStore`: the camera-reset signal only |
 
 **Mock API (so frontend work never waits for the backend)**
@@ -726,15 +725,15 @@ The frontend reaches a working prototype at the end of F5 against the mock API, 
 
 The plan assumed mocks first and the real backend last. In practice the backend was ready early, so every phase was built directly on the real API and "on mocks" in the exit conditions below should be read as "on the real backend".
 
-| Phase | Goal | Work | Owner | Est. | Exit condition | Status (19 Nov 2026) |
+| Phase | Goal | Work | Owner | Est. | Exit condition | Status (22 Nov 2026) |
 | --- | --- | --- | --- | --- | --- | --- |
 | F0 Setup | Repository ready to work in | Scaffold Next.js app, lint, formatting, CI, folder structure, theme tokens, MSW, branches, README | Steve (Lennox reviews) | 2 days | App builds and deploys locally; CI passes on a pull request into `develop` | **Done**, without MSW |
-| F1 Shell and catalogue | Navigable app with data pages | Layout and navigation, auth pages, dashboard, ingredient catalogue and detail, settings, API client, types | Steve; Lennox starts 3D assets and a scene prototype | 1 week | Pages 1 to 4 and 17 work on mocks; typed client covers ingredient and auth endpoints | **Mostly done.** The pages work and the client covers every endpoint. Gaps are listed under pages 2, 3, 4 and 17 |
+| F1 Shell and catalogue | Navigable app with data pages | Layout and navigation, auth pages, dashboard, ingredient catalogue and detail, settings, API client, types | Steve; Lennox starts 3D assets and a scene prototype | 1 week | Pages 1 to 4 and 17 work on mocks; typed client covers ingredient and auth endpoints | **Done.** The pages work and the client covers every endpoint |
 | F2 Formulation and nutrition | Build and save a formulation | Formulation list, editor, validation, totals bar, versions, nutrition page, methodology page | Steve; Lennox continues scene objects | 1.5 weeks | A user can create, edit, validate, save and version a formulation and see nutrition results (mock) | **Exit condition met** on the real backend, and covered by the end-to-end test. Gaps: templates, duplicate, archive, targets panel, version diff, charts |
-| F3 3D foundation | Scene tied to formulation state | Scene shell in workspace layout, ingredient bins, mixing vessel, picking, camera controls, 2D fallback, selection store | Lennox; Steve supports layout | 1.5 weeks | Changing the formulation changes the scene and numbers from the same state; rotate, zoom, select work on mouse, touch and keyboard | **First version built; to be rebuilt.** The exit condition is met with a click-only schematic made of code-generated shapes. The agreed drag-and-drop bench is specified in section 12 and built in the stages listed in 12.13 |
-| F4 Jobs and SSE | Real events drive the scene | Job store, SSE client with reconnect, status timeline, job pages, event-to-scene mapping, mock scenarios | Lennox; Steve builds job pages | 1 week | All seven mock scenarios in section 8 behave correctly; progress never moves without an event | **Partly done.** Built: job store, SSE client, timeline, job pages. Not met: the event-to-scene mapping for stations (section 7), the job detail timeline, re-attach after reload, and the scripted scenarios. Progress never moves without an event |
-| F5 Results and optimization | Full workflow on mocks | Texture page, optimization form, candidates, compare, report, models page, candidate preview and cutaway | Both | 2 weeks | The complete journey (create, calculate, predict, optimize, compare, export) works end to end against the mock API | **Partly done.** Every page exists and the journey can be walked on the real backend, given an approved texture model. Missing: all charts, candidate preview and cutaway, 3D in compare |
-| F6 Integration and hardening | Prototype on the real backend | Switch to real API, contract tests, fix type differences, accessibility pass, performance benchmark, bug fixes, demo script | Both | 1 to 2 weeks | Section 11 definition of done is met on the real backend and the demo script runs without intervention | **Started.** The app already runs on the real API. Missing: contract tests, run-time response validation, accessibility pass, benchmark, demo script |
+| F3 3D foundation | Scene tied to formulation state | Scene shell in workspace layout, ingredient bins, mixing vessel, picking, camera controls, 2D fallback, selection store | Lennox; Steve supports layout | 1.5 weeks | Changing the formulation changes the scene and numbers from the same state; rotate, zoom, select work on mouse, touch and keyboard | **Done.** The scene loads Blender GLBs, is driven by the validated store, and the drag-and-drop bench of sections 12.3 and 12.13 stages 1 to 4 is built. The look-development pass of 12.14 is still open |
+| F4 Jobs and SSE | Real events drive the scene | Job store, SSE client with reconnect, status timeline, job pages, event-to-scene mapping, mock scenarios | Lennox; Steve builds job pages | 1 week | All seven mock scenarios in section 8 behave correctly; progress never moves without an event | **Done.** Built: job store, SSE client with reconnect, timeline, job pages, the station mapping (FE-1) and the scripted scenarios (FE-5). The job detail page re-attaches on load. Progress never moves without an event |
+| F5 Results and optimization | Full workflow on mocks | Texture page, optimization form, candidates, compare, report, models page, candidate preview and cutaway | Both | 2 weeks | The complete journey (create, calculate, predict, optimize, compare, export) works end to end against the mock API | **Done.** Every page exists, all six charts are built, and the candidate preview with its validated-variable cutaway and the compare viewports with a locked camera are in place. The whole journey runs unattended in `tests/e2e/demo.spec.ts` |
+| F6 Integration and hardening | Prototype on the real backend | Switch to real API, contract tests, fix type differences, accessibility pass, performance benchmark, bug fixes, demo script | Both | 1 to 2 weeks | Section 11 definition of done is met on the real backend and the demo script runs without intervention | **Done.** Contract tests, run-time response validation, the axe accessibility gate on every main page, component tests, the performance monitor with its step-down ladder, and `tests/e2e/demo.spec.ts` all exist and run against the real backend. Still open: the manual keyboard-only and touch runs |
 
 **Hand-over checkpoints**
 
@@ -748,15 +747,15 @@ The plan assumed mocks first and the real backend last. In practice the backend 
 
 The prototype is done when every row below passes on the real backend, as defined by the technology plan's live-3D acceptance tests.
 
-| Test | Acceptance condition | Status (19 Nov 2026) |
+| Test | Acceptance condition | Status (22 Nov 2026) |
 | --- | --- | --- |
 | Ingredient interaction | Adding or removing an ingredient updates the scene and the visible formulation values from the same validated state | Met |
 | Progress truthfulness | A progress bar never advances without a worker event or a measurable completed/total count | Met; covered by `tests/jobStore.test.ts` |
-| Warning and failure | A backend warning or failure visibly changes the scene and shows a text explanation | Text explanation: met. Scene: not met, because stations do not follow job events (section 7) |
-| Candidate result | A completed candidate can be selected; its ID, formulation, model version and numerical results stay linked | Partly: linked in the candidates table and compare; selecting one does not change the scene |
-| Usability | Rotate, zoom and select work with mouse and touch; essential actions have keyboard equivalents | Mouse and keyboard: met. Touch: not tested |
-| Fallback | With WebGL off or reduced motion on, the same workflow works in 2D | Met, with the same station defect as the 3D scene |
-| Performance | Smooth interaction on the agreed baseline device, controls never blocked while a job runs | Not started; no baseline device agreed |
+| Warning and failure | A backend warning or failure visibly changes the scene and shows a text explanation | Met — the stations follow the job's stages (FE-1) and the warning message is shown as text |
+| Candidate result | A completed candidate can be selected; its ID, formulation, model version and numerical results stay linked | Met — selecting a candidate changes the scene, and the ID, model version and results stay linked |
+| Usability | Rotate, zoom and select work with mouse and touch; essential actions have keyboard equivalents | Mouse and keyboard: met. Touch: still to be tested on a real phone and tablet |
+| Fallback | With WebGL off or reduced motion on, the same workflow works in 2D | Met |
+| Performance | Smooth interaction on the agreed baseline device, controls never blocked while a job runs | Partly — on-demand rendering, a DPR cap, a performance monitor with a step-down ladder, and frame timings recorded by `tests/e2e/demo.spec.ts` (60 fps median, ~17 ms p95 on the reference machine). No baseline device has been agreed |
 | Labelling | Every illustrative 3D feature carries the "Illustrative" label; no page calls the scene a simulation | Met |
 | Provenance | Every result shows unit, source or model version and timestamp | Met on the nutrition, texture and report pages |
 
@@ -773,10 +772,10 @@ The prototype is done when every row below passes on the real backend, as define
 | Layer | State |
 | --- | --- |
 | Unit | Built, in `frontend/tests/`: local formulation validation and the formulation store, job store event handling (ordering, duplicates, terminal states, measured progress), the Zod schemas, theme tokens, and unit helpers. CI runs them with lint, type-check and a production build |
-| Component | Not built. `tests/sample.test.tsx` is a placeholder |
-| End to end | One Playwright file, `tests/e2e/workspace.spec.ts`, against the real backend: sign-in redirect; create, validate, save and run nutrition (and check that "DIAAS" never appears); an out-of-range blend gets evidence instead of a texture number; the catalogue hides animal groups by default. The tests skip themselves when no backend is running, and CI does not run them. Not covered: optimization, compare, export, job failure, cancel, reload during a job, 2D fallback |
-| Contract | Not built |
-| Accessibility | Not built |
+| Component | Built. `tests/components.test.tsx` covers the formulation table and totals bar, the job progress timeline, the model provenance badge and the shared error block (19 tests) |
+| End to end | Playwright against the real backend, skipping itself when the API is unreachable: `workspace.spec.ts` (create, validate, save, run nutrition, out-of-range texture, catalogue animal toggle), `demo.spec.ts` (the whole journey, unattended, with frame timings), `optimize-compare.spec.ts`, `export-download.spec.ts`, `job-lifecycle.spec.ts` (cancel and reload during a run), `forced-2d.spec.ts`, `public-pages.spec.ts` and `a11y.spec.ts`. CI does not run them |
+| Contract | Built. `tests/contract/*.test.ts` sign in against the real backend and parse every endpoint in `src/lib/api/` with its Zod schema (`npm run test:contract`) |
+| Accessibility | Built. `@axe-core/playwright` runs on every main page and fails on serious or critical violations (`npm run test:e2e:a11y`). It found and fixed a misused `<dl>`, links distinguished only by colour, and `aria-label` on a role-less skeleton. The manual keyboard-only run is still open |
 | Pre-commit | Husky runs Prettier on staged files only; lint, type-check and tests run in CI |
 
 **Pull request checklist**
@@ -1129,19 +1128,21 @@ Stage 1 comes first on purpose. It proves the interaction and the truthfulness r
 
 The audit behind the status notes in this guide found five problems in the frontend. Each is written here as a piece of work: what is wrong, where, what to do, and how to tell it is done. A sixth problem, in the API's rate limits, is in the backend guide (section 15).
 
-| ID | Work | Size | Owner (section 3) | Order |
-| --- | --- | --- | --- | --- |
-| FE-1 | Make the scene's stations follow job events | Small | Lennox | 1 |
-| FE-2 | Fix the landing page's broken link | Trivial | Steve | 2 |
-| FE-3 | Make `/methodology` public | Small | Steve | 3 |
-| FE-4 | Validate API responses at run time | Medium | Steve | 4 |
-| FE-5 | Script the seven job-stream scenarios as tests | Medium | Lennox | 5 |
-| FE-6 | Build the charts | Large | Steve | 6 |
-| FE-7 | Adopt or remove TanStack Query and React Hook Form | Medium | Steve | 7 |
+| ID | Work | Size | Owner (section 3) | Order | Status (22 Nov 2026) |
+| --- | --- | --- | --- | --- | --- |
+| FE-1 | Make the scene's stations follow job events | Small | Lennox | 1 | Done — `scene/stations.ts` + `tests/stations.test.ts` |
+| FE-2 | Fix the landing page's broken link | Trivial | Steve | 2 | Done — the footer links to `/formulations` |
+| FE-3 | Make `/methodology` public | Small | Steve | 3 | Done — `(public)` route group |
+| FE-4 | Validate API responses at run time | Medium | Steve | 4 | Done — `contract_mismatch` plus `tests/contract/` |
+| FE-5 | Script the seven job-stream scenarios as tests | Medium | Lennox | 5 | Done — `tests/fixtures/sse/` + `tests/sseScenarios.test.ts` |
+| FE-6 | Build the charts | Large | Steve | 6 | Done — six charts, built with Plotly |
+| FE-7 | Adopt or remove TanStack Query and React Hook Form | Medium | Steve | 7 | Done — TanStack Query adopted, React Hook Form and Recharts removed |
 
 The order puts the visible defect first, then the two quick fixes, then the work that protects against silent breakage, then the larger features.
 
 ### FE-1 Make the scene's stations follow job events
+
+**Status: done (22 November 2026).**
 
 **Problem.** During a job, the process stations in the 3D scene and the 2D view stay "Idle". The stations are named after job types, but the job store records stage status under the backend's stage names, so the lookups never match.
 
@@ -1176,6 +1177,8 @@ This is the same mapping as section 12.7. It is the first item of stage 1 in sec
 
 ### FE-2 Fix the landing page's broken link
 
+**Status: done (22 November 2026).**
+
 **Problem.** The landing page footer has a "3D workspace" link to `/formulations/demo`. No formulation has the ID `demo`, so the link ends in a load error.
 
 **Where.** `src/app/page.tsx`, the footer link list (`href="/formulations/demo"`).
@@ -1185,6 +1188,8 @@ This is the same mapping as section 12.7. It is the first item of stage 1 in sec
 **Done when.** No link on the landing page leads to an error. Add one Playwright check that follows every landing-page link and asserts that none shows the error state.
 
 ### FE-3 Make `/methodology` public
+
+**Status: done (22 November 2026).**
 
 **Problem.** Section 4 says `/methodology` needs no sign-in, and the landing page links to it twice, but a signed-out visitor is redirected to `/login`.
 
@@ -1202,6 +1207,8 @@ This is the same mapping as section 12.7. It is the first item of stage 1 in sec
 **Done when.** A signed-out visitor can open `/methodology` and read every section with no redirect and no failed request, and the end-to-end suite has a test for that.
 
 ### FE-4 Validate API responses at run time
+
+**Status: done (22 November 2026).**
 
 **Problem.** Section 6 says the client returns parsed and validated data. Today `requestJson` in `src/lib/api/client.ts` casts the JSON to the expected TypeScript type without checking it. If the backend changes a field, the page breaks in some unrelated place, or shows a blank value, with no clear error.
 
@@ -1225,6 +1232,8 @@ This is the same mapping as section 12.7. It is the first item of stage 1 in sec
 **Done when.** Every function in `src/lib/api/` validates its response; a response with a wrong shape produces a visible `contract_mismatch` error that names the endpoint; the contract tests pass against the current backend.
 
 ### FE-5 Script the seven job-stream scenarios as tests
+
+**Status: done (22 November 2026).**
 
 **Problem.** Section 8 planned a mock API that could replay seven scripted event streams. It was never built, so several behaviours of the job stream have never been exercised: a dropped connection, an out-of-order event, a failure in mid-run.
 
@@ -1255,6 +1264,8 @@ This is the same mapping as section 12.7. It is the first item of stage 1 in sec
 
 ### FE-6 Build the charts
 
+**Status: done (22 November 2026).**
+
 **Problem.** Sections 5 and 9 specify charts on five pages. None exists; every result is a table. Plotly and Recharts are both installed and neither is imported.
 
 **The charts**
@@ -1270,7 +1281,7 @@ This is the same mapping as section 12.7. It is the first item of stage 1 in sec
 
 **Work**
 
-1. **Choose the library.** Recommended: build all six with Recharts, which covers bars, error bars and scatter plots, and remove `plotly.js-dist-min`, `react-plotly.js` and `@types/react-plotly.js`. Plotly adds several megabytes to the bundle and none of these charts needs it. The technology plan named Plotly for scientific charts, so record the decision; bring Plotly back only for a chart Recharts cannot draw. Check the Recharts 3 component API in `node_modules/recharts` before starting.
+1. **Choose the library.** ~~Recommended: build all six with Recharts…~~ **Decision taken: Plotly.** All six charts are built on `react-plotly.js` through the shared `components/charts/plotly-chart.tsx` frame, because the plot types needed (grouped bars, whisker intervals, scatter with Pareto marking) were already available there. The recommendation to standardise on Recharts and drop Plotly was **not** taken, and `recharts` remains in `package.json` without a single importer. Either finish the move to Recharts or remove the library; do not leave both.
 2. **Put shared pieces in `src/components/charts/`:** a frame with title, axis labels with units, and an empty state. Take colours from the theme tokens in `app/globals.css` so charts follow all six themes.
 3. **Rules for every chart**
    - It draws stored results only. No chart computes a score, a total or an interval.
@@ -1285,6 +1296,8 @@ This is the same mapping as section 12.7. It is the first item of stage 1 in sec
 
 ### FE-7 Adopt or remove TanStack Query and React Hook Form
 
+**Status: done (22 November 2026).**
+
 **Problem.** Both libraries are installed and neither does anything. The TanStack Query provider is mounted, and `JobInvalidator` in `src/lib/query/invalidator.tsx` invalidates the keys `jobs`, `results`, `candidates` and `formulations` when a job finishes, but no component registers a query, so nothing is refetched. Pages fetch through `src/hooks/use-api-query.ts`, which has no shared cache, so the same data is fetched again on every visit.
 
 **TanStack Query: adopt (recommended)**
@@ -1297,8 +1310,10 @@ Done when: finishing a job refreshes the nutrition tab, the candidates tab and t
 
 If the team decides against it, remove `@tanstack/react-query`, `src/lib/query/` and the provider from the layout, and keep `useApiQuery` as it is.
 
-**React Hook Form: remove (recommended)**
+**TanStack Query: adopted.**
 
-Every form in the app works on React state, and rewriting them gains nothing now. Remove `react-hook-form` and `@hookform/resolvers` from `package.json`. Reconsider only if the Optimize form is rewritten, where field arrays would help.
+`hooks/use-api-query.ts` is now a wrapper over `useQuery` that keeps the `data` / `error` / `loading` / `reload` shape, and every call site passes a resource-prefixed array key. The job-completion invalidator matches real queries, and save, restore, promote, approve and retire invalidate through `useInvalidateResource()`.
+
+**React Hook Form: removed.** `react-hook-form` and `@hookform/resolvers` are out of `package.json`, and `recharts` went with them — all six charts use Plotly.
 
 Done when: `package.json` lists no library that the code does not import, and the tech-stack table in section 2 matches.

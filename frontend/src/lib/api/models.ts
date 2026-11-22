@@ -1,4 +1,4 @@
-import type { ModelDetail, ModelMeta, Paged } from "@/types";
+import type { ModelDetail, ModelListItem, Paged } from "@/types";
 import { buildQuery, requestJson } from "./client";
 import {
   modelDetailSchema,
@@ -8,13 +8,7 @@ import {
 
 export type ModelStatus = "approved" | "candidate" | "retired" | "all";
 
-export type ModelListItem = ModelMeta & {
-  status: string;
-  dataset_version: string;
-  approved_at: string | null;
-  unit?: string;
-  interval_level?: number;
-};
+export type { ModelListItem };
 
 const base = (id: string) => `/api/models/${encodeURIComponent(id)}`;
 const admin = (id: string) => `/api/admin/models/${encodeURIComponent(id)}`;
@@ -39,11 +33,19 @@ export function getModel(id: string): Promise<ModelDetail> {
 }
 
 export function approveModel(id: string): Promise<ModelDetail> {
-  return requestJson(`${admin(id)}/approve`, { method: "POST" });
+  return requestJson(
+    `${admin(id)}/approve`,
+    { method: "POST" },
+    modelDetailSchema,
+  );
 }
 
 export function retireModel(id: string): Promise<ModelDetail> {
-  return requestJson(`${admin(id)}/retire`, { method: "POST" });
+  return requestJson(
+    `${admin(id)}/retire`,
+    { method: "POST" },
+    modelDetailSchema,
+  );
 }
 
 export const modelsApi = { listModels, getModel, approveModel, retireModel };

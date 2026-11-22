@@ -28,6 +28,7 @@ import {
   humanizeKey,
   NOT_REPORTED,
 } from "@/lib/format";
+import { useInvalidateResource } from "@/lib/query/invalidate";
 import { useSelectionStore } from "@/stores/selectionStore";
 import type { Candidate, TexturePrediction } from "@/types";
 
@@ -62,6 +63,7 @@ export function costOf(
 export function CandidatesTab() {
   const { id, loadState } = useSavedVersion();
   const router = useRouter();
+  const invalidate = useInvalidateResource();
   const search = useSearchParams();
   const jobId = search.get("job_id") ?? "";
   const [paretoOnly, setParetoOnly] = useState(false);
@@ -70,16 +72,18 @@ export function CandidatesTab() {
   const [promoting, setPromoting] = useState<string | null>(null);
   const [promoteError, setPromoteError] = useState<string | null>(null);
 
-  const jobs = useApiQuery(`opt-jobs|${id}`, () =>
-    listJobs({
-      formulation_id: id,
-      type: "optimization",
-      status: ["completed", "cancelled", "failed"],
-      page_size: 50,
-    }),
+  const jobs = useApiQuery(
+    ["jobs", { formulation_id: id, type: "optimization" }],
+    () =>
+      listJobs({
+        formulation_id: id,
+        type: "optimization",
+        status: ["completed", "cancelled", "failed"],
+        page_size: 50,
+      }),
   );
   const candidates = useApiQuery(
-    `candidates|${id}|${jobId}|${paretoOnly}`,
+    ["candidates", { formulationId: id, jobId, paretoOnly }],
     () =>
       listCandidates(id, {
         job_id: jobId || undefined,
@@ -117,6 +121,8 @@ export function CandidatesTab() {
     setPromoteError(null);
     try {
       const created = await promoteCandidate(candidateId);
+      invalidate("candidates");
+      invalidate("formulations");
       router.push(`/formulations/${created.id}`);
     } catch (error) {
       setPromoteError(errorMessage(error));
@@ -188,7 +194,7 @@ export function CandidatesTab() {
             Run an optimization from the{" "}
             <Link
               href={`/formulations/${id}/optimize`}
-              className="text-primary underline-offset-4 hover:underline"
+              className="text-primary underline underline-offset-4"
             >
               Optimize tab
             </Link>{" "}
@@ -416,7 +422,7 @@ function CandidateDetail({
         {c.promoted_formulation_id && (
           <Link
             href={`/formulations/${c.promoted_formulation_id}`}
-            className="text-xs text-primary underline-offset-4 hover:underline"
+            className="text-xs text-primary underline underline-offset-4"
           >
             Already promoted: open formulation
           </Link>

@@ -2,7 +2,7 @@
 
 import { PlayIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { CandidateScatter } from "@/components/candidates/candidate-scatter";
 import { JobProgress } from "@/components/jobs/job-progress";
@@ -74,13 +74,13 @@ const selectClass =
   "h-8 rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 interface ObjectiveRow {
-  key: number;
+  key: string;
   target: string;
   direction: Direction;
   value: string;
 }
 interface LimitRow {
-  key: number;
+  key: string;
   kind: "min" | "max";
   nutrient: string;
   value: string;
@@ -93,6 +93,10 @@ interface BoundDraft {
 }
 
 const DEFAULT_BOUND: BoundDraft = { min: "0", max: "100", excluded: false };
+
+/** Row keys only need to be unique inside the form, so a plain counter is enough. */
+let rowKey = 0;
+const newKey = () => `row-${(rowKey += 1)}`;
 
 function num(text: string): number | undefined {
   if (text.trim() === "") return undefined;
@@ -124,11 +128,9 @@ export function OptimizeTab() {
     })),
   );
 
-  const keyRef = useRef(1);
-  const newKey = () => keyRef.current++;
   const [objectives, setObjectives] = useState<ObjectiveRow[]>([
     {
-      key: 0,
+      key: newKey(),
       target: "protein_g_per_100g",
       direction: "maximize",
       value: "",
@@ -144,10 +146,63 @@ export function OptimizeTab() {
   const [nCandidates, setNCandidates] = useState("5");
   const [seed, setSeed] = useState("");
   const [policy, setPolicy] = useState<"warn" | "drop">("warn");
+  /**
+   * The formulation's saved targets are the starting point (guide §5 page 6).
+   * Applied once per saved version, so editing them here does not fight the
+   * panel that owns them.
+   */
+  const targetSeed = useMemo(() => {
+    if (!ready) return null;
+    const t = useFormulationStore.getState().targets ?? {};
+
+    const objectives: ObjectiveRow[] = [];
+    if (t.protein_g_per_100g !== undefined) {
+      objectives.push({
+        key: newKey(),
+        target: "protein_g_per_100g",
+        direction: "target",
+        value: String(t.protein_g_per_100g),
+      });
+    }
+    if (objectives.length === 0) {
+      objectives.push({
+        key: newKey(),
+        target: "protein_g_per_100g",
+        direction: "maximize",
+        value: "",
+      });
+    }
+
+    return {
+      version,
+      objectives,
+      limits: Object.entries(t)
+        .filter(
+          ([key]) => key !== "protein_g_per_100g" && key !== "cost_ceiling",
+        )
+        .map(([key, value]) => ({
+          key: newKey(),
+          kind: "min" as const,
+          nutrient: key,
+          value: String(value),
+          unit: "mg_per_g_protein",
+        })),
+      cost: t.cost_ceiling === undefined ? null : String(t.cost_ceiling),
+    };
+  }, [ready, version]);
+
+  const [appliedSeed, setAppliedSeed] = useState<number | null>(null);
+  if (targetSeed && appliedSeed !== version) {
+    setAppliedSeed(version);
+    setObjectives(targetSeed.objectives);
+    setLimits(targetSeed.limits);
+    if (targetSeed.cost !== null) setCostValue(targetSeed.cost);
+  }
+
   const [formError, setFormError] = useState<string | null>(null);
   const [startError, setStartError] = useState<StartErrorInfo | null>(null);
 
-  const nutrients = useApiQuery("nutrients", listNutrients, ready);
+  const nutrients = useApiQuery(["nutrients"], listNutrients, ready);
   const nutrientList: NutrientDefinition[] = Array.isArray(nutrients.data)
     ? nutrients.data
     : (nutrients.data?.items ?? []);
@@ -162,12 +217,12 @@ export function OptimizeTab() {
   const failedJobId =
     isOptimization && status === "failed" ? activeJobId : null;
   const failure = useApiQuery(
-    `opt-fail|${failedJobId}`,
+    ["jobs", failedJobId],
     async () => describeJobError((await getJob(failedJobId ?? "")).error),
     failedJobId !== null,
   );
   const scatter = useApiQuery(
-    `opt-scatter|${id}|${activeJobId ?? ""}`,
+    ["candidates", { formulationId: id, jobId: activeJobId }],
     () =>
       listCandidates(id, {
         job_id: activeJobId ?? undefined,
@@ -785,7 +840,7 @@ export function OptimizeTab() {
           {candidateIds.length === 1 ? "" : "s"}.{" "}
           <Link
             href={`/formulations/${id}/candidates?job_id=${activeJobId}`}
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            className="font-medium text-primary underline underline-offset-4"
           >
             View candidates
           </Link>
@@ -797,7 +852,7 @@ export function OptimizeTab() {
           readable.{" "}
           <Link
             href={`/formulations/${id}/candidates?job_id=${activeJobId}`}
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            className="font-medium text-primary underline underline-offset-4"
           >
             View candidates
           </Link>

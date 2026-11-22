@@ -4,19 +4,35 @@ import {
   CameraControls,
   ContactShadows,
   Environment,
-  Grid,
   Lightformer,
-  Sparkles,
 } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { CanvasTexture, SRGBColorSpace, Vector3 } from "three";
+import type { ThreeEvent } from "@react-three/fiber";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  CanvasTexture,
+  NeutralToneMapping,
+  SRGBColorSpace,
+  Vector3,
+} from "three";
 import { useShallow } from "zustand/react/shallow";
 import { useFormulationStore } from "@/stores/formulationStore";
+import { useDragStore } from "@/stores/dragStore";
+import { usePlacementStore } from "@/stores/placementStore";
+import { usePreferencesStore } from "@/stores/preferencesStore";
 import { isTerminal, useJobStore } from "@/stores/jobStore";
 import { useSceneStore } from "@/stores/sceneStore";
 import { useSelectionStore } from "@/stores/selectionStore";
-import { useReducedMotionPreference } from "./hooks/useSceneEnvironment";
+import { DragGhost } from "./drag/DragGhost";
+import { DragLayer } from "./drag/DragLayer";
+import { DropRing } from "./drag/DropRing";
+import { placeHeld } from "./drag/actions";
+import { PerformanceGate } from "./performance/PerformanceGate";
+import {
+  useDprCap,
+  useReducedMotionPreference,
+} from "./hooks/useSceneEnvironment";
+import { useInvalidateWhile } from "./hooks/useInvalidateWhile";
 import { LabelProjector } from "./labels";
 import { CandidateProduct } from "./objects/CandidateProduct";
 import { IngredientBin } from "./objects/IngredientBin";
@@ -32,20 +48,15 @@ import {
 } from "./stations";
 import { type SceneTheme, cropColor, useSceneTheme } from "./theme/sceneTheme";
 
-const FOV = 38;
+const FOV = 32;
+/** Orbit limits (guide §12.4): ±40° around home, 15°–65° of elevation. */
 const HOME_TARGET = new Vector3(2.4, 0.6, 0);
 const HOME_DIRECTION = new Vector3(0, 0.46, 1).normalize();
+const AZIMUTH_LIMIT = (40 * Math.PI) / 180;
+const MIN_POLAR = ((90 - 65) * Math.PI) / 180;
+const MAX_POLAR = ((90 - 15) * Math.PI) / 180;
 /** Half-size of the content to keep in view (world units). */
 const HALF_EXTENT = { x: 6.9, y: 2.7 };
-
-/** sRGB hex with an alpha channel, for canvas gradients. */
-function withAlpha(hex: string, alpha: number): string {
-  const h = hex.replace("#", "");
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 function radialTexture(inner: string, outer: string): CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -73,14 +84,43 @@ function radialTexture(inner: string, outer: string): CanvasTexture {
 export default function SceneCanvas() {
   const theme = useSceneTheme();
   const reducedMotion = useReducedMotionPreference();
+  /** Camera orbit is locked for the duration of a drag (guide §12.3). */
+  const dragging = useDragStore((s) => s.active);
+  const jobActive = useJobStore(
+    (s) => s.status === "running" || s.status === "queued",
+  );
+  /** 2 desktop, 1.5 on a phone (guide §12.11). */
+  const baseDpr = useDprCap();
+  const [shadows, setShadows] = useState(true);
+  const setPerformanceNotice = usePreferencesStore(
+    (s) => s.setPerformanceNotice,
+  );
+  const giveUp = useCallback(() => {
+    setPerformanceNotice(
+      "The 3D view could not hold a comfortable frame rate, so the 2D view is shown instead. Every control remains available there.",
+    );
+  }, [setPerformanceNotice]);
+
+  /**
+   * On demand whenever nothing is moving: no drag, no active job, and no
+   * animation asking for frames. The animated components invalidate themselves,
+   * so the frame loop can sleep.
+   */
+  const frameloop = dragging || jobActive ? "always" : "demand";
 
   return (
     <Canvas
-      shadows
-      dpr={[1, 2]}
-      frameloop={reducedMotion ? "demand" : "always"}
+      shadows={shadows}
+      dpr={[1, baseDpr]}
+      frameloop={frameloop}
       camera={{ position: [2.1, 9, 20], fov: FOV, near: 0.1, far: 140 }}
-      gl={{ antialias: true, preserveDrawingBuffer: false }}
+      gl={{
+        antialias: true,
+        preserveDrawingBuffer: false,
+        // Neutral keeps the crop and status colours close to their CSS tokens;
+        // ACES Filmic desaturates them.
+        toneMapping: NeutralToneMapping,
+      }}
       aria-hidden
       onPointerMissed={() =>
         useSelectionStore.getState().selectIngredient(null)
@@ -88,34 +128,53 @@ export default function SceneCanvas() {
     >
       <color attach="background" args={[theme.bg]} />
       <fog attach="fog" args={[theme.bg, 26, 52]} />
-      <SceneLights theme={theme} />
-      <Backdrop theme={theme} />
-      <Stage theme={theme} reducedMotion={reducedMotion} />
-      <Camera />
+      <PerformanceGate
+        baseDpr={baseDpr}
+        onShadowsOff={() => setShadows(false)}
+        onGiveUp={giveUp}
+      >
+        <SceneLights theme={theme} />
+        <Backdrop theme={theme} />
+        <Stage theme={theme} reducedMotion={reducedMotion} />
+      </PerformanceGate>
+      <DragLayer />
+      <DragGhost theme={theme} />
+      <Camera dragging={dragging} />
       <LabelProjector />
     </Canvas>
   );
 }
 
-function SceneLights({ theme }: { theme: SceneTheme }) {
+export function SceneLights({ theme }: { theme: SceneTheme }) {
+  /**
+   * Three roles (guide §12.4): a warm key from the front left and above that
+   * casts the only real-time shadow, a soft cooler fill from the sky side, and
+   * a rim from behind on the right to separate objects from the background.
+   */
   return (
     <>
       <ambientLight intensity={theme.ambient} />
-      <hemisphereLight args={[theme.glass, theme.floor, 0.55]} />
+      <hemisphereLight args={[theme.bg, theme.floor, 0.55]} />
       <directionalLight
-        position={[6, 12, 7]}
+        position={[-6, 12, 7]}
         intensity={theme.key_light}
         castShadow
         shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-12}
-        shadow-camera-right={12}
-        shadow-camera-top={12}
-        shadow-camera-bottom={-12}
+        shadow-camera-left={-9}
+        shadow-camera-right={9}
+        shadow-camera-top={9}
+        shadow-camera-bottom={-9}
         shadow-bias={-0.0004}
       />
       <directionalLight
-        position={[-7, 5, -5]}
-        intensity={theme.key_light * 0.35}
+        position={[0, 10, -9]}
+        intensity={theme.key_light * 0.45}
+        color={theme.bg}
+      />
+      <directionalLight
+        position={[8, 6, -9]}
+        intensity={theme.key_light * 0.5}
+        color={theme.glow}
       />
       {/* Soft top light so the vessel contents read through the glass. */}
       <pointLight
@@ -153,18 +212,32 @@ function SceneLights({ theme }: { theme: SceneTheme }) {
   );
 }
 
+/** Vertical two-tone gradient with a gentle vignette (guide §12.4). */
+function backgroundTexture(top: string, bottom: string): CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 2;
+  canvas.height = 256;
+  const g = canvas.getContext("2d");
+  if (g) {
+    const grad = g.createLinearGradient(0, 0, 0, 256);
+    grad.addColorStop(0, top);
+    grad.addColorStop(1, bottom);
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 2, 256);
+  }
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  return tex;
+}
+
 /** Soft glow on the back wall, giving the schematic some depth. */
 function Backdrop({ theme }: { theme: SceneTheme }) {
   const texture = useMemo(
-    () =>
-      radialTexture(
-        withAlpha(theme.glow, theme.dark ? 0.32 : 0.22),
-        withAlpha(theme.bg2, 0),
-      ),
-    [theme.glow, theme.bg2, theme.dark],
+    () => backgroundTexture(theme.bg, theme.bg2),
+    [theme.bg, theme.bg2],
   );
   return (
-    <mesh position={[2, 4.5, -12]} scale={[38, 20, 1]}>
+    <mesh position={[2, 6, -18]} scale={[60, 30, 1]}>
       <planeGeometry args={[1, 1]} />
       <meshBasicMaterial
         map={texture}
@@ -188,8 +261,9 @@ function homeView(aspect: number, fovDeg: number) {
   return [p.x, p.y, p.z, HOME_TARGET.x, HOME_TARGET.y, HOME_TARGET.z] as const;
 }
 
-function Camera() {
+function Camera({ dragging }: { dragging: boolean }) {
   const controls = useRef<CameraControls>(null);
+  const gl = useThree((s) => s.gl);
   const token = useSceneStore((s) => s.cameraResetToken);
   const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height));
   const aspectRef = useRef(aspect);
@@ -223,13 +297,30 @@ function Camera() {
     void controls.current?.setLookAt(...homeView(aspectRef.current, FOV), true);
   }, [token]);
 
+  // Double-click anywhere on the canvas returns to the home view.
+  useEffect(() => {
+    const element = gl.domElement;
+    const onDoubleClick = () => {
+      void controls.current?.setLookAt(
+        ...homeView(aspectRef.current, FOV),
+        true,
+      );
+    };
+    element.addEventListener("dblclick", onDoubleClick);
+    return () => element.removeEventListener("dblclick", onDoubleClick);
+  }, [gl]);
+
   return (
     <CameraControls
       ref={controls}
       makeDefault
-      minDistance={5}
-      maxDistance={36}
-      maxPolarAngle={Math.PI / 2.1}
+      enabled={!dragging}
+      minDistance={8}
+      maxDistance={26}
+      minPolarAngle={MIN_POLAR}
+      maxPolarAngle={MAX_POLAR}
+      minAzimuthAngle={-AZIMUTH_LIMIT}
+      maxAzimuthAngle={AZIMUTH_LIMIT}
     />
   );
 }
@@ -248,6 +339,9 @@ function Stage({
   reducedMotion: boolean;
 }) {
   const validated = useFormulationStore((s) => s.validated);
+  const draft = useFormulationStore((s) => s.draft);
+  const catalog = useFormulationStore((s) => s.catalog);
+  const held = usePlacementStore((s) => s.held);
   const selectedId = useSelectionStore((s) => s.selectedIngredientId);
   const selectIngredient = useSelectionStore((s) => s.selectIngredient);
   const job = useJobStore(
@@ -262,8 +356,21 @@ function Stage({
   const selectedCandidate = useSelectionStore((s) => s.selectedCandidateId);
   const cutaway = useSelectionStore((s) => s.cutaway);
   const [flows, setFlows] = useState<Flow[]>([]);
+  /** On-demand rendering: keep asking for frames while a pour is in flight. */
+  useInvalidateWhile(flows.length > 0);
 
   const lines = useMemo(() => validated?.lines ?? [], [validated]);
+  /**
+   * A bin is "pending" from the moment it is dropped until the debounced
+   * validation snapshot contains it (guide §12.3). The solid style is only
+   * ever drawn from `validated`.
+   */
+  const pendingIds = useMemo(() => {
+    const known = new Set(lines.map((l) => l.ingredient_id));
+    return new Set(
+      draft.map((l) => l.ingredient_id).filter((id) => !known.has(id)),
+    );
+  }, [draft, lines]);
   const invalidIds = useMemo(
     () =>
       new Set(
@@ -312,23 +419,24 @@ function Stage({
         : null;
   const candidateId = selectedCandidate ?? job.candidateIds.at(-1) ?? null;
 
+  /** A bin pressed in the scene starts a drag (the pointer layer takes over). */
+  const beginBinDrag = (id: string) => (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    const label = catalog[id]?.common_name ?? id;
+    useDragStore.getState().begin({
+      kind: "bin",
+      id,
+      source: "scene",
+      origin: { x: e.clientX, y: e.clientY },
+      pointerId: e.pointerId,
+      label,
+    });
+  };
+
   return (
     <group>
-      {/* Floor with a soft vignette */}
+      {/* Floor with a soft vignette; the grid was removed (guide §12.4). */}
       <Floor theme={theme} />
-      <Grid
-        position={[2, 0.01, 0]}
-        args={[26, 26]}
-        cellSize={0.5}
-        cellThickness={0.6}
-        cellColor={theme.grid}
-        sectionSize={2.5}
-        sectionThickness={1}
-        sectionColor={theme.gridStrong}
-        fadeDistance={24}
-        fadeStrength={1.4}
-        infiniteGrid={false}
-      />
       <ContactShadows
         position={[2, 0.02, 0]}
         scale={26}
@@ -336,23 +444,23 @@ function Stage({
         opacity={theme.dark ? 0.6 : 0.38}
         far={5}
         resolution={512}
-        frames={reducedMotion ? 1 : Infinity}
+        frames={1}
+        key={`contact-${lines.length}`}
       />
 
-      {/* Ambient dust, decorative */}
-      {!reducedMotion && (
-        <Sparkles
-          count={40}
-          scale={[16, 6, 12]}
-          position={[2, 3, 0]}
-          size={1.6}
-          speed={0.18}
-          color={theme.glow}
-          opacity={0.35}
-        />
-      )}
-
-      <group position={VESSEL_POSITION}>
+      <group
+        position={VESSEL_POSITION}
+        onClick={(e) => {
+          // Click-to-place: clicking the vessel places the held ingredient.
+          if (!held) return;
+          e.stopPropagation();
+          void placeHeld(
+            held,
+            "vessel",
+            useFormulationStore.getState().catalog,
+          );
+        }}
+      >
         <MixingVessel
           contents={lines.map((l, i) => ({
             color: cropColor(theme, i),
@@ -363,6 +471,7 @@ function Stage({
           theme={theme}
           reducedMotion={reducedMotion}
         />
+        <DropRing theme={theme} />
       </group>
 
       {lines.map((line, index) => {
@@ -375,9 +484,15 @@ function Stage({
             position={binPosition(index, lines.length)}
             selected={selectedId === line.ingredient_id}
             invalid={invalidIds.has(line.ingredient_id)}
+            pending={pendingIds.has(line.ingredient_id)}
+            draftPercent={
+              draft.find((l) => l.ingredient_id === line.ingredient_id)
+                ?.percent ?? null
+            }
             theme={theme}
             reducedMotion={reducedMotion}
             onSelect={selectIngredient}
+            onBeginDrag={(e) => beginBinDrag(line.ingredient_id)(e)}
           />
         );
       })}

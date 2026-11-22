@@ -1,4 +1,12 @@
-import type { IngredientDetail, IngredientListItem, Paged } from "@/types";
+import type {
+  AminoAcidPattern,
+  FacetEntry,
+  IngredientDetail,
+  IngredientFacets,
+  IngredientListItem,
+  NutrientDefinition,
+  Paged,
+} from "@/types";
 import { buildQuery, requestJson } from "./client";
 import {
   ingredientDetailSchema,
@@ -24,33 +32,12 @@ export interface IngredientListParams {
   page_size?: number;
 }
 
-export interface FacetEntry {
-  value?: string;
-  id?: string;
-  name?: string;
-  count: number;
-}
-
-export interface IngredientFacets {
-  crops: FacetEntry[];
-  forms: FacetEntry[];
-  sources: FacetEntry[];
-}
-
-export interface NutrientDefinition {
-  key: string;
-  name: string;
-  unit: string;
-  kind: string;
-}
-
-export interface AminoAcidPattern {
-  id: string;
-  name: string;
-  version?: string;
-  is_default?: boolean;
-  [key: string]: unknown;
-}
+export type {
+  AminoAcidPattern,
+  FacetEntry,
+  IngredientFacets,
+  NutrientDefinition,
+};
 
 export function listIngredients(
   params: IngredientListParams = {},

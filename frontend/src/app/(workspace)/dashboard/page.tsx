@@ -8,6 +8,8 @@ import {
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RecentFormulations } from "@/components/formulation/recent-formulations";
+import { DataQualityNotice } from "@/components/dashboard/data-quality-notice";
+import { RecentJobs } from "@/components/jobs/recent-jobs";
 import { BackendStatus } from "@/components/layout/backend-status";
 import {
   Card,
@@ -89,12 +91,19 @@ export default function DashboardPage() {
               Your most recently updated formulations.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-6">
             <RecentFormulations />
+            <div>
+              <h3 className="mb-2 text-sm font-medium">
+                Running and recent jobs
+              </h3>
+              <RecentJobs />
+            </div>
           </CardContent>
         </Card>
 
         <div className="flex flex-col gap-4">
+          <DataQualityNotice />
           <BackendStatus />
           <Card>
             <CardHeader>

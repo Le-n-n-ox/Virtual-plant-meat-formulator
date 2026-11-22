@@ -5,6 +5,99 @@
 
 export type MassUnit = "mg" | "g" | "kg";
 
+// ---- Display-unit preferences ----
+
+/** Which unit a value is *shown* in. Backend values never change; only this does. */
+export type AminoAcidUnit = "mg" | "g";
+export type EnergyUnit = "kcal" | "kJ";
+export type ProteinUnit = "g_per_100g" | "percent";
+
+export interface UnitPreferences {
+  aminoAcidUnit: AminoAcidUnit;
+  energyUnit: EnergyUnit;
+  proteinUnit: ProteinUnit;
+}
+
+export type NutrientKind = "amino_acid" | "energy" | "protein" | "other";
+
+const ENERGY_KEYS = new Set([
+  "energy",
+  "energy_kcal",
+  "energy_kj",
+  "kcal",
+  "kj",
+]);
+
+/** Classify a nutrient key so the right preference applies. */
+export function nutrientKind(key: string): NutrientKind {
+  if (key === "protein") return "protein";
+  if (ENERGY_KEYS.has(key)) return "energy";
+  return "other";
+}
+
+const KJ_PER_KCAL = 4.184;
+
+/**
+ * Convert a stored nutrient value into the user's preferred display unit.
+ *
+ * The backend always stores canonical units; this is presentation only and is
+ * never written back. Unknown units pass through unchanged.
+ */
+export function displayNutrient(
+  value: number,
+  unit: string,
+  kind: NutrientKind,
+  prefs: UnitPreferences,
+): { value: number; unit: string } {
+  if (kind === "energy") {
+    if (unit === "kJ" && prefs.energyUnit === "kcal")
+      return { value: roundTo(value / KJ_PER_KCAL, 3), unit: "kcal" };
+    if (unit === "kcal" && prefs.energyUnit === "kJ")
+      return { value: roundTo(value * KJ_PER_KCAL, 3), unit: "kJ" };
+    return { value, unit };
+  }
+
+  if (kind === "amino_acid") {
+    if (unit === "mg_per_g_protein") {
+      return prefs.aminoAcidUnit === "g"
+        ? { value: roundTo(value / 1000, 4), unit: "g/g protein" }
+        : { value, unit };
+    }
+    const target = prefs.aminoAcidUnit;
+    if (unit === target) return { value, unit };
+    if (unit === "mg" && target === "g")
+      return { value: roundTo(value / 1000, 4), unit: "g" };
+    if (unit === "g" && target === "mg")
+      return { value: roundTo(value * 1000, 3), unit: "mg" };
+    if (unit === "ug" && target === "mg")
+      return { value: roundTo(value / 1000, 3), unit: "mg" };
+    if (unit === "ug" && target === "g")
+      return { value: roundTo(value / 1_000_000, 5), unit: "g" };
+    return { value, unit };
+  }
+
+  if (kind === "protein" && prefs.proteinUnit === "percent" && unit === "g") {
+    // Grams per 100 g is numerically the same as percent of mass.
+    return { value, unit: "%" };
+  }
+
+  return { value, unit };
+}
+
+/**
+ * Display a stored value through the preferences. Returns null for a missing or
+ * non-finite value so the caller can keep its explicit "not reported" wording.
+ */
+export function displayNutrientValue(
+  value: number | null,
+  unit: string,
+  kind: NutrientKind,
+  prefs: UnitPreferences,
+): { value: number; unit: string } | null {
+  if (value === null || !Number.isFinite(value)) return null;
+  return displayNutrient(value, unit, kind, prefs);
+}
+
 /** Grams per unit. */
 export const MASS_TO_GRAMS: Record<MassUnit, number> = {
   mg: 0.001,

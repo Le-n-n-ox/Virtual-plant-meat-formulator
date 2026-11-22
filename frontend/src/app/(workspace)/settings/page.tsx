@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DisplayPreferences } from "@/components/settings/display-preferences";
+import { UnitsPreferences } from "@/components/settings/units-preferences";
 import { ThemePicker } from "@/components/theme/theme-picker";
 import {
   Card,
@@ -28,6 +29,18 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <ThemePicker />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Units</CardTitle>
+          <CardDescription>
+            How values are shown. The stored and calculated values are
+            unchanged.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <UnitsPreferences />
         </CardContent>
       </Card>
       <Card>

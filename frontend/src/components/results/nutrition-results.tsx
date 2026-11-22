@@ -10,6 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatNumber, humanizeKey } from "@/lib/format";
+import { displayNutrientValue, nutrientKind } from "@/lib/units";
+import { usePreferencesStore } from "@/stores/preferencesStore";
 import { AminoAcidScoreChart } from "@/components/results/amino-acid-score-chart";
 import { MacroChart } from "@/components/results/macro-chart";
 import type { AminoAcidBlock, NutritionResult } from "@/types";
@@ -20,6 +22,7 @@ const BASIS_TEXT: Record<string, string> = {
 
 /** Calculated nutrition from the backend. Missing values are never shown as 0. */
 export function NutritionResults({ result }: { result: NutritionResult }) {
+  const prefs = usePreferencesStore();
   return (
     <section aria-label="Nutrition results" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -42,14 +45,24 @@ export function NutritionResults({ result }: { result: NutritionResult }) {
             <TableRow key={n.key}>
               <TableCell>{n.name ?? humanizeKey(n.key)}</TableCell>
               <TableCell className="text-right tabular-nums">
-                {n.value === null ? (
-                  <span className="text-muted-foreground">missing</span>
-                ) : (
-                  <>
-                    {formatNumber(n.value)}{" "}
-                    <span className="text-muted-foreground">{n.unit}</span>
-                  </>
-                )}
+                {(() => {
+                  const shown = displayNutrientValue(
+                    n.value,
+                    n.unit,
+                    nutrientKind(n.key),
+                    prefs,
+                  );
+                  return shown ? (
+                    <>
+                      {formatNumber(shown.value)}{" "}
+                      <span className="text-muted-foreground">
+                        {shown.unit}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">missing</span>
+                  );
+                })()}
               </TableCell>
               <TableCell className="text-xs text-muted-foreground">
                 {n.value === null

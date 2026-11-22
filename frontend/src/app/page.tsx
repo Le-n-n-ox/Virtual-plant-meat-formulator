@@ -124,26 +124,26 @@ export default function LandingPage() {
                   Read the methodology
                 </Link>
               </div>
-              <dl className="mt-2 flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
+              <ul className="mt-2 flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center gap-2">
                   <span
                     className="size-2 rounded-full bg-success"
                     aria-hidden
                   />
                   No fake progress timers
-                </div>
-                <div className="flex items-center gap-2">
+                </li>
+                <li className="flex items-center gap-2">
                   <span className="size-2 rounded-full bg-info" aria-hidden />
                   Real event stream
-                </div>
-                <div className="flex items-center gap-2">
+                </li>
+                <li className="flex items-center gap-2">
                   <span
                     className="size-2 rounded-full bg-warning"
                     aria-hidden
                   />
                   Illustrative 3D labelling
-                </div>
-              </dl>
+                </li>
+              </ul>
             </Reveal>
             <Reveal delay={0.1}>
               <HeroVisual />

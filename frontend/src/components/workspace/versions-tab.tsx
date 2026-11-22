@@ -1,6 +1,11 @@
 "use client";
 
-import { RotateCcwIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  MinusIcon,
+  PlusIcon,
+  RotateCcwIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,13 +28,158 @@ import {
   restoreVersion,
 } from "@/lib/api/formulations";
 import { errorMessage, formatDateTime, formatNumber } from "@/lib/format";
+import {
+  diffVersionLines,
+  isEmptyDiff,
+  type VersionChange,
+} from "@/lib/version-diff";
+import { useInvalidateResource } from "@/lib/query/invalidate";
 import { cn } from "@/lib/utils";
 import { useFormulationStore } from "@/stores/formulationStore";
 import { useResultStore } from "@/stores/resultStore";
 
+function pct(value: number | null): string {
+  return value === null || !Number.isFinite(value) ? "—" : formatNumber(value);
+}
+
+function ChangeRow({
+  change,
+  fromName,
+  toName,
+}: {
+  change: VersionChange;
+  fromName: (id: string) => string;
+  toName: (id: string) => string;
+}) {
+  const styles: Record<VersionChange["kind"], string> = {
+    added: "border-success/50 bg-success/10",
+    removed: "border-destructive/50 bg-destructive/10",
+    changed: "border-warning/60 bg-warning/10",
+  };
+  const labels: Record<VersionChange["kind"], string> = {
+    added: "Added",
+    removed: "Removed",
+    changed: "Changed",
+  };
+  const icon =
+    change.kind === "added" ? (
+      <PlusIcon className="size-3.5" aria-hidden />
+    ) : change.kind === "removed" ? (
+      <MinusIcon className="size-3.5" aria-hidden />
+    ) : (
+      <ArrowRightIcon className="size-3.5" aria-hidden />
+    );
+
+  const name =
+    change.kind === "removed"
+      ? fromName(change.ingredientId)
+      : toName(change.ingredientId);
+
+  return (
+    <li
+      className={cn(
+        "flex flex-wrap items-center gap-2 rounded-md border px-2 py-1.5",
+        styles[change.kind],
+      )}
+    >
+      <span className="flex items-center gap-1 text-xs font-medium">
+        {icon}
+        {labels[change.kind]}
+      </span>
+      <span className="font-medium">{name}</span>
+      <span className="ml-auto tabular-nums">
+        {change.kind === "changed" && (
+          <>
+            {pct(change.fromPercent)}%{" "}
+            <ArrowRightIcon className="inline size-3" aria-hidden />{" "}
+          </>
+        )}
+        {change.kind === "removed" ? (
+          `${pct(change.fromPercent)}%`
+        ) : (
+          <>
+            {pct(change.toPercent)}%
+            {change.kind === "added" && (
+              <span className="ml-1 text-xs font-normal">of mass</span>
+            )}
+          </>
+        )}
+      </span>
+    </li>
+  );
+}
+
+function DiffView({
+  diff,
+  fromName,
+  toName,
+  fromVersion,
+  toVersion,
+}: {
+  diff: ReturnType<typeof diffVersionLines>;
+  fromName: (id: string) => string;
+  toName: (id: string) => string;
+  fromVersion: number;
+  toVersion: number;
+}) {
+  const total = diff.added.length + diff.removed.length + diff.changed.length;
+
+  if (isEmptyDiff(diff)) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No ingredient changes between v{fromVersion} and v{toVersion}.
+      </p>
+    );
+  }
+
+  const groups: Array<{
+    title: string;
+    changes: VersionChange[];
+    tone: string;
+  }> = [
+    { title: "Added", changes: diff.added, tone: "text-success" },
+    { title: "Removed", changes: diff.removed, tone: "text-destructive" },
+    { title: "Changed", changes: diff.changed, tone: "text-warning" },
+  ];
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-muted-foreground" aria-live="polite">
+        {total} change{total === 1 ? "" : "s"} from v{fromVersion} to v
+        {toVersion}: {diff.added.length} added, {diff.removed.length} removed,{" "}
+        {diff.changed.length} changed.
+      </p>
+      {groups.map(
+        (group) =>
+          group.changes.length > 0 && (
+            <div key={group.title} className="flex flex-col gap-1">
+              <h3 className={cn("text-xs font-medium", group.tone)}>
+                {group.title}
+              </h3>
+              <ul className="flex flex-col gap-1">
+                {group.changes.map((change) => (
+                  <ChangeRow
+                    key={change.ingredientId}
+                    change={change}
+                    fromName={fromName}
+                    toName={toName}
+                  />
+                ))}
+              </ul>
+            </div>
+          ),
+      )}
+    </div>
+  );
+}
+
 export function VersionsTab() {
   const { id, version: current, ready, loadState } = useSavedVersion();
+  const invalidate = useInvalidateResource();
   const [viewing, setViewing] = useState<number | null>(null);
+  const [diffFrom, setDiffFrom] = useState<number | null>(null);
+  const [diffTo, setDiffTo] = useState<number | null>(null);
+  const [diffSeeded, setDiffSeeded] = useState(false);
   const [confirming, setConfirming] = useState<number | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,17 +187,44 @@ export function VersionsTab() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const versions = useApiQuery(
-    `versions|${id}|${current}`,
+    ["formulations", id, "versions", { page_size: 100 }],
     () => listVersions(id, { page_size: 100 }),
     ready,
   );
   const detail = useApiQuery(
-    `version-detail|${id}|${viewing}`,
+    ["formulations", id, "versions", viewing],
     () => getVersion(id, viewing ?? 1),
     ready && viewing !== null,
   );
+  const diffFromDetail = useApiQuery(
+    ["formulations", id, "versions", diffFrom],
+    () => getVersion(id, diffFrom ?? 1),
+    ready && diffFrom !== null,
+  );
+  const diffToDetail = useApiQuery(
+    ["formulations", id, "versions", diffTo],
+    () => getVersion(id, diffTo ?? 1),
+    ready && diffTo !== null,
+  );
+
+  /** Default the comparison to the current version and the one before it. */
+  const versionNumbers =
+    versions.data?.items.map((v) => v.version).sort((a, b) => a - b) ?? [];
+  if (!diffSeeded && versionNumbers.length > 0) {
+    setDiffSeeded(true);
+    const to = current ?? versionNumbers[versionNumbers.length - 1];
+    const index = versionNumbers.indexOf(to);
+    setDiffTo(to);
+    setDiffFrom(index > 0 ? versionNumbers[index - 1] : to);
+  }
   const nameOf = useIngredientNames(
     detail.data?.lines.map((l) => l.ingredient_id) ?? [],
+  );
+  const diffFromName = useIngredientNames(
+    diffFromDetail.data?.lines.map((l) => l.ingredient_id) ?? [],
+  );
+  const diffToName = useIngredientNames(
+    diffToDetail.data?.lines.map((l) => l.ingredient_id) ?? [],
   );
 
   async function restore() {
@@ -65,6 +242,8 @@ export function VersionsTab() {
       setConfirming(null);
       useResultStore.getState().clear();
       useFormulationStore.getState().requestReload();
+      invalidate("formulations");
+      invalidate("results");
     } catch (e) {
       if (e instanceof ApiError && e.code === "version_conflict") {
         setConflict(true);
@@ -132,7 +311,7 @@ export function VersionsTab() {
                   <td className="p-2 font-medium">
                     <button
                       type="button"
-                      className="underline-offset-4 hover:underline"
+                      className="underline underline-offset-4"
                       aria-label={`View version ${v.version}`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -177,6 +356,80 @@ export function VersionsTab() {
           </table>
         </div>
       )}
+
+      <section
+        aria-label="Compare versions"
+        className="flex flex-col gap-3 rounded-lg border p-3"
+      >
+        <div>
+          <h2 className="text-sm font-medium">Compare two versions</h2>
+          <p className="text-xs text-muted-foreground">
+            Shows what was added, removed and changed between the two saved
+            versions.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs">
+            From
+            <select
+              className="h-8 rounded-lg border px-2 text-sm"
+              value={diffFrom ?? ""}
+              onChange={(e) =>
+                setDiffFrom(
+                  e.target.value === "" ? null : Number(e.target.value),
+                )
+              }
+            >
+              {versionNumbers.map((v) => (
+                <option key={v} value={v}>
+                  v{v}
+                </option>
+              ))}
+            </select>
+          </label>
+          <ArrowRightIcon
+            className="size-4 text-muted-foreground"
+            aria-hidden
+          />
+          <label className="flex items-center gap-1.5 text-xs">
+            To
+            <select
+              className="h-8 rounded-lg border px-2 text-sm"
+              value={diffTo ?? ""}
+              onChange={(e) =>
+                setDiffTo(e.target.value === "" ? null : Number(e.target.value))
+              }
+            >
+              {versionNumbers.map((v) => (
+                <option key={v} value={v}>
+                  v{v}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {diffFrom === null ||
+        diffTo === null ||
+        (diffFromDetail.loading && diffToDetail.loading) ? (
+          <Skeleton className="h-16 w-full" />
+        ) : diffFromDetail.error || diffToDetail.error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(diffFromDetail.error ?? diffToDetail.error)}
+          </p>
+        ) : diffFromDetail.data && diffToDetail.data ? (
+          <DiffView
+            diff={diffVersionLines(
+              diffFromDetail.data.lines,
+              diffToDetail.data.lines,
+            )}
+            fromName={diffFromName}
+            toName={diffToName}
+            fromVersion={diffFrom}
+            toVersion={diffTo}
+          />
+        ) : null}
+      </section>
 
       {viewing !== null && (
         <section

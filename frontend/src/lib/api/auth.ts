@@ -1,22 +1,12 @@
 import { jsonInit, requestJson } from "./client";
 import { tokenStore } from "./token";
+import type { CurrentUser, LoginResponse } from "@/types";
 import {
   currentUserSchema,
   loginResponseSchema,
 } from "@/lib/validation/schemas";
 
-export interface LoginResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-}
-
-export interface CurrentUser {
-  user_id: string;
-  email: string;
-  display_name: string;
-  role: "viewer" | "scientist" | "curator" | "admin" | string;
-}
+export type { CurrentUser, LoginResponse };
 
 export async function login(
   email: string,

@@ -27,7 +27,7 @@ export function CatalogueSearch({
   const q = useDebouncedValue(text.trim(), 300);
   const enabled = q.length >= 2;
   const { data, error, loading } = useApiQuery(
-    `cat-search|${q}`,
+    ["ingredients", { q, page_size: 8, exclude_animal_groups: true }],
     () => listIngredients({ q, page_size: 8, exclude_animal_groups: true }),
     enabled,
   );
