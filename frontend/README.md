@@ -234,10 +234,14 @@ scripts/blender/       headless export of the scene GLBs
   resource-prefixed array, so the job-completion invalidator and
   `useInvalidateResource()` refetch a whole resource. React Hook Form was
   removed earlier.
-- **Docker image.** `docker compose up -d --build frontend` currently fails
-  because `package-lock.json` is missing platform-specific optional deps
-  (`@rolldown/binding-linux-*`, `lightningcss-linux-*`, `fsevents`). Regenerate
-  the lock file with `npm install --include=optional` on a clean checkout.
+- **Lockfile and the container build.** `package-lock.json` was missing the
+  platform-specific optional dependencies (`@rolldown/binding-*`,
+  `lightningcss-*`, `fsevents`), so `npm ci` failed on Linux and
+  `docker compose up --build frontend` could not build the image. The lock was
+  regenerated (668 insertions, 333 deletions) and every dependency including
+  optionals now resolves to a lock entry. Regenerate it with
+  `npm install --package-lock-only` if it drifts again — running that on Windows
+  alone prunes the other platforms' optionals.
 
 ### Contract tests
 
