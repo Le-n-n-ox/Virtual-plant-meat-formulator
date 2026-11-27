@@ -1089,6 +1089,18 @@ The 2D view must offer the same drag and drop: chips for crops in a pantry strip
 
 Stage 1 comes first on purpose. It proves the interaction and the truthfulness rules before any time goes into modelling, and it is useful on its own.
 
+**State of the bench (27 November 2026).** Stages 1 to 4 are built and the bench works end to end against the real backend: a crop dragged from the pantry onto the vessel joins the draft, shows as pending, and turns solid or takes an error ring from the server's validation reply. What was added in this pass, and what is worth knowing before touching it again:
+
+- **The bench asset is in the scene.** `bench.glb` and `crops.glb` were built but only the scene-lab page loaded them. `Bench` now mounts the bench, pantry shelf, return tray, product board and compare plinths, and registers their Empty sockets with `scene/objects/benchSockets.ts`. Drop points and pantry slots read those sockets, so moving one in Blender moves the drop point with it.
+- **Ingredients are container-plus-topper models.** `CropModel` picks `Container_<form>` and `Crop_<crop>` by name through `scene/cropModels.ts`, which the scene had never used. Each topper's nine grains are merged into one geometry, cached per crop, so a pantry of eight costs 16 draw calls rather than 80.
+- **Crops carry their own colours.** Every topper shares one `MAT_Natural` in the asset, so the colour is applied per instance from `TOPPER_COLOR`. That table mirrors `CROPS` in `scripts/blender/build_assets.py` — change both together.
+- **Two bugs worth remembering.** The drop never fired because (a) the vessel was treated as radius 0.62 against a model whose rim is 1.5, and (b) the pointer was projected onto a plane at carry height, which sits between the camera and the bench, so a point that looked like it was over the vessel resolved about five units in front of it. The pointer is now projected onto the bench (`BENCH_LEVEL`) and the carried object is drawn above the spot it will land on, with its shadow marking it. `tests/dragMath.test.ts` and `tests/dropTargets.test.ts` pin both.
+- **A target is sticky once acquired** (`TARGET_STICKINESS`), so a pixel of jitter or a frame of camera settling cannot lose the drop point.
+- **Release has its own motion** (`scene/drag/releaseAnimation.ts`, unit-tested): a drop settles with a squash, a cancel returns along a low arc, a reject shakes first. The drag store keeps the release alive for the animation and clears it under a sequence guard, so a new drag is never wiped by the previous one's clean-up.
+- **`scripts/shoot-lab.mjs` and `scripts/shoot-workspace.mjs`** drive the scene in a headless browser and screenshot it. Headless Chromium needs the SwiftShader flags they set, and the workspace script forces `viewMode: "3d"` because software GL is judged a weak device. These are how the visual checks in 12.14 get done.
+
+Still open: the look-development pass in 12.14 (the containers read as plain blocks and the crate, sack, jar and bottle silhouettes barely differ), touch testing on real hardware, and the screen-reader run.
+
 ### 12.14 Acceptance checklist
 
 **Interaction**

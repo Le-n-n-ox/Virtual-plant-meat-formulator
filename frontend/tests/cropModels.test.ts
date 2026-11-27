@@ -1,13 +1,31 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   CONTAINER_NODE,
   GENERIC_TOPPER,
+  TOPPER_NAMES,
   containerForForm,
   hasOwnTopper,
   seedCropModels,
   topperForCrop,
 } from "@/scene/cropModels";
+import { BENCH_SOCKET, PANTRY_SOCKETS } from "@/scene/objects/benchSockets";
 import type { IngredientFacets } from "@/types";
+
+/**
+ * Node names declared inside a `.glb`, read from its JSON chunk. The scene
+ * finds parts by name, so these assertions check the code against the real
+ * asset rather than against a list copied by hand.
+ */
+function glbNodeNames(path: string): string[] {
+  const file = readFileSync(path);
+  const view = new DataView(file.buffer, file.byteOffset, file.byteLength);
+  const jsonLength = view.getUint32(12, true);
+  const json = JSON.parse(
+    new TextDecoder().decode(file.subarray(20, 20 + jsonLength)),
+  ) as { nodes?: { name?: string }[] };
+  return (json.nodes ?? []).map((node) => node.name ?? "");
+}
 
 const facets: IngredientFacets = {
   crops: [
@@ -35,12 +53,31 @@ describe("containerForForm", () => {
   });
 
   it("maps every container kind to a node in crops.glb", () => {
-    expect(Object.values(CONTAINER_NODE)).toEqual([
-      "Container_Crate",
-      "Container_Sack",
-      "Container_Jar",
-      "Container_Bottle",
-    ]);
+    const nodes = glbNodeNames("public/scene/assets/crops/crops.glb");
+    for (const node of Object.values(CONTAINER_NODE)) {
+      expect(nodes).toContain(node);
+    }
+  });
+});
+
+describe("crops.glb contract", () => {
+  it("contains every topper the mapping can return", () => {
+    const nodes = glbNodeNames("public/scene/assets/crops/crops.glb");
+    for (const topper of TOPPER_NAMES) {
+      expect(nodes).toContain(topper);
+    }
+  });
+});
+
+describe("bench.glb contract", () => {
+  it("contains every socket the scene places objects on", () => {
+    const nodes = glbNodeNames("public/scene/assets/bench/bench.glb");
+    for (const socket of Object.values(BENCH_SOCKET)) {
+      expect(nodes).toContain(socket);
+    }
+    for (const socket of PANTRY_SOCKETS) {
+      expect(nodes).toContain(socket);
+    }
   });
 });
 

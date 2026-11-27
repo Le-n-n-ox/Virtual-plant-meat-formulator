@@ -1,7 +1,8 @@
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "./_render";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { stubMatchMedia } from "./_matchMedia";
 
 /**
  * Formulation list (guide §5 page 5): duplicate routes to the copy, archive is
@@ -33,6 +34,10 @@ import {
   FormulationList,
   NewFormulationDialog,
 } from "@/components/formulation/formulation-list";
+
+// The create and archive dialogs time their open/close from the shared motion
+// tokens, which read the reduced-motion media query.
+beforeEach(() => stubMatchMedia());
 
 afterEach(() => {
   cleanup();

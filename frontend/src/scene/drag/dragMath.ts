@@ -9,8 +9,25 @@
 export const MOUSE_MOVE_THRESHOLD_PX = 6;
 /** Touch must be held this long before a drag starts, so taps still orbit. */
 export const TOUCH_HOLD_MS = 180;
-/** Height of the horizontal plane a carried object follows. */
+/**
+ * Height a carried object is drawn at, above the point it would land on.
+ *
+ * Note this is a drawing height only. The pointer is projected onto the bench
+ * (`BENCH_LEVEL`), not onto a plane up here: a plane at carry height sits
+ * between the camera and the bench, so a screen point that looks like it is
+ * over the vessel resolves several units in front of it. The object hovers
+ * above the bench point instead, with its shadow marking the landing spot.
+ */
 export const CARRY_HEIGHT = 2.1;
+
+/** The bench top: the surface every drop target stands on. */
+export const BENCH_LEVEL = 0;
+
+/** Extra lift once an object is grabbed, on top of `CARRY_HEIGHT`. */
+export const CARRY_LIFT = 0.35;
+
+/** Height a carried object is actually drawn at. */
+export const CARRY_TOP = CARRY_HEIGHT + CARRY_LIFT;
 /** How close a carried object must come to a target to count as "over" it. */
 export const DROP_RADIUS = 0.9;
 /** Largest tilt, in degrees, applied in the direction of travel. */
@@ -72,7 +89,7 @@ export function distance(a: Vec2, b: Vec2): number {
  */
 export function intersectPlane(
   ray: Ray,
-  height: number = CARRY_HEIGHT,
+  height: number = BENCH_LEVEL,
 ): { x: number; z: number } | null {
   const dy = ray.direction.y;
   if (Math.abs(dy) < 1e-6) return null;
@@ -84,19 +101,37 @@ export function intersectPlane(
   };
 }
 
-/** The closest target whose radius contains the point, or null. */
+/**
+ * How much larger a target's radius is once the carried object is already over
+ * it. Without this hysteresis a pointer resting near the boundary flickers the
+ * target on and off, and a release at the wrong instant does nothing.
+ */
+export const TARGET_STICKINESS = 1.3;
+
+/**
+ * The closest target whose radius contains the point, or null.
+ *
+ * `current` is the target the drag is already over; it keeps a slightly larger
+ * radius so the drop point is not lost to a pixel of jitter or a frame of
+ * camera settling.
+ */
 export function nearestWorldTarget<T extends string>(
   point: { x: number; z: number },
   targets: WorldTarget<T>[],
+  current: T | null = null,
 ): T | null {
   let best: T | null = null;
   let bestDistance = Infinity;
   for (const target of targets) {
     const d = Math.hypot(point.x - target.x, point.z - target.z);
-    const radius = target.radius ?? DROP_RADIUS;
-    if (d <= radius && d < bestDistance) {
+    const base = target.radius ?? DROP_RADIUS;
+    const radius = target.id === current ? base * TARGET_STICKINESS : base;
+    // Compare by how deeply the point sits inside each target, so a sticky
+    // target does not beat one the pointer is genuinely closer to.
+    const depth = d / radius;
+    if (depth <= 1 && depth < bestDistance) {
       best = target.id;
-      bestDistance = d;
+      bestDistance = depth;
     }
   }
   return best;

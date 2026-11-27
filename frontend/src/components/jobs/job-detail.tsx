@@ -91,12 +91,12 @@ export function JobDetailView() {
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-4 sm:p-6 lg:p-8">
       <Link
         href="/jobs"
-        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="flex w-fit items-center gap-1 text-small text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon className="size-4" aria-hidden /> Job history
       </Link>
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {errorMessage(error)}
         </p>
       ) : loading || !job ? (
@@ -104,12 +104,10 @@ export function JobDetailView() {
       ) : (
         <>
           <header className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {humanizeKey(String(job.type))} job
-            </h1>
+            <h1 className="text-h1">{humanizeKey(String(job.type))} job</h1>
             <JobStatusBadge status={job.status} />
             {attached && running && (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1 text-caption text-muted-foreground">
                 <span
                   aria-hidden
                   className="size-2 rounded-full bg-success animate-pulse motion-reduce:animate-none"
@@ -120,7 +118,7 @@ export function JobDetailView() {
           </header>
 
           {job.error && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-small text-destructive">
               {describeRunError(
                 job.error.code ?? "job_failed",
                 job.error.message ?? "The job failed.",
@@ -156,7 +154,7 @@ export function JobDetailView() {
             {job.result_available && job.formulation_id && resultTab && (
               <Link
                 href={`/formulations/${job.formulation_id}/${resultTab}`}
-                className="text-sm text-primary underline underline-offset-4"
+                className="text-small text-primary underline underline-offset-4"
               >
                 View result
               </Link>
@@ -164,21 +162,21 @@ export function JobDetailView() {
           </div>
 
           {attachError && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-small text-destructive">
               {attachError}
             </p>
           )}
           {cancelError && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-small text-destructive">
               {cancelError}
             </p>
           )}
 
           <JobProgress types={job.type ? [job.type as JobType] : []} />
 
-          <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-small">
             <dt className="text-muted-foreground">Job ID</dt>
-            <dd className="font-mono text-xs">{job.id}</dd>
+            <dd className="font-mono text-caption">{job.id}</dd>
             <dt className="text-muted-foreground">Formulation</dt>
             <dd>
               {job.formulation_id ? (
@@ -200,7 +198,7 @@ export function JobDetailView() {
             {job.progress_percent !== null && (
               <>
                 <dt className="text-muted-foreground">Progress</dt>
-                <dd className="tabular-nums">
+                <dd className="font-numeric">
                   {Math.round(job.progress_percent)}%
                 </dd>
               </>
@@ -227,21 +225,21 @@ export function JobDetailView() {
             aria-label="Event log"
             className="flex flex-col gap-2 rounded-lg border p-3"
           >
-            <h2 className="text-sm font-medium">Event log</h2>
+            <h2 className="text-h4">Event log</h2>
             {events.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-small text-muted-foreground">
                 {running
                   ? "No events in this session yet. Attach to the live stream to follow the job."
                   : "No events were recorded in this session. Events are kept in memory, so a finished job shows them only if this page was open while it ran."}
               </p>
             ) : (
-              <ol className="flex flex-col gap-1 text-xs">
+              <ol className="flex flex-col gap-1 text-caption">
                 {events.map((e, i) => (
                   <li
                     key={`${e.seq ?? "seq"}-${i}`}
                     className="flex flex-wrap items-baseline gap-2"
                   >
-                    <span className="tabular-nums text-muted-foreground">
+                    <span className="font-numeric text-muted-foreground">
                       {formatDateTime(e.timestamp)}
                     </span>
                     <span className="font-mono">{e.event}</span>

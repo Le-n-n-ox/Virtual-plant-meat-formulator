@@ -71,7 +71,7 @@ const OBJECTIVE_TARGETS = [
 ];
 
 const selectClass =
-  "h-8 rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+  "h-8 rounded-lg border border-input bg-transparent px-2 text-small outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 interface ObjectiveRow {
   key: string;
@@ -371,7 +371,7 @@ export function OptimizeTab() {
     return <Skeleton className="h-48 w-full" />;
   if (!ready) {
     return (
-      <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+      <p className="rounded-lg border border-dashed p-4 text-small text-muted-foreground">
         Save the formulation first: optimization runs on a saved version.
       </p>
     );
@@ -384,13 +384,13 @@ export function OptimizeTab() {
       aria-label="Optimize"
     >
       <div>
-        <h1 className="text-lg font-semibold">
+        <h1 className="text-h3">
           Optimize{" "}
-          <span className="text-sm font-normal text-muted-foreground">
+          <span className="text-small font-normal text-muted-foreground">
             v{version}
           </span>
         </h1>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           Searches for ingredient mixes that meet your objectives and limits.
           Texture objectives use literature-derived estimates and need process
           conditions.
@@ -505,8 +505,8 @@ export function OptimizeTab() {
         </Section>
 
         <Section title="Ingredient limits (% of mass)">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-muted-foreground">
+          <table className="w-full text-small">
+            <thead className="text-left text-caption text-muted-foreground">
               <tr>
                 <th className="py-1 font-medium">Ingredient</th>
                 <th className="w-20 py-1 font-medium">Min %</th>
@@ -527,7 +527,7 @@ export function OptimizeTab() {
                     <td className="py-1 pr-2">
                       {name}
                       {extra && (
-                        <span className="ml-1 text-xs text-muted-foreground">
+                        <span className="ml-1 text-caption text-muted-foreground">
                           (added)
                         </span>
                       )}
@@ -544,7 +544,7 @@ export function OptimizeTab() {
                         onChange={(e) =>
                           patchBound(ingredientId, { min: e.target.value })
                         }
-                        className="h-7 tabular-nums"
+                        className="h-7 font-numeric"
                       />
                     </td>
                     <td className="py-1 pr-1">
@@ -559,7 +559,7 @@ export function OptimizeTab() {
                         onChange={(e) =>
                           patchBound(ingredientId, { max: e.target.value })
                         }
-                        className="h-7 tabular-nums"
+                        className="h-7 font-numeric"
                       />
                     </td>
                     <td className="py-1">
@@ -596,7 +596,7 @@ export function OptimizeTab() {
               })}
             </tbody>
           </table>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             Add ingredients from the catalogue to let the search use them too.
           </p>
           <CatalogueSearch
@@ -710,7 +710,7 @@ export function OptimizeTab() {
             );
           })}
           {nutrients.error && (
-            <p role="alert" className="text-xs text-destructive">
+            <p role="alert" className="text-small text-destructive">
               Could not load the nutrient list.
             </p>
           )}
@@ -821,7 +821,7 @@ export function OptimizeTab() {
       </fieldset>
 
       {formError && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {formError}
         </p>
       )}
@@ -835,7 +835,7 @@ export function OptimizeTab() {
       {startError && <ErrorBlock error={startError} />}
       {failedJobId && failure.data && <ErrorBlock error={failure.data} />}
       {finished && status === "completed" && (
-        <p className="rounded-lg border border-success/60 bg-success/5 p-3 text-sm">
+        <p className="rounded-lg border border-success/60 bg-success/5 p-3 text-small">
           Optimization finished with {candidateIds.length} candidate
           {candidateIds.length === 1 ? "" : "s"}.{" "}
           <Link
@@ -847,7 +847,7 @@ export function OptimizeTab() {
         </p>
       )}
       {finished && status === "cancelled" && (
-        <p className="rounded-lg border p-3 text-sm">
+        <p className="rounded-lg border p-3 text-small">
           Optimization cancelled. Candidates stored before cancelling stay
           readable.{" "}
           <Link
@@ -875,7 +875,7 @@ function Section({
 }) {
   return (
     <section className="flex flex-col gap-2 rounded-lg border p-3">
-      <h2 className="text-sm font-medium">{title}</h2>
+      <h2 className="text-h4">{title}</h2>
       {children}
     </section>
   );

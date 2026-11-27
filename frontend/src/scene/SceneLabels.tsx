@@ -18,7 +18,7 @@ import {
 } from "./stations";
 
 const pill =
-  "rounded-lg border bg-popover/85 px-2 py-1 text-center text-[11px] leading-tight whitespace-nowrap text-popover-foreground shadow-md shadow-black/10 backdrop-blur transition-colors";
+  "rounded-lg border bg-popover/85 px-2 py-1 text-center text-caption leading-tight whitespace-nowrap text-popover-foreground shadow-md shadow-black/10 backdrop-blur transition-colors";
 
 /** DOM labels for the 3D scene, positioned by <LabelProjector/>. Same stores as the scene. */
 export function SceneLabels() {
@@ -81,7 +81,7 @@ export function SceneLabels() {
                 style={{ background: `var(--scene-crop-${(i % 6) + 1})` }}
               />
               <span className="font-medium">{name}</span>{" "}
-              <span className="text-muted-foreground tabular-nums">
+              <span className="text-muted-foreground font-numeric">
                 {line.percent}%
               </span>
             </div>

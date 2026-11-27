@@ -157,4 +157,84 @@ describe("dragStore", () => {
     expect(state.pointerId).toBeNull();
     expect(state.announcement).toBe("");
   });
+
+  it("records where a drag started, so a cancel can return there", () => {
+    useDragStore.getState().begin({
+      kind: "ingredient",
+      id: "ing_a",
+      source: "pantry",
+      origin: { x: 10, y: 10 },
+      pointerId: 1,
+      label: "Cowpea flour",
+      originWorld: { x: -5.8, y: 1, z: 0.72 },
+    });
+    expect(useDragStore.getState().originWorld).toEqual({
+      x: -5.8,
+      y: 1,
+      z: 0.72,
+    });
+  });
+});
+
+/**
+ * The release animation outlives the drag that produced it (guide §12.5), so
+ * the clean-up is guarded by a sequence number. Without the guard a drop's
+ * timer would wipe a drag the user had already started in the meantime.
+ */
+describe("dragStore release", () => {
+  const release = {
+    outcome: "drop" as const,
+    from: { x: 0, y: 2.4, z: 0 },
+    to: { x: 0, y: 1.35, z: 0 },
+    kind: "ingredient" as const,
+    id: "ing_a",
+    startedAt: 0,
+  };
+
+  it("counts up on every drag so each release has its own sequence", () => {
+    const first = useDragStore.getState().seq;
+    begin();
+    const second = useDragStore.getState().seq;
+    begin();
+    expect(second).toBe(first + 1);
+    expect(useDragStore.getState().seq).toBe(first + 2);
+  });
+
+  it("holds the release for the scene to animate", () => {
+    begin();
+    useDragStore.getState().setRelease(release);
+    expect(useDragStore.getState().release).toEqual(release);
+  });
+
+  it("clears when the sequence still matches", () => {
+    begin();
+    const seq = useDragStore.getState().seq;
+    useDragStore.getState().setRelease(release);
+    useDragStore.getState().resetIfSeq(seq);
+    expect(useDragStore.getState().release).toBeNull();
+    expect(useDragStore.getState().id).toBe("");
+  });
+
+  it("leaves a newer drag alone when a stale clean-up arrives", () => {
+    begin("ing_a");
+    const staleSeq = useDragStore.getState().seq;
+    useDragStore.getState().setRelease(release);
+
+    // The user starts a second drag before the first one's timer fires.
+    begin("ing_b");
+    useDragStore.getState().grab("Sorghum");
+    useDragStore.getState().resetIfSeq(staleSeq);
+
+    const state = useDragStore.getState();
+    expect(state.id).toBe("ing_b");
+    expect(state.phase).toBe("carry");
+    expect(state.active).toBe(true);
+  });
+
+  it("a new drag clears the previous release, so nothing animates twice", () => {
+    begin();
+    useDragStore.getState().setRelease(release);
+    begin("ing_b");
+    expect(useDragStore.getState().release).toBeNull();
+  });
 });

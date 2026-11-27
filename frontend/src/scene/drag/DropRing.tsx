@@ -1,77 +1,113 @@
 "use client";
 
-import { Line } from "@react-three/drei";
-import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { MathUtils, type MeshBasicMaterial } from "three";
+import { useMemo, useRef } from "react";
+import { MathUtils, type Mesh, type MeshBasicMaterial } from "three";
 import { useDragStore } from "@/stores/dragStore";
+import { useInvalidateWhile } from "../hooks/useInvalidateWhile";
 import type { SceneTheme } from "../theme/sceneTheme";
-import { hitVolume } from "./dragMath";
-
-/** Visible vessel radius; the hit volume is 30 percent larger. */
-export const VESSEL_RADIUS = 0.62;
+import { sceneDropTargets, type SceneDropTarget } from "./dropTargets";
 
 /**
- * The vessel as a drop target: a soft ring that appears while something is
- * carried, brightens when the carried object is over it, and an invisible hit
- * volume 30 percent larger than the visible model.
+ * Every drop target as a soft ring on the bench (guide §12.3, §12.6): the
+ * rings fade in while something is carried, and the one under the carried
+ * object brightens and lifts so the drop point is never in doubt.
+ *
+ * The rings are drawn from the same target table the drag layer resolves
+ * against, so what the user sees and what accepts the drop cannot disagree.
  */
-export function DropRing({ theme }: { theme: SceneTheme }) {
-  const material = useRef<MeshBasicMaterial>(null);
+export function DropTargetRings({ theme }: { theme: SceneTheme }) {
+  const kind = useDragStore((s) => s.kind);
   const dragging = useDragStore(
     (s) => s.phase === "carry" || s.phase === "over-target",
   );
-  const over = useDragStore((s) => s.target === "vessel");
+  const target = useDragStore((s) => s.target);
+  const world = useDragStore((s) => s.world);
 
-  const points = useMemo(() => {
-    const segments = 64;
-    const radius = hitVolume(VESSEL_RADIUS);
-    return Array.from({ length: segments + 1 }, (_, i) => {
-      const a = (i / segments) * Math.PI * 2;
-      return [Math.cos(a) * radius, 0.06, Math.sin(a) * radius] as [
-        number,
-        number,
-        number,
-      ];
-    });
-  }, []);
-
-  useFrame((_, delta) => {
-    const m = material.current;
-    if (!m) return;
-    const k = 1 - Math.exp(-delta * 10);
-    m.opacity = MathUtils.lerp(
-      m.opacity,
-      dragging ? (over ? 0.85 : 0.35) : 0,
-      k,
-    );
-  });
+  // The target list depends on what is being carried: a candidate may only go
+  // on a compare plinth, an ingredient on the vessel, tray or pantry.
+  const targets = useMemo(() => sceneDropTargets({ kind }), [kind]);
+  useInvalidateWhile(dragging);
 
   return (
     <group>
-      {/* Enlarged invisible hit volume; small targets are why DnD feels fiddly. */}
-      <mesh visible={false} position={[0, 1, 0]}>
-        <cylinderGeometry
-          args={[hitVolume(VESSEL_RADIUS), hitVolume(VESSEL_RADIUS), 2.4, 24]}
+      {targets.map((t, index) => (
+        <TargetRing
+          key={`${t.id}-${index}`}
+          target={t}
+          theme={theme}
+          dragging={dragging}
+          over={
+            target === t.id &&
+            (targets.filter((o) => o.id === t.id).length === 1 ||
+              isNearest(t, targets, world))
+          }
         />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
-      <Line
-        points={points}
-        color={over ? theme.accent : theme.line}
-        lineWidth={over ? 3 : 1.5}
-        transparent
-        opacity={dragging ? 1 : 0}
-      >
+      ))}
+    </group>
+  );
+}
+
+/** Which of several same-id targets (the compare plinths) the pointer is on. */
+function isNearest(
+  target: SceneDropTarget,
+  targets: SceneDropTarget[],
+  world: { x: number; z: number } | null,
+): boolean {
+  if (!world) return false;
+  const same = targets.filter((t) => t.id === target.id);
+  let best = same[0];
+  let bestDistance = Infinity;
+  for (const candidate of same) {
+    const d = Math.hypot(world.x - candidate.x, world.z - candidate.z);
+    if (d < bestDistance) {
+      best = candidate;
+      bestDistance = d;
+    }
+  }
+  return best === target;
+}
+
+function TargetRing({
+  target,
+  theme,
+  dragging,
+  over,
+}: {
+  target: SceneDropTarget;
+  theme: SceneTheme;
+  dragging: boolean;
+  over: boolean;
+}) {
+  const ring = useRef<Mesh>(null);
+  const material = useRef<MeshBasicMaterial>(null);
+  const radius = target.radius ?? 0.9;
+
+  useFrame((state, delta) => {
+    const m = material.current;
+    const r = ring.current;
+    if (!m || !r) return;
+    const k = 1 - Math.exp(-delta * 10);
+    m.opacity = MathUtils.lerp(m.opacity, dragging ? (over ? 0.9 : 0.3) : 0, k);
+    m.color.set(over ? theme.accent : theme.line);
+    // A slow pulse on the active target, so it reads as live rather than lit.
+    const pulse = over ? 1 + Math.sin(state.clock.elapsedTime * 5) * 0.03 : 1;
+    r.scale.setScalar(MathUtils.lerp(r.scale.x, pulse, k));
+  });
+
+  return (
+    <group position={[target.x, 0, target.z]}>
+      <mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]}>
+        <ringGeometry args={[radius * 0.82, radius, 56]} />
         <meshBasicMaterial
           ref={material}
-          color={over ? theme.accent : theme.line}
+          color={theme.line}
           transparent
           opacity={0}
           toneMapped={false}
           depthWrite={false}
         />
-      </Line>
+      </mesh>
     </group>
   );
 }

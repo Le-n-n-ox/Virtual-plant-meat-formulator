@@ -61,7 +61,10 @@ export function plotlyLayout(colors: {
   font: string;
   grid: string;
   bg: string;
+  /** Mono stack for axis ticks; defaults to the app's mono token. */
+  mono?: string;
 }): Record<string, unknown> {
+  const tickfont = { family: colors.mono ?? monoFontStack(), size: 12 };
   return {
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor: "rgba(0,0,0,0)",
@@ -69,9 +72,27 @@ export function plotlyLayout(colors: {
     margin: { t: 16, r: 16, b: 40, l: 56 },
     xaxis: { gridcolor: colors.grid, zerolinecolor: colors.grid },
     yaxis: { gridcolor: colors.grid, zerolinecolor: colors.grid },
+    /*
+     * Axis ticks are a column of figures like any other, so they get the mono
+     * face through the template rather than through `xaxis`/`yaxis`: callers
+     * replace those two keys wholesale to add their own titles, and a Plotly
+     * template survives that because it only supplies defaults.
+     */
+    template: { layout: { xaxis: { tickfont }, yaxis: { tickfont } } },
     showlegend: true,
     legend: { orientation: "h", y: -0.2 },
   };
+}
+
+const MONO_FALLBACK = 'ui-monospace, "Geist Mono", monospace';
+
+/** The --font-mono stack, so chart figures match the ones in the tables. */
+function monoFontStack(): string {
+  if (typeof window === "undefined") return MONO_FALLBACK;
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue("--font-geist-mono")
+    .trim();
+  return value ? `${value}, ${MONO_FALLBACK}` : MONO_FALLBACK;
 }
 
 const FALLBACK = {

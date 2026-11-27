@@ -110,7 +110,7 @@ export function ExplainPanel({
   if (status === undefined) return null;
   if (!status?.configured) {
     return (
-      <p className="text-xs text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         AI explanations are off: no language model is configured on the server.
       </p>
     );
@@ -159,12 +159,12 @@ export function ExplainPanel({
         </Button>
       </form>
       {loading && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           The reasoning model can take up to a minute.
         </p>
       )}
       {error && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {error}
         </p>
       )}
@@ -187,16 +187,16 @@ export function ExplainPanel({
               </Badge>
             )}
           </div>
-          <div className="text-sm leading-relaxed">
+          <div className="text-small leading-relaxed">
             {renderText(result.text)}
           </div>
           {!result.numbers_check.passed && (
-            <p className="text-xs text-destructive">
+            <p className="text-small text-destructive">
               Some numbers in this explanation do not appear in the stored
               result. Trust the result tables, not these figures.
             </p>
           )}
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             {result.disclaimer} · {result.model}
           </p>
         </div>

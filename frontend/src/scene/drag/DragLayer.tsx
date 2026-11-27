@@ -4,17 +4,14 @@ import { useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
 import { useDragStore } from "@/stores/dragStore";
-import { VESSEL_POSITION } from "../stations";
 import {
   cancelDrag,
   handleDragPointerMove,
   resolveDomTarget,
   settleDragDrop,
 } from "./dragRuntime";
-import { CARRY_HEIGHT, hitVolume, nearestWorldTarget } from "./dragMath";
-
-/** Radius of the visible vessel, before the 30 percent hit-volume enlargement. */
-const VESSEL_RADIUS = 0.62;
+import { BENCH_LEVEL, nearestWorldTarget } from "./dragMath";
+import { sceneDropTargets } from "./dropTargets";
 
 /**
  * The pointer drag layer for the 3D canvas (guide §12.3). Pointer Events, the
@@ -33,7 +30,8 @@ export function DragLayer() {
     }
     const element = gl.domElement;
     const raycaster = new Raycaster();
-    const plane = new Plane(new Vector3(0, 1, 0), -CARRY_HEIGHT);
+    // The bench surface, not the carry height: see BENCH_LEVEL in dragMath.
+    const plane = new Plane(new Vector3(0, 1, 0), -BENCH_LEVEL);
     const ndc = new Vector2();
     const hit = new Vector3();
     let capturedPointerId: number | null = null;
@@ -83,18 +81,21 @@ export function DragLayer() {
         state.setWorld(null);
       }
 
+      // Every drop target that exists in the scene for what is being carried:
+      // the vessel, the return tray and the pantry shelf, or the two compare
+      // plinths for a candidate (guide §12.2).
       const worldTarget = state.world
-        ? nearestWorldTarget(state.world, [
-            {
-              id: "vessel",
-              x: VESSEL_POSITION[0],
-              z: VESSEL_POSITION[2],
-              radius: hitVolume(VESSEL_RADIUS),
-            },
-          ])
+        ? nearestWorldTarget(
+            state.world,
+            sceneDropTargets({ kind: state.kind }),
+            // The target already held keeps a larger radius, so the drop point
+            // survives a pixel of jitter or a frame of camera settling.
+            state.target,
+          )
         : null;
+      const dom = resolveDomTarget(pointer);
       // An explicit DOM target wins; otherwise 3D vessel proximity applies.
-      state.setTarget(resolveDomTarget(pointer) ?? worldTarget, state.label);
+      state.setTarget(dom ?? worldTarget, state.label);
     };
 
     const onMove = (event: PointerEvent) => {

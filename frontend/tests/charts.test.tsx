@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { stubMatchMedia } from "./_matchMedia";
 import { AminoAcidChart } from "@/components/ingredients/amino-acid-chart";
 import { AminoAcidScoreChart } from "@/components/results/amino-acid-score-chart";
 import { MacroChart } from "@/components/results/macro-chart";
@@ -94,6 +95,10 @@ async function showTable() {
     screen.getByRole("button", { name: /show data table/i }),
   );
 }
+
+// The chart frame times its mount animation from the shared motion tokens,
+// which read the reduced-motion media query.
+beforeEach(() => stubMatchMedia());
 
 // The vitest config does not set `globals: true`, so testing-library's
 // automatic cleanup is not registered and the DOM would leak between tests.

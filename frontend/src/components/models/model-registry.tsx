@@ -81,10 +81,8 @@ export function ModelRegistry() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 p-4 sm:p-6 lg:p-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Model registry
-        </h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-h1">Model registry</h1>
+        <p className="text-small text-muted-foreground">
           Texture models trained on literature data. Only an approved model can
           be used for predictions, and every prediction is a literature-derived
           estimate.
@@ -92,13 +90,13 @@ export function ModelRegistry() {
       </header>
 
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {errorMessage(error)}
         </p>
       ) : loading ? (
         <Skeleton className="h-48 w-full" />
       ) : data && data.items.length === 0 ? (
-        <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-lg border border-dashed p-8 text-center text-small text-muted-foreground">
           No models have been trained yet.
         </p>
       ) : (
@@ -140,13 +138,13 @@ export function ModelRegistry() {
             </DialogDescription>
           </DialogHeader>
           {action && (
-            <p className="text-sm">
+            <p className="text-small">
               {humanizeKey(action.model.target)} · {action.model.algorithm} v
               {action.model.version}
             </p>
           )}
           {actionError && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-small text-destructive">
               {actionError}
             </p>
           )}
@@ -202,18 +200,18 @@ function ModelCard({
               : ""}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm">
+        <CardContent className="flex flex-col gap-3 text-small">
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1">
             <dt className="text-muted-foreground">
               Holdout {rmse ? rmse.name.toUpperCase() : "error"}
             </dt>
-            <dd className="tabular-nums">
+            <dd className="font-numeric">
               {rmse
                 ? `${formatNumber(rmse.value)}${model.unit ? ` ${model.unit}` : ""}`
                 : "not reported"}
             </dd>
             <dt className="text-muted-foreground">Training set size</dt>
-            <dd className="tabular-nums">{model.training_set_size} samples</dd>
+            <dd className="font-numeric">{model.training_set_size} samples</dd>
             <dt className="text-muted-foreground">Dataset</dt>
             <dd>{model.dataset_version}</dd>
           </dl>
@@ -293,40 +291,40 @@ function ModelDetailSheet({
         {detail.loading ? (
           <Skeleton className="h-40 w-full" />
         ) : detail.error ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-small text-destructive">
             {errorMessage(detail.error)}
           </p>
         ) : (
-          <div className="flex flex-col gap-4 text-sm">
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+          <div className="flex flex-col gap-4 text-small">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-caption">
               <dt className="text-muted-foreground">Dataset version</dt>
               <dd>{record?.dataset_version ?? model.dataset_version}</dd>
               <dt className="text-muted-foreground">Unit</dt>
               <dd>{record?.unit ?? "not reported"}</dd>
               <dt className="text-muted-foreground">Interval level</dt>
-              <dd>
+              <dd className="font-numeric">
                 {record?.interval_level === undefined
                   ? "not reported"
                   : `${Math.round(record.interval_level * 100)}%`}
               </dd>
               <dt className="text-muted-foreground">Training set size</dt>
-              <dd className="tabular-nums">
+              <dd className="font-numeric">
                 {model.training_set_size} samples
               </dd>
             </dl>
 
             {Object.keys(domain).length > 0 && (
               <section>
-                <h3 className="text-xs font-medium text-muted-foreground">
+                <h3 className="text-caption font-medium text-muted-foreground">
                   Applicability domain
                 </h3>
-                <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
+                <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-caption">
                   {Object.entries(domain).map(([key, value]) => (
                     <div key={key} className="contents">
                       <dt className="text-muted-foreground">
                         {humanizeKey(key)}
                       </dt>
-                      <dd className="tabular-nums">
+                      <dd className="font-numeric">
                         {typeof value === "number"
                           ? formatNumber(value)
                           : JSON.stringify(value)}
@@ -338,13 +336,13 @@ function ModelDetailSheet({
             )}
 
             <section>
-              <h3 className="text-xs font-medium text-muted-foreground">
+              <h3 className="text-caption font-medium text-muted-foreground">
                 Limitations
               </h3>
               {limitations.length === 0 ? (
-                <p className="mt-1 text-xs">none recorded</p>
+                <p className="mt-1 text-caption">none recorded</p>
               ) : (
-                <ul className="mt-1 list-disc pl-4 text-xs">
+                <ul className="mt-1 list-disc pl-4 text-caption">
                   {limitations.map((item) => (
                     <li key={item}>{item}</li>
                   ))}

@@ -82,12 +82,12 @@ function ChangeRow({
         styles[change.kind],
       )}
     >
-      <span className="flex items-center gap-1 text-xs font-medium">
+      <span className="flex items-center gap-1 text-caption font-medium">
         {icon}
         {labels[change.kind]}
       </span>
       <span className="font-medium">{name}</span>
-      <span className="ml-auto tabular-nums">
+      <span className="ml-auto font-numeric">
         {change.kind === "changed" && (
           <>
             {pct(change.fromPercent)}%{" "}
@@ -100,7 +100,7 @@ function ChangeRow({
           <>
             {pct(change.toPercent)}%
             {change.kind === "added" && (
-              <span className="ml-1 text-xs font-normal">of mass</span>
+              <span className="ml-1 text-caption font-normal">of mass</span>
             )}
           </>
         )}
@@ -126,7 +126,7 @@ function DiffView({
 
   if (isEmptyDiff(diff)) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-small text-muted-foreground">
         No ingredient changes between v{fromVersion} and v{toVersion}.
       </p>
     );
@@ -144,7 +144,7 @@ function DiffView({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-muted-foreground" aria-live="polite">
+      <p className="text-caption text-muted-foreground" aria-live="polite">
         {total} change{total === 1 ? "" : "s"} from v{fromVersion} to v
         {toVersion}: {diff.added.length} added, {diff.removed.length} removed,{" "}
         {diff.changed.length} changed.
@@ -153,7 +153,7 @@ function DiffView({
         (group) =>
           group.changes.length > 0 && (
             <div key={group.title} className="flex flex-col gap-1">
-              <h3 className={cn("text-xs font-medium", group.tone)}>
+              <h3 className={cn("text-caption font-medium", group.tone)}>
                 {group.title}
               </h3>
               <ul className="flex flex-col gap-1">
@@ -259,7 +259,7 @@ export function VersionsTab() {
     return <Skeleton className="h-48 w-full" />;
   if (!ready) {
     return (
-      <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+      <p className="rounded-lg border border-dashed p-4 text-small text-muted-foreground">
         This formulation has no saved versions yet.
       </p>
     );
@@ -267,26 +267,26 @@ export function VersionsTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">Version history</h1>
-      <p className="text-xs text-muted-foreground">
+      <h1 className="text-h3">Version history</h1>
+      <p className="text-caption text-muted-foreground">
         Restoring creates a new version with the old lines; history is never
         changed.
       </p>
       {notice && (
-        <p role="status" className="text-sm text-success">
+        <p role="status" className="text-small text-success">
           {notice}
         </p>
       )}
       {versions.loading && <Skeleton className="h-32 w-full" />}
       {versions.error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {errorMessage(versions.error)}
         </p>
       )}
       {versions.data && (
         <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full min-w-[480px] text-sm">
-            <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+          <table className="w-full min-w-[480px] text-small">
+            <thead className="bg-muted/40 text-left text-caption text-muted-foreground">
               <tr>
                 <th className="p-2 font-medium">Version</th>
                 <th className="p-2 font-medium">Created</th>
@@ -331,7 +331,7 @@ export function VersionsTab() {
                   <td className="p-2 text-muted-foreground">
                     {v.note ?? "none"}
                   </td>
-                  <td className="p-2 font-mono text-xs">
+                  <td className="p-2 font-mono text-caption">
                     {v.content_hash.slice(0, 8)}
                   </td>
                   <td className="p-2 text-right">
@@ -362,17 +362,17 @@ export function VersionsTab() {
         className="flex flex-col gap-3 rounded-lg border p-3"
       >
         <div>
-          <h2 className="text-sm font-medium">Compare two versions</h2>
-          <p className="text-xs text-muted-foreground">
+          <h2 className="text-h4">Compare two versions</h2>
+          <p className="text-caption text-muted-foreground">
             Shows what was added, removed and changed between the two saved
             versions.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-1.5 text-xs">
+          <label className="flex items-center gap-1.5 text-caption">
             From
             <select
-              className="h-8 rounded-lg border px-2 text-sm"
+              className="h-8 rounded-lg border px-2 text-small"
               value={diffFrom ?? ""}
               onChange={(e) =>
                 setDiffFrom(
@@ -391,10 +391,10 @@ export function VersionsTab() {
             className="size-4 text-muted-foreground"
             aria-hidden
           />
-          <label className="flex items-center gap-1.5 text-xs">
+          <label className="flex items-center gap-1.5 text-caption">
             To
             <select
-              className="h-8 rounded-lg border px-2 text-sm"
+              className="h-8 rounded-lg border px-2 text-small"
               value={diffTo ?? ""}
               onChange={(e) =>
                 setDiffTo(e.target.value === "" ? null : Number(e.target.value))
@@ -414,7 +414,7 @@ export function VersionsTab() {
         (diffFromDetail.loading && diffToDetail.loading) ? (
           <Skeleton className="h-16 w-full" />
         ) : diffFromDetail.error || diffToDetail.error ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-small text-destructive">
             {errorMessage(diffFromDetail.error ?? diffToDetail.error)}
           </p>
         ) : diffFromDetail.data && diffToDetail.data ? (
@@ -436,22 +436,22 @@ export function VersionsTab() {
           aria-label={`Version ${viewing} ingredients`}
           className="rounded-lg border p-3"
         >
-          <h2 className="mb-2 text-sm font-medium">Version {viewing}</h2>
+          <h2 className="mb-2 text-h4">Version {viewing}</h2>
           {detail.loading ? (
             <Skeleton className="h-16 w-full" />
           ) : detail.error ? (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-small text-destructive">
               {errorMessage(detail.error)}
             </p>
           ) : (
-            <ul className="text-sm">
+            <ul className="text-small">
               {detail.data?.lines.map((l) => (
                 <li
                   key={l.ingredient_id}
                   className="flex justify-between gap-2 border-t py-1 first:border-t-0"
                 >
                   <span>{nameOf(l.ingredient_id)}</span>
-                  <span className="tabular-nums">
+                  <span className="font-numeric">
                     {formatNumber(l.percent)}%
                   </span>
                 </li>
@@ -476,7 +476,7 @@ export function VersionsTab() {
             </DialogDescription>
           </DialogHeader>
           {conflict && (
-            <div role="alert" className="text-sm">
+            <div role="alert" className="text-small">
               <p className="text-destructive">
                 This formulation was changed elsewhere since you opened it.
                 Reload the latest version, then try again.
@@ -496,7 +496,7 @@ export function VersionsTab() {
             </div>
           )}
           {error && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-small text-destructive">
               {error}
             </p>
           )}

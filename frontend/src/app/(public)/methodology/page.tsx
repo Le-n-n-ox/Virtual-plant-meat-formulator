@@ -7,8 +7,8 @@ export const metadata: Metadata = { title: "Methodology" };
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-lg font-semibold">{title}</h2>
-      <div className="flex flex-col gap-2 text-sm leading-relaxed text-muted-foreground [&_strong]:text-foreground">
+      <h2 className="text-h3">{title}</h2>
+      <div className="flex flex-col gap-2 text-body text-muted-foreground [&_strong]:text-foreground">
         {children}
       </div>
     </section>
@@ -20,8 +20,8 @@ export default function MethodologyPage() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 p-4 sm:p-6 lg:p-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Methodology</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-h1">Methodology</h1>
+        <p className="text-body text-muted-foreground">
           How the numbers in this application are produced, and what they do and
           do not mean.
         </p>
@@ -108,9 +108,7 @@ export default function MethodologyPage() {
             after an administrator approves it. Retired models are never used.
           </li>
         </ul>
-        <h3 className="mt-2 text-sm font-medium text-foreground">
-          Approved models (live)
-        </h3>
+        <h3 className="mt-2 text-h4 text-foreground">Approved models (live)</h3>
         <ApprovedModels />
       </Section>
 

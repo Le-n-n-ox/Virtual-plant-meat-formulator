@@ -24,14 +24,14 @@ export function RecentJobs() {
 
   if (error)
     return (
-      <p role="alert" className="text-sm text-destructive">
+      <p role="alert" className="text-small text-destructive">
         {errorMessage(error)}
       </p>
     );
   if (loading) return <Skeleton className="h-40 w-full" />;
   if (!data || data.items.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-small text-muted-foreground">
         No jobs have run yet. Start one from a formulation.
       </p>
     );
@@ -43,13 +43,13 @@ export function RecentJobs() {
         <li key={job.id}>
           <Link
             href={`/jobs/${job.id}`}
-            className="flex items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-muted/50"
+            className="flex items-center justify-between gap-3 px-3 py-2 text-small hover:bg-muted/50"
           >
             <span className="min-w-0">
               <span className="block truncate font-medium">
                 {job.formulation.name}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-caption text-muted-foreground">
                 {job.type} · v{job.formulation.version}
                 {job.stage_label ? ` · ${job.stage_label}` : ""}
               </span>

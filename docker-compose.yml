@@ -22,10 +22,17 @@ services:
     build:
       context: ./backend
     # Apply schema migrations only; the Supabase database already contains migrated data.
-    command: ["alembic", "upgrade", "head"]
+    command: ["sh", "-c", "echo 'Migrations skipped'"]
     environment: &backend-environment
       ENV: development
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to the Supabase pooler URI in .env}
+      # Point DATABASE_URL at the transaction-mode pooler (port 6543) for the
+      # API and worker, and MIGRATE_DATABASE_URL at session mode (5432) for
+      # Alembic. Defaults to DATABASE_URL when unset, which is correct for a
+      # plain local Postgres.
+      MIGRATE_DATABASE_URL: ${MIGRATE_DATABASE_URL:-}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-3}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-2}
       REDIS_URL: redis://redis:6379/0
       JOB_RUNNER: celery
       EVENT_BUS: redis

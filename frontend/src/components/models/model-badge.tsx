@@ -12,12 +12,12 @@ import type { ModelMeta } from "@/types";
  */
 export function ModelBadge({ model }: { model: ModelMeta }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption">
       <Badge variant="outline">
         {humanizeKey(model.target)} · {humanizeKey(model.algorithm)} v
         {model.version}
       </Badge>
-      <span className="text-muted-foreground tabular-nums">
+      <span className="text-muted-foreground font-numeric">
         trained on {model.training_set_size} literature samples
         {model.holdout_metric
           ? ` · holdout ${model.holdout_metric.name.toUpperCase()} ${model.holdout_metric.value}`

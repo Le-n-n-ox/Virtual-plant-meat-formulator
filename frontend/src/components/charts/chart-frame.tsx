@@ -1,6 +1,8 @@
 "use client";
 
+import { AnimatePresence, motion } from "motion/react";
 import { useState, type ReactNode } from "react";
+import { useMotion } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 export interface ChartTableColumn {
@@ -20,7 +22,7 @@ export function ChartTable({
   rows: (string | number | null)[][];
 }) {
   return (
-    <table className="w-full min-w-[320px] text-xs">
+    <table className="w-full min-w-[320px] text-caption">
       <caption className="sr-only">
         Data table alternative for the accompanying chart
       </caption>
@@ -37,7 +39,7 @@ export function ChartTable({
         {rows.map((row, i) => (
           <tr key={i} className="border-t">
             {row.map((cell, j) => (
-              <td key={j} className="px-2 py-1 tabular-nums">
+              <td key={j} className="px-2 py-1 font-numeric">
                 {cell === null || cell === undefined || cell === ""
                   ? "not reported"
                   : cell}
@@ -72,30 +74,61 @@ export function ChartFrame({
   className,
 }: ChartFrameProps) {
   const [showTable, setShowTable] = useState(false);
+  const motionTokens = useMotion();
   return (
     <figure
-      className={cn("flex flex-col gap-2 rounded-lg border p-3", className)}
+      className={cn(
+        // The edge matches the Card primitive's `outline` variant — a ring
+        // rather than a border — so a chart frame and a card sitting on the
+        // same page do not draw visibly different edges.
+        "flex flex-col gap-2 rounded-lg p-3 ring-1 ring-foreground/10",
+        className,
+      )}
     >
       <figcaption className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-medium">{title}</h3>
+        <h3 className="text-h4">{title}</h3>
         <button
           type="button"
           aria-expanded={showTable}
           onClick={() => setShowTable((v) => !v)}
-          className="text-xs text-primary underline underline-offset-4"
+          className="text-caption text-primary underline underline-offset-4"
         >
           {showTable ? "Hide data table" : "Show data table"}
         </button>
       </figcaption>
       {description && (
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <p className="text-caption text-muted-foreground">{description}</p>
       )}
-      <div className="h-72">{chart}</div>
-      {showTable && (
-        <div className="max-h-72 overflow-auto rounded-lg border bg-background p-2">
-          {table}
-        </div>
-      )}
+      {/*
+       * Plotly arrives late, so the chart fades and rises into its slot once
+       * instead of replacing the skeleton in a jump. It plays a single time:
+       * nothing here repeats and nothing about the movement says a figure is
+       * still being computed. With reduced motion the chart is simply drawn
+       * where it belongs.
+       */}
+      <motion.div
+        className="h-72"
+        initial={motionTokens.reduced ? false : { opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={motionTokens.enter}
+      >
+        {chart}
+      </motion.div>
+      <AnimatePresence initial={false}>
+        {showTable && (
+          <motion.div
+            className="overflow-hidden"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={motionTokens.enter}
+          >
+            <div className="max-h-72 overflow-auto rounded-lg border bg-background p-2">
+              {table}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </figure>
   );
 }

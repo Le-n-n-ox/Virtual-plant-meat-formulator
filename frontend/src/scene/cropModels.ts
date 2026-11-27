@@ -23,11 +23,16 @@ export const CONTAINER_KINDS: ContainerKind[] = [
   "bottle",
 ];
 
+/**
+ * Node names as they are exported by `scripts/blender/build_assets.py`, which
+ * names each container `Container_<kind>` in lower case. The code finds parts
+ * by name, so these must match `crops.glb` exactly.
+ */
 export const CONTAINER_NODE: Record<ContainerKind, string> = {
-  crate: "Container_Crate",
-  sack: "Container_Sack",
-  jar: "Container_Jar",
-  bottle: "Container_Bottle",
+  crate: "Container_crate",
+  sack: "Container_sack",
+  jar: "Container_jar",
+  bottle: "Container_bottle",
 };
 
 export const GENERIC_TOPPER = "Crop_Generic";
@@ -54,6 +59,38 @@ export const TOPPER_NAMES: string[] = [
   ...new Set(Object.values(TOPPERS)),
   GENERIC_TOPPER,
 ];
+
+/**
+ * Natural colour of each topper (guide §12.4: "Crops keep their natural
+ * colours … because that is how a food scientist recognises them").
+ *
+ * `crops.glb` gives every topper the one shared `MAT_Natural` material, so the
+ * colour is applied per instance in the scene rather than baked per crop. These
+ * values mirror the `CROPS` table in `scripts/blender/build_assets.py`; change
+ * both together. They are not tinted by the theme — they are the only
+ * untinted colours in the scene, which is what makes the crops the thing the
+ * eye goes to.
+ */
+export const TOPPER_COLOR: Record<string, string> = {
+  Crop_Sorghum: "#6b3320",
+  Crop_Millet: "#c7ae57",
+  Crop_Maize: "#ebbd3d",
+  Crop_Cowpea: "#dbcc9e",
+  Crop_PigeonPea: "#b88542",
+  Crop_GreenGram: "#5c943d",
+  Crop_Beans: "#8c3833",
+  Crop_MungBean: "#669e47",
+  Crop_Sesame: "#e0d1a8",
+  Crop_Sunflower: "#7a7a80",
+  Crop_Groundnut: "#ccae7a",
+  Crop_Cassava: "#d6c7ad",
+  [GENERIC_TOPPER]: "#b8a98f",
+};
+
+/** The natural colour for a topper node, falling back to the generic heap. */
+export function topperColor(topper: string): string {
+  return TOPPER_COLOR[topper] ?? TOPPER_COLOR[GENERIC_TOPPER];
+}
 
 /** Lower-cases and strips everything that is not a letter or a digit. */
 function normalise(name: string): string {

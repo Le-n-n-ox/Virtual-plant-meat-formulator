@@ -1,7 +1,8 @@
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "./_render";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { stubMatchMedia } from "./_matchMedia";
 
 /**
  * Ingredient detail (guide §5 page 4): the nutrient and amino-acid tables carry
@@ -33,6 +34,10 @@ vi.mock("@/components/ui/skeleton", () => ({
 }));
 
 import { IngredientDetailView } from "@/components/ingredients/ingredient-detail";
+
+// "Add to formulation" opens a dialog, whose open/close timing comes from the
+// shared motion tokens; those read the reduced-motion media query.
+beforeEach(() => stubMatchMedia());
 
 afterEach(() => {
   cleanup();

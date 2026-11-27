@@ -17,7 +17,7 @@ export function RecentFormulations() {
 
   if (error)
     return (
-      <p role="alert" className="text-sm text-destructive">
+      <p role="alert" className="text-small text-destructive">
         {errorMessage(error)}
       </p>
     );
@@ -29,7 +29,7 @@ export function RecentFormulations() {
           className="size-8 text-muted-foreground"
           aria-hidden
         />
-        <p className="text-sm text-muted-foreground">
+        <p className="text-small text-muted-foreground">
           You have no formulations yet.
         </p>
         <Link href="/formulations" className={buttonVariants({ size: "sm" })}>
@@ -45,11 +45,11 @@ export function RecentFormulations() {
           <li key={f.id}>
             <Link
               href={`/formulations/${f.id}`}
-              className="flex items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-muted/50"
+              className="flex items-center justify-between gap-3 px-3 py-2 text-small hover:bg-muted/50"
             >
               <span className="min-w-0">
                 <span className="block truncate font-medium">{f.name}</span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-caption text-muted-foreground">
                   {f.current_version === 0
                     ? "unsaved"
                     : `v${f.current_version}`}{" "}

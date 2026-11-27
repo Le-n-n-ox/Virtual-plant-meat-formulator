@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "./_render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { stubMatchMedia } from "./_matchMedia";
 
 /**
  * Component tests for the pieces that carry the app's truthfulness rules: the
@@ -112,6 +113,9 @@ function seedEditor(
 }
 
 beforeEach(() => {
+  // The texture dialog's open/close timing comes from the shared motion
+  // tokens, which read the reduced-motion media query.
+  stubMatchMedia();
   useFormulationStore.getState().reset();
   useJobStore.getState().reset();
   useResultStore.getState().clear();
@@ -239,15 +243,13 @@ describe("JobProgress timeline", () => {
       .applyEvent(
         event({ stage: "validating", stage_label: "Validating", seq: 1 }),
       );
-    useJobStore
-      .getState()
-      .applyEvent(
-        event({
-          stage: "calculating",
-          stage_label: "Calculating nutrition",
-          seq: 2,
-        }),
-      );
+    useJobStore.getState().applyEvent(
+      event({
+        stage: "calculating",
+        stage_label: "Calculating nutrition",
+        seq: 2,
+      }),
+    );
     renderWithProviders(<JobProgress types={["nutrition"]} />);
 
     expect(screen.getByText("Validating")).toBeInTheDocument();

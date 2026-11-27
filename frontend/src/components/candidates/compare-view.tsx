@@ -28,7 +28,7 @@ function ModelLinks({ items }: { items: Candidate[] }) {
     for (const p of c.predictions) if (p.model) models.set(p.model.id, p.model);
   if (models.size === 0)
     return (
-      <p className="text-xs text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         No model version was reported for these estimates.
       </p>
     );
@@ -109,17 +109,15 @@ export function CompareView() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 p-4 sm:p-6 lg:p-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Compare candidates
-        </h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-h1">Compare candidates</h1>
+        <p className="text-small text-muted-foreground">
           Side-by-side view of two optimizer candidates. The numbers stay
           visible beside the 3D views at all times.
         </p>
       </header>
 
       {!raw && (
-        <div className="rounded-lg border border-dashed p-6 text-sm">
+        <div className="rounded-lg border border-dashed p-6 text-small">
           <p className="font-medium">No candidates selected</p>
           <p className="mt-1 text-muted-foreground">
             Open a formulation, go to its Candidates tab, tick two candidates
@@ -135,7 +133,7 @@ export function CompareView() {
         </div>
       )}
       {raw !== null && !valid && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           Comparison needs exactly two different candidates; got{" "}
           {ids.length === 2 ? "the same candidate twice" : ids.length}. Pick two
           on a formulation&apos;s Candidates tab.
@@ -143,7 +141,7 @@ export function CompareView() {
       )}
       {valid && loading && <Skeleton className="h-64 w-full" />}
       {valid && error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {errorMessage(error)}
         </p>
       )}
@@ -151,7 +149,7 @@ export function CompareView() {
       {data && (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-2 text-small">
               <input
                 type="checkbox"
                 checked={locked}
@@ -167,7 +165,7 @@ export function CompareView() {
             >
               Reset both views
             </Button>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-caption text-muted-foreground">
               {locked
                 ? "Orbiting either view moves both."
                 : "Turn on the lock to orbit both views together."}
@@ -197,27 +195,25 @@ export function CompareView() {
             aria-label="Models behind the texture estimates"
             className="flex flex-col gap-1.5"
           >
-            <h2 className="text-sm font-medium">
-              Models behind the texture estimates
-            </h2>
+            <h2 className="text-h4">Models behind the texture estimates</h2>
             <ModelLinks items={data.items} />
           </section>
 
           <section aria-label="Differences" className="flex flex-col gap-2">
-            <h2 className="text-sm font-medium">
+            <h2 className="text-h4">
               Differences
-              <span className="ml-2 text-xs font-normal text-muted-foreground">
+              <span className="ml-2 text-caption font-normal text-muted-foreground">
                 shaded rows differ between the two candidates
               </span>
             </h2>
             {data.differences.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-small text-muted-foreground">
                 No comparable metrics were reported for these candidates.
               </p>
             ) : (
               <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full min-w-[480px] text-sm">
-                  <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+                <table className="w-full min-w-[480px] text-small">
+                  <thead className="bg-muted/40 text-left text-caption text-muted-foreground">
                     <tr>
                       <th className="p-2 font-medium">Metric</th>
                       <th className="p-2 font-medium">Unit</th>
@@ -241,15 +237,15 @@ export function CompareView() {
                           <td className="p-2 text-muted-foreground">
                             {d.unit ?? ""}
                           </td>
-                          <td className="p-2 text-right tabular-nums">
+                          <td className="p-2 text-right font-numeric">
                             {cell(d.a, pct)}
                           </td>
-                          <td className="p-2 text-right tabular-nums">
+                          <td className="p-2 text-right font-numeric">
                             {cell(d.b, pct)}
                           </td>
                           <td
                             className={cn(
-                              "p-2 text-right tabular-nums",
+                              "p-2 text-right font-numeric",
                               differs
                                 ? "font-medium text-foreground"
                                 : "text-muted-foreground",

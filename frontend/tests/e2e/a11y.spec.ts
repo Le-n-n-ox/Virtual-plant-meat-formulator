@@ -12,6 +12,7 @@ const WORKSPACE_PAGES = [
   "/dashboard",
   "/ingredients",
   "/formulations",
+  "/analytics",
   "/jobs",
   "/models",
   "/settings",

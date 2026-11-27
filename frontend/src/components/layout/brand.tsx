@@ -28,14 +28,21 @@ export function Brand({
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-2 font-semibold tracking-tight",
+        "flex min-w-0 items-center gap-2 font-heading text-h4",
         className,
       )}
     >
-      <BrandMark />
-      <span className="leading-tight">
-        Plant-Meat
-        <span className="block text-[11px] font-normal text-muted-foreground">
+      <BrandMark className="shrink-0" />
+      {/*
+       * The mark holds its size and the wordmark gives way: every header this
+       * sits in is a fixed-height row competing with a cluster of controls, so
+       * the two lines clip with an ellipsis instead of wrapping (which would
+       * outgrow a 56px bar) or refusing to shrink (which scrolled the page
+       * sideways at 360px).
+       */}
+      <span className="min-w-0 leading-tight">
+        <span className="block truncate">Plant-Meat</span>
+        <span className="block truncate text-caption font-normal text-muted-foreground">
           Virtual Formulator
         </span>
       </span>

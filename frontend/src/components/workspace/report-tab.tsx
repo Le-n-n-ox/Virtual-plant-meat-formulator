@@ -113,7 +113,7 @@ export function ReportTab() {
     return <Skeleton className="h-48 w-full" />;
   if (!ready) {
     return (
-      <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+      <p className="rounded-lg border border-dashed p-4 text-small text-muted-foreground">
         Save the formulation first: reports are built from a saved version.
       </p>
     );
@@ -126,16 +126,16 @@ export function ReportTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">Report</h1>
+      <h1 className="text-h3">Report</h1>
 
       <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-small">
           Version
           <select
             aria-label="Report version"
             value={version}
             onChange={(e) => setChosen(Number(e.target.value))}
-            className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm dark:bg-input/30"
+            className="h-8 rounded-lg border border-input bg-transparent px-2 text-small dark:bg-input/30"
           >
             {(versions.data?.items ?? [{ version: current }]).map((v) => (
               <option key={v.version} value={v.version}>
@@ -164,34 +164,34 @@ export function ReportTab() {
         </Button>
       </div>
       {downloadError && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {downloadError}
         </p>
       )}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         Exports exclude or summarise data whose licence does not allow
         redistribution (restricted-licence data).
       </p>
 
       <section aria-label="Formulation" className="rounded-lg border p-3">
-        <h2 className="mb-2 flex items-center gap-2 text-sm font-medium">
+        <h2 className="mb-2 flex items-center gap-2 text-h4">
           Formulation <Badge variant="secondary">v{version}</Badge>
         </h2>
         {detail.loading ? (
           <Skeleton className="h-16 w-full" />
         ) : detail.error ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-small text-destructive">
             {errorMessage(detail.error)}
           </p>
         ) : (
-          <ul className="text-sm">
+          <ul className="text-small">
             {detail.data?.lines.map((l) => (
               <li
                 key={l.ingredient_id}
                 className="flex justify-between gap-2 border-t py-1 first:border-t-0"
               >
                 <span>{nameOf(l.ingredient_id)}</span>
-                <span className="tabular-nums">{formatNumber(l.percent)}%</span>
+                <span className="font-numeric">{formatNumber(l.percent)}%</span>
               </li>
             ))}
           </ul>
@@ -199,21 +199,21 @@ export function ReportTab() {
       </section>
 
       <section aria-label="Nutrition summary" className="rounded-lg border p-3">
-        <h2 className="mb-2 text-sm font-medium">Nutrition (per 100 g)</h2>
+        <h2 className="mb-2 text-h4">Nutrition (per 100 g)</h2>
         {nutrition.loading ? (
           <Skeleton className="h-16 w-full" />
         ) : nutrition.error ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-small text-destructive">
             {errorMessage(nutrition.error)}
           </p>
         ) : !n ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-small text-muted-foreground">
             No nutrition result for this version. Run it on the Nutrition tab
             and it will be included.
           </p>
         ) : (
           <>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-sm">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-small">
               {n.nutrients
                 .filter((x) => SUMMARY_NUTRIENTS.includes(x.key))
                 .map((x) => (
@@ -221,7 +221,7 @@ export function ReportTab() {
                     <dt className="text-muted-foreground">
                       {x.name ?? humanizeKey(x.key)}
                     </dt>
-                    <dd className="tabular-nums">
+                    <dd className="font-numeric">
                       {(() => {
                         const shown = displayNutrientValue(
                           x.value,
@@ -239,7 +239,7 @@ export function ReportTab() {
                   </div>
                 ))}
               <dt className="text-muted-foreground">AAS</dt>
-              <dd className="tabular-nums">
+              <dd className="font-numeric">
                 {n.amino_acids?.score == null
                   ? "missing"
                   : formatNumber(n.amino_acids.score)}
@@ -248,7 +248,7 @@ export function ReportTab() {
                   : ""}
               </dd>
             </dl>
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-2 text-caption text-muted-foreground">
               Calculation {n.calc_version}
               {n.finished_at ? `, ${formatDateTime(n.finished_at)}` : ""}.
             </p>
@@ -257,7 +257,7 @@ export function ReportTab() {
       </section>
 
       <section aria-label="Texture summary" className="rounded-lg border p-3">
-        <h2 className="mb-2 flex flex-wrap items-center gap-2 text-sm font-medium">
+        <h2 className="mb-2 flex flex-wrap items-center gap-2 text-h4">
           Texture
           <Badge variant="outline" className="border-warning/60">
             Literature-derived estimate
@@ -266,16 +266,16 @@ export function ReportTab() {
         {texture.loading ? (
           <Skeleton className="h-16 w-full" />
         ) : texture.error ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-small text-destructive">
             {errorMessage(texture.error)}
           </p>
         ) : !texture.data ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-small text-muted-foreground">
             No texture prediction for this version.
           </p>
         ) : (
           <>
-            <ul className="text-sm">
+            <ul className="text-small">
               {texture.data.payload.predictions.map((p) => {
                 const iv = p.interval as unknown;
                 const value = p.value as number | null | undefined;
@@ -287,7 +287,7 @@ export function ReportTab() {
                         no supported estimate
                       </span>
                     ) : (
-                      <span className="tabular-nums">
+                      <span className="font-numeric">
                         {formatNumber(value)} {p.unit}
                         {Array.isArray(iv) && iv.length === 2
                           ? ` (${Math.round((p.interval_level ?? 0.9) * 100)}% interval ${formatNumber(Number(iv[0]))} to ${formatNumber(Number(iv[1]))})`
@@ -300,11 +300,13 @@ export function ReportTab() {
               })}
             </ul>
             <div className="mt-2 flex flex-col gap-1.5">
-              <p className="text-xs font-medium text-muted-foreground">
+              <p className="text-caption font-medium text-muted-foreground">
                 Models
               </p>
               {models.size === 0 ? (
-                <p className="text-xs text-muted-foreground">{NOT_REPORTED}</p>
+                <p className="text-caption text-muted-foreground">
+                  {NOT_REPORTED}
+                </p>
               ) : (
                 [...models.values()].map((m) => (
                   <ModelBadge key={m.id} model={m} />
@@ -317,23 +319,23 @@ export function ReportTab() {
 
       <section
         aria-label="Data sources"
-        className="rounded-lg border p-3 text-sm"
+        className="rounded-lg border p-3 text-small"
       >
-        <h2 className="mb-2 text-sm font-medium">Data sources</h2>
+        <h2 className="mb-2 text-h4">Data sources</h2>
         {details.loading ? (
           <Skeleton className="h-16 w-full" />
         ) : details.error ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-small text-destructive">
             {errorMessage(details.error)}
           </p>
         ) : lineIds.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-small text-muted-foreground">
             This version has no ingredients.
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[480px] text-sm">
-              <thead className="text-left text-xs text-muted-foreground">
+            <table className="w-full min-w-[480px] text-small">
+              <thead className="text-left text-caption text-muted-foreground">
                 <tr>
                   <th className="py-1 font-medium">Ingredient</th>
                   <th className="py-1 font-medium">Source</th>
@@ -347,13 +349,13 @@ export function ReportTab() {
                   return (
                     <tr key={ingredientId} className="border-t">
                       <td className="py-1 pr-2">{nameOf(ingredientId)}</td>
-                      <td className="py-1 pr-2 text-xs">
+                      <td className="py-1 pr-2 text-caption">
                         {record?.source.name ?? "not reported"}
                       </td>
-                      <td className="py-1 pr-2 text-xs">
+                      <td className="py-1 pr-2 text-caption">
                         {record?.source.license_status ?? "not reported"}
                       </td>
-                      <td className="py-1 text-xs text-muted-foreground">
+                      <td className="py-1 text-caption text-muted-foreground">
                         {record?.dataset_version ?? "not reported"}
                       </td>
                     </tr>
@@ -363,7 +365,7 @@ export function ReportTab() {
             </table>
           </div>
         )}
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="mt-2 text-caption text-muted-foreground">
           Values are the weighted mixture of the source data for each
           ingredient; the calculation is deterministic, not a prediction.
         </p>
@@ -371,10 +373,10 @@ export function ReportTab() {
 
       <section
         aria-label="Audit trail"
-        className="rounded-lg border p-3 text-sm"
+        className="rounded-lg border p-3 text-small"
       >
-        <h2 className="mb-2 text-sm font-medium">Audit trail</h2>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-xs">
+        <h2 className="mb-2 text-h4">Audit trail</h2>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-caption">
           <dt className="text-muted-foreground">Formulation</dt>
           <dd>
             v{version}
@@ -405,13 +407,13 @@ export function ReportTab() {
             )}
           </dd>
         </dl>
-        <h3 className="mt-3 text-xs font-medium text-muted-foreground">
+        <h3 className="mt-3 text-caption font-medium text-muted-foreground">
           Version history
         </h3>
         {versions.loading ? (
           <Skeleton className="mt-1 h-12 w-full" />
         ) : (
-          <ul className="mt-1 flex flex-col gap-1 text-xs">
+          <ul className="mt-1 flex flex-col gap-1 text-caption">
             {(versions.data?.items ?? []).map((v) => (
               <li
                 key={v.version}
@@ -420,7 +422,7 @@ export function ReportTab() {
                   v.version === version && "font-medium",
                 )}
               >
-                <span className="tabular-nums">v{v.version}</span>
+                <span className="font-numeric">v{v.version}</span>
                 <span className="text-muted-foreground">
                   {formatDateTime(v.created_at)}
                 </span>

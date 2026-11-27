@@ -29,7 +29,7 @@ export function DragChip() {
     >
       <div
         className={
-          "flex items-center gap-1.5 rounded-full border bg-popover/95 px-2.5 py-1 text-xs shadow-lg " +
+          "flex items-center gap-1.5 rounded-full border bg-popover/95 px-2.5 py-1 text-caption shadow-lg " +
           (rejection ? "border-destructive" : "border-primary/40")
         }
       >
@@ -71,7 +71,7 @@ export function DragGhost2D() {
     >
       <div
         className={
-          "flex items-center gap-1.5 rounded-full border bg-popover/95 px-2.5 py-1 text-xs shadow-lg " +
+          "flex items-center gap-1.5 rounded-full border bg-popover/95 px-2.5 py-1 text-caption shadow-lg " +
           (target ? "border-primary" : "border-primary/40")
         }
       >

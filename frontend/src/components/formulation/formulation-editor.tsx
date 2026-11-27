@@ -128,7 +128,7 @@ export function FormulationEditor() {
   }
   if (loadState === "error") {
     return (
-      <p role="alert" className="text-sm text-destructive">
+      <p role="alert" className="text-small text-destructive">
         {loadError ?? "Could not load this formulation."}
       </p>
     );
@@ -224,7 +224,7 @@ export function FormulationEditor() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-lg font-semibold">{name}</h1>
+        <h1 className="text-h3">{name}</h1>
         <Badge variant="secondary">
           {version === 0 ? "Not saved yet" : `v${version}`}
         </Badge>
@@ -241,12 +241,12 @@ export function FormulationEditor() {
 
       <section aria-label="Ingredients" className="flex flex-col gap-3">
         {draft.length === 0 ? (
-          <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+          <p className="rounded-lg border border-dashed p-4 text-center text-small text-muted-foreground">
             No ingredients yet. Search the catalogue below to add some.
           </p>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-muted-foreground">
+          <table className="w-full text-small">
+            <thead className="text-left text-caption text-muted-foreground">
               <tr>
                 <th className="py-1 font-medium">Ingredient</th>
                 <th className="py-1 font-medium">Form</th>
@@ -287,7 +287,7 @@ export function FormulationEditor() {
                       {issues.map((x) => (
                         <p
                           key={x.code + x.message}
-                          className="mt-0.5 pl-4.5 text-xs text-destructive"
+                          className="mt-0.5 pl-4.5 text-small text-destructive"
                         >
                           {x.message}
                         </p>
@@ -316,7 +316,7 @@ export function FormulationEditor() {
                               : Number(e.target.value),
                           )
                         }
-                        className="h-7 tabular-nums"
+                        className="h-7 font-numeric"
                       />
                     </td>
                     <td className="py-1.5 text-right">
@@ -375,20 +375,20 @@ export function FormulationEditor() {
             <SaveIcon aria-hidden /> {saving ? "Saving…" : "Save"}
           </Button>
           {!valid && dirty && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-caption text-muted-foreground">
               Fix the issues above to save.
             </span>
           )}
         </div>
         {saveError && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-small text-destructive">
             {saveError}
           </p>
         )}
         {conflict && (
           <div
             role="alert"
-            className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/70 bg-warning/10 p-3 text-sm"
+            className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/70 bg-warning/10 p-3 text-small"
           >
             <TriangleAlertIcon className="size-4 text-warning" aria-hidden />
             <span>
@@ -442,7 +442,7 @@ function TotalsBar({
   return (
     <div
       className={cn(
-        "rounded-lg border p-3 text-sm",
+        "rounded-lg border p-3 text-small",
         pending
           ? "border-border"
           : valid
@@ -460,7 +460,7 @@ function TotalsBar({
           )}
           Total {rounded}%
         </span>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-caption text-muted-foreground">
           {pending
             ? "Validating…"
             : valid
@@ -481,7 +481,7 @@ function TotalsBar({
         />
       </div>
       {!pending && messages.length > 0 && (
-        <ul className="mt-2 list-disc pl-4 text-xs text-muted-foreground">
+        <ul className="mt-2 list-disc pl-4 text-caption text-muted-foreground">
           {messages.map((m) => (
             <li key={m}>{m}</li>
           ))}
@@ -531,8 +531,8 @@ function JobSection({
       aria-label="Calculations"
       className="flex flex-col gap-2 rounded-lg border p-3"
     >
-      <h2 className="text-sm font-medium">Calculations</h2>
-      <p className="text-xs text-muted-foreground">
+      <h2 className="text-h4">Calculations</h2>
+      <p className="text-caption text-muted-foreground">
         Jobs run on the saved version
         {dirty ? " — save your changes first." : "."}
       </p>
@@ -566,10 +566,10 @@ function JobSection({
         </Button>
       </div>
       {running && message && (
-        <p className="text-xs text-muted-foreground">{message}</p>
+        <p className="text-caption text-muted-foreground">{message}</p>
       )}
       {(startError || cancelError) && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {startError ?? cancelError}
         </p>
       )}
@@ -601,7 +601,7 @@ function Results() {
   if (loading) return <Skeleton className="h-24 w-full" />;
   if (error) {
     return (
-      <p role="alert" className="text-sm text-destructive">
+      <p role="alert" className="text-small text-destructive">
         {describeRunError(error.code, error.message)}
       </p>
     );

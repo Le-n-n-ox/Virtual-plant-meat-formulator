@@ -49,15 +49,17 @@ export function CatalogueSearch({
         />
       </div>
       {enabled && error && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {errorMessage(error)}
         </p>
       )}
       {enabled && loading && (
-        <p className="text-xs text-muted-foreground">Searching…</p>
+        <p className="text-caption text-muted-foreground">Searching…</p>
       )}
       {enabled && data && data.items.length === 0 && (
-        <p className="text-xs text-muted-foreground">No ingredients found.</p>
+        <p className="text-caption text-muted-foreground">
+          No ingredients found.
+        </p>
       )}
       {enabled && data && data.items.length > 0 && (
         <ul className="divide-y rounded-lg border">
@@ -68,9 +70,9 @@ export function CatalogueSearch({
                 key={i.id}
                 className="flex items-center justify-between gap-2 px-2.5 py-1.5"
               >
-                <div className="min-w-0 text-sm">
+                <div className="min-w-0 text-small">
                   <p className="truncate font-medium">{i.common_name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="truncate text-caption text-muted-foreground">
                     {i.form} · protein{" "}
                     {i.protein_g_per_100g === null
                       ? NOT_REPORTED

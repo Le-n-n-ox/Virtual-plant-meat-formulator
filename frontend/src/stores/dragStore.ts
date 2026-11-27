@@ -38,6 +38,29 @@ export interface Vec2 {
   y: number;
 }
 
+export interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/**
+ * What the scene needs to animate an object after the drag state is gone: the
+ * outcome, where the object was released and where it must return to (guide
+ * §12.5). Cleared when the animation has run.
+ */
+export interface DragRelease {
+  outcome: "drop" | "cancel" | "reject";
+  /** World position at the moment of release. */
+  from: Vec3;
+  /** Where the object settles: the target socket, or where it came from. */
+  to: Vec3;
+  kind: DragKind;
+  id: string;
+  /** `performance.now()` at release, so the scene can measure its own time. */
+  startedAt: number;
+}
+
 export interface DragState {
   kind: DragKind;
   id: string;
@@ -64,6 +87,16 @@ export interface DragState {
   grabbedAt: number;
   /** True while a drag is past the grab threshold. */
   active: boolean;
+  /** Where the object started, in world units, for the return arc. */
+  originWorld: Vec3 | null;
+  /**
+   * Incremented on every `begin`. A delayed reset carries the sequence it was
+   * scheduled for, so a release animation can never clear a drag the user has
+   * already started since.
+   */
+  seq: number;
+  /** The release animation the scene should play, or null. */
+  release: DragRelease | null;
 
   begin: (input: {
     kind: DragKind;
@@ -72,6 +105,8 @@ export interface DragState {
     origin: Vec2;
     pointerId: number | null;
     label: string;
+    /** World position the object is lifted from, when it has one. */
+    originWorld?: Vec3 | null;
   }) => void;
   /** Pointer moved (or the held-time threshold elapsed). */
   move: (pointer: Vec2) => void;
@@ -86,7 +121,11 @@ export interface DragState {
     label: string,
     reason?: string,
   ) => void;
+  /** Records the release animation the scene should play. */
+  setRelease: (release: DragRelease | null) => void;
   reset: () => void;
+  /** Resets only if no new drag has begun since `seq` was read. */
+  resetIfSeq: (seq: number) => void;
 }
 
 const IDLE = {
@@ -105,25 +144,30 @@ const IDLE = {
   label: "",
   grabbedAt: 0,
   active: false,
+  originWorld: null as Vec3 | null,
+  release: null as DragRelease | null,
 };
 
 export const useDragStore = create<DragState>((set, get) => ({
   ...IDLE,
+  seq: 0,
 
-  begin: ({ kind, id, source, origin, pointerId, label }) =>
-    set({
+  begin: ({ kind, id, source, origin, pointerId, label, originWorld }) =>
+    set((state) => ({
       ...IDLE,
+      seq: state.seq + 1,
       kind,
       id,
       source,
       label,
       origin,
+      originWorld: originWorld ?? null,
       pointer: origin,
       pointerId,
       grabbedAt: Date.now(),
       phase: "grab",
       announcement: `${label} pressed. Move to pick it up.`,
-    }),
+    })),
 
   move: (pointer) => {
     const { phase } = get();
@@ -184,7 +228,14 @@ export const useDragStore = create<DragState>((set, get) => ({
     });
   },
 
+  setRelease: (release) => set({ release }),
+
   reset: () => set({ ...IDLE }),
+
+  resetIfSeq: (seq) => {
+    if (get().seq !== seq) return;
+    set({ ...IDLE });
+  },
 }));
 
 /** True while a drag is past the grab threshold (camera lock, chip handoff). */

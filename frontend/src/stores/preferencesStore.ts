@@ -52,6 +52,10 @@ export const usePreferencesStore = create<PreferencesState>()(
     }),
     {
       name: "vpmf-preferences",
+      // Stays at 1 when a preference is added: the persisted object is merged
+      // over the defaults above, so state written before the new field existed
+      // still loads and the field simply keeps its default. Bumping the version
+      // without a `migrate` would throw that older state away instead.
       version: 1,
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,

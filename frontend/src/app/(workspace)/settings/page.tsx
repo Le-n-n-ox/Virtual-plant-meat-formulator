@@ -16,8 +16,10 @@ export default function SettingsPage() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">Stored on this device.</p>
+        <h1 className="text-h1">Settings</h1>
+        <p className="text-small text-muted-foreground">
+          Stored on this device.
+        </p>
       </header>
       <Card>
         <CardHeader>

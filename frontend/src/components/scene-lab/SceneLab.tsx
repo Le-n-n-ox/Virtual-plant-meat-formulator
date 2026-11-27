@@ -8,7 +8,10 @@ import type { Mesh, MeshStandardMaterial } from "three";
 import { THEMES } from "@/lib/themes";
 import { SceneErrorBoundary } from "@/scene/SceneErrorBoundary";
 import { SceneLights } from "@/scene/SceneCanvas";
+import { PantryShelf } from "@/scene/drag/PantryShelf";
+import { Bench } from "@/scene/objects/Bench";
 import { applyMaterialTints, useSceneTheme } from "@/scene/theme/sceneTheme";
+import type { IngredientListItem } from "@/types";
 
 /**
  * Look-development page (guide §12.10 step 6): one model under the real scene
@@ -41,7 +44,51 @@ const ASSETS = [
   },
 ] as const;
 
-type AssetId = (typeof ASSETS)[number]["id"];
+/**
+ * The composed bench: `Bench` plus `PantryShelf` with real crop models on its
+ * sockets. This is the view to judge the drag-and-drop bench in, because the
+ * individual assets say nothing about how container, topper and socket line up.
+ */
+const COMPOSED_ID = "pantry-bench";
+
+type AssetId = (typeof ASSETS)[number]["id"] | typeof COMPOSED_ID;
+
+/** Stand-in crops, so the lab needs no backend. */
+const LAB_CROPS: IngredientListItem[] = [
+  ["Sorghum flour", "Sorghum", "flour"],
+  ["Cowpea, whole", "Cowpea", "raw"],
+  ["Green gram", "Green gram", "raw"],
+  ["Maize meal", "Maize", "flour"],
+  ["Groundnut oil", "Groundnut", "oil"],
+  ["Millet, soaked", "Millet", "soaked"],
+  ["Pigeon pea isolate", "Pigeon pea", "protein isolate"],
+  ["Sesame seed", "Sesame", "raw"],
+].map(([common_name, crop, form], index) => ({
+  id: `lab_${index}`,
+  common_name,
+  crop,
+  form,
+  scientific_name: null,
+  moisture_basis: "as is",
+  source: { id: "lab", name: "Scene lab" },
+  protein_g_per_100g: null,
+  has_amino_acids: false,
+}));
+
+function ComposedBench() {
+  const theme = useSceneTheme();
+  return (
+    <group>
+      <Bench theme={theme} />
+      <PantryShelf
+        items={LAB_CROPS}
+        inDraft={new Set([LAB_CROPS[3].id])}
+        theme={theme}
+        reducedMotion={false}
+      />
+    </group>
+  );
+}
 
 function LabModel({ url }: { url: string }) {
   const theme = useSceneTheme();
@@ -68,7 +115,7 @@ function LabModel({ url }: { url: string }) {
 }
 
 export function SceneLab() {
-  const [assetId, setAssetId] = useState<AssetId>("bench");
+  const [assetId, setAssetId] = useState<AssetId>(COMPOSED_ID);
   const asset = ASSETS.find((a) => a.id === assetId) ?? ASSETS[0];
   const { theme, setTheme } = useTheme();
   const sceneTheme = useSceneTheme();
@@ -78,18 +125,19 @@ export function SceneLab() {
     <main className="flex h-dvh flex-col gap-3 p-4">
       <header className="flex flex-wrap items-center gap-3">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">Scene lab</h1>
-          <p className="text-xs text-muted-foreground">
+          <h1 className="text-h3 font-semibold tracking-tight">Scene lab</h1>
+          <p className="text-caption text-muted-foreground">
             Development only · one model under the real lighting · six themes
           </p>
         </div>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-small">
           Model
           <select
             value={assetId}
             onChange={(e) => setAssetId(e.target.value as AssetId)}
             className="rounded-md border bg-background px-2 py-1"
           >
+            <option value={COMPOSED_ID}>Pantry bench (composed)</option>
             {ASSETS.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.label}
@@ -97,7 +145,7 @@ export function SceneLab() {
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-small">
           Theme
           <select
             value={theme ?? "light"}
@@ -111,7 +159,7 @@ export function SceneLab() {
             ))}
           </select>
         </label>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-caption text-muted-foreground">
           {current?.label ?? ""} · drag to orbit · the model is tinted by
           material name
         </span>
@@ -121,7 +169,7 @@ export function SceneLab() {
         <SceneErrorBoundary
           label="Scene lab"
           fallback={
-            <p className="p-4 text-sm">The model could not be loaded.</p>
+            <p className="p-4 text-small">The model could not be loaded.</p>
           }
         >
           <Canvas
@@ -131,7 +179,11 @@ export function SceneLab() {
           >
             <SceneLights theme={sceneTheme} />
             <Suspense fallback={null}>
-              <LabModel url={asset.url} />
+              {assetId === COMPOSED_ID ? (
+                <ComposedBench />
+              ) : (
+                <LabModel url={asset.url} />
+              )}
             </Suspense>
           </Canvas>
         </SceneErrorBoundary>

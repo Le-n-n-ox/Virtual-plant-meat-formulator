@@ -86,7 +86,12 @@ export function WorkspaceScene({ className }: { className?: string }) {
     <section
       aria-label="Process scene"
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden rounded-xl border bg-card shadow-sm",
+        // The same surface the Card primitive draws — ring rather than border,
+        // so the scene panel's edge matches the cards it sits beside instead of
+        // being a pixel heavier. Not an actual <Card>: this is a flex column
+        // with its own overflow and min-height rules that Card's padding and
+        // spacing tokens would fight.
+        "flex min-h-0 flex-col overflow-hidden rounded-xl bg-card shadow-sm ring-1 ring-foreground/10",
         className,
       )}
     >
@@ -103,7 +108,7 @@ export function WorkspaceScene({ className }: { className?: string }) {
               "bg-muted-foreground",
           )}
         />
-        <h2 className="text-sm font-medium">Process view</h2>
+        <h2 className="text-small font-medium">Process view</h2>
         <Tooltip>
           <TooltipTrigger
             render={
@@ -120,7 +125,7 @@ export function WorkspaceScene({ className }: { className?: string }) {
           </TooltipContent>
         </Tooltip>
         {selectedCandidateId && canCutaway && (
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <label className="flex items-center gap-1.5 text-caption text-muted-foreground">
             <input
               type="checkbox"
               checked={cutaway}
@@ -149,7 +154,7 @@ export function WorkspaceScene({ className }: { className?: string }) {
                   aria-pressed={active}
                   onClick={() => setViewMode(id)}
                   className={cn(
-                    "relative z-10 flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors outline-none focus-visible:bg-muted",
+                    "relative z-10 flex items-center gap-1 rounded-md px-2 py-1 text-caption transition-colors outline-none focus-visible:bg-muted",
                     active
                       ? "text-foreground"
                       : "text-muted-foreground hover:text-foreground",
@@ -200,19 +205,19 @@ export function WorkspaceScene({ className }: { className?: string }) {
           <JobProgress className="pointer-events-auto" />
         </div>
         {reason && viewMode === "auto" && (
-          <p className="absolute top-2 left-3 rounded-md bg-popover/90 px-2 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur">
+          <p className="absolute top-2 left-3 rounded-md bg-popover/90 px-2 py-1 text-caption text-muted-foreground shadow-sm backdrop-blur">
             {reason}
           </p>
         )}
         {is3D && (
-          <p className="pointer-events-none absolute top-2 left-2 hidden text-[11px] text-muted-foreground md:block">
+          <p className="pointer-events-none absolute top-2 left-2 hidden text-caption text-muted-foreground md:block">
             Drag to orbit · scroll or pinch to zoom · tap a bin to inspect ·
             drag a crop from the pantry to the vessel to add it
           </p>
         )}
 
         {selectedCandidateId && !canCutaway && (
-          <p className="pointer-events-none absolute top-10 left-3 rounded-md bg-popover/90 px-2 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
+          <p className="pointer-events-none absolute top-10 left-3 rounded-md bg-popover/90 px-2 py-1 text-caption text-muted-foreground shadow-sm backdrop-blur">
             Illustrative visual — no validated variable for a cutaway
           </p>
         )}
@@ -397,11 +402,11 @@ function SceneObjectList() {
   return (
     <div className="scene-scroll space-y-3 border-t p-3">
       <div>
-        <h3 className="mb-1.5 text-xs font-medium text-muted-foreground">
+        <h3 className="mb-1.5 text-caption font-medium text-muted-foreground">
           Scene objects
         </h3>
         {entries.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             Drag a crop into the scene to add it.
           </p>
         ) : (
@@ -458,7 +463,7 @@ function SceneObjectList() {
                       ? `Inspect ${entry.label}`
                       : entry.label}
                     {entry.kind === "ingredient" && (
-                      <span className="tabular-nums text-muted-foreground">
+                      <span className="font-numeric text-muted-foreground">
                         {entry.percent}%
                       </span>
                     )}
@@ -471,7 +476,7 @@ function SceneObjectList() {
       </div>
 
       <ul
-        className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"
+        className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-muted-foreground"
         aria-label="Stage status"
       >
         {PROCESS_STATIONS.map((s) => (
@@ -527,7 +532,7 @@ function SceneSelectionCard() {
     <div
       role="region"
       aria-label="Ingredient details"
-      className="scene-rise pointer-events-auto absolute top-10 right-3 z-20 w-72 max-w-[calc(100%-1.5rem)] rounded-xl border bg-popover/95 p-3 text-sm shadow-lg backdrop-blur"
+      className="scene-rise pointer-events-auto absolute top-10 right-3 z-20 w-72 max-w-[calc(100%-1.5rem)] rounded-xl border bg-popover/95 p-3 text-small shadow-lg backdrop-blur"
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           e.stopPropagation();
@@ -539,13 +544,13 @@ function SceneSelectionCard() {
         <div>
           <p className="font-medium">{ingredient.common_name}</p>
           {ingredient.scientific_name && (
-            <p className="text-xs text-muted-foreground italic">
+            <p className="text-caption text-muted-foreground italic">
               {ingredient.scientific_name}
             </p>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-lg font-semibold tabular-nums">
+          <span className="text-h3 font-semibold font-numeric">
             {line.percent}%
           </span>
           <div
@@ -592,7 +597,7 @@ function SceneSelectionCard() {
         </div>
       </div>
 
-      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
+      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-caption">
         <dt className="text-muted-foreground">Form</dt>
         <dd>{ingredient.form}</dd>
         <dt className="text-muted-foreground">Basis</dt>
@@ -628,7 +633,7 @@ function SceneSelectionCard() {
       </dl>
 
       {issue && (
-        <p className="mt-2 text-xs text-destructive">{issue.message}</p>
+        <p className="mt-2 text-caption text-destructive">{issue.message}</p>
       )}
     </div>
   );

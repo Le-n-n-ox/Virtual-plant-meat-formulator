@@ -14,12 +14,12 @@ export function ErrorBlock({ error }: { error: StartErrorInfo }) {
   return (
     <div
       role="alert"
-      className="flex flex-col gap-1 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm"
+      className="flex flex-col gap-1 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-small"
     >
       {title && <p className="font-medium text-destructive">{title}</p>}
       <p>{error.message}</p>
       {error.issues.length > 0 && (
-        <ul className="list-disc pl-5 text-xs">
+        <ul className="list-disc pl-5">
           {error.issues.map((i, n) => (
             <li key={n}>
               {i.field ? <code className="mr-1">{i.field}</code> : null}
@@ -30,8 +30,8 @@ export function ErrorBlock({ error }: { error: StartErrorInfo }) {
       )}
       {error.violated.length > 0 && (
         <>
-          <p className="text-xs font-medium">Constraints that cannot be met</p>
-          <ul className="list-disc pl-5 text-xs">
+          <p className="font-medium">Constraints that cannot be met</p>
+          <ul className="list-disc pl-5">
             {error.violated.map((v, n) => (
               <li key={n}>{v}</li>
             ))}

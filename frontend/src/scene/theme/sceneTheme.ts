@@ -211,6 +211,11 @@ export function themeMaterialTints(theme: SceneTheme): Record<string, string> {
  * theme switch recolours the scene without reloading any GLB. `instanceColours`
  * overrides a material name (used for `MAT_Crop`, which is per ingredient).
  */
+/** Strips glTF's duplicate-name suffix: `MAT_Surface.001` → `MAT_Surface`. */
+export function baseMaterialName(name: string): string {
+  return name.replace(/\.\d+$/, "");
+}
+
 export function applyMaterialTints(
   root: object,
   theme: SceneTheme,
@@ -229,11 +234,13 @@ export function applyMaterialTints(
         Array.isArray(mesh.material) ? mesh.material : [mesh.material]
       ) as { name?: string; color?: { set: (value: string) => void } }[];
       for (const material of materials) {
-        const override = material?.name
-          ? instanceColours[material.name]
+        // glTF appends `.001`, `.002`, … when a material name repeats across
+        // an asset, so `MAT_Surface.001` must still match `MAT_Surface`.
+        const name = material?.name ? baseMaterialName(material.name) : null;
+        const override = name
+          ? (instanceColours[material.name as string] ?? instanceColours[name])
           : undefined;
-        const tint =
-          override ?? (material?.name ? tints[material.name] : undefined);
+        const tint = override ?? (name ? tints[name] : undefined);
         if (tint && material?.color) material.color.set(tint);
       }
     }

@@ -6,11 +6,13 @@ import {
   Environment,
   Lightformer,
 } from "@react-three/drei";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  type AmbientLight,
   CanvasTexture,
+  type DirectionalLight,
   NeutralToneMapping,
   SRGBColorSpace,
   Vector3,
@@ -25,7 +27,8 @@ import { useSceneStore } from "@/stores/sceneStore";
 import { useSelectionStore } from "@/stores/selectionStore";
 import { DragGhost } from "./drag/DragGhost";
 import { DragLayer } from "./drag/DragLayer";
-import { DropRing } from "./drag/DropRing";
+import { DropTargetRings } from "./drag/DropRing";
+import { PantryShelf } from "./drag/PantryShelf";
 import { placeHeld } from "./drag/actions";
 import { PerformanceGate } from "./performance/PerformanceGate";
 import {
@@ -34,6 +37,7 @@ import {
 } from "./hooks/useSceneEnvironment";
 import { useInvalidateWhile } from "./hooks/useInvalidateWhile";
 import { LabelProjector } from "./labels";
+import { Bench } from "./objects/Bench";
 import { CandidateProduct } from "./objects/CandidateProduct";
 import { IngredientBin } from "./objects/IngredientBin";
 import { IngredientFlow } from "./objects/IngredientFlow";
@@ -50,13 +54,18 @@ import { type SceneTheme, cropColor, useSceneTheme } from "./theme/sceneTheme";
 
 const FOV = 32;
 /** Orbit limits (guide §12.4): ±40° around home, 15°–65° of elevation. */
-const HOME_TARGET = new Vector3(2.4, 0.6, 0);
+/**
+ * Home target (guide §12.2): the bench runs from the pantry shelf at x ≈ -5.8
+ * to the product board at x ≈ 6.9, so the camera looks at the middle of that
+ * span rather than at the vessel.
+ */
+const HOME_TARGET = new Vector3(0.9, 0.7, 0);
 const HOME_DIRECTION = new Vector3(0, 0.46, 1).normalize();
 const AZIMUTH_LIMIT = (40 * Math.PI) / 180;
 const MIN_POLAR = ((90 - 65) * Math.PI) / 180;
 const MAX_POLAR = ((90 - 15) * Math.PI) / 180;
 /** Half-size of the content to keep in view (world units). */
-const HALF_EXTENT = { x: 6.9, y: 2.7 };
+const HALF_EXTENT = { x: 7.4, y: 2.9 };
 
 function radialTexture(inner: string, outer: string): CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -86,6 +95,11 @@ export default function SceneCanvas() {
   const reducedMotion = useReducedMotionPreference();
   /** Camera orbit is locked for the duration of a drag (guide §12.3). */
   const dragging = useDragStore((s) => s.active);
+  /**
+   * A released object keeps animating for a moment after the drag has ended
+   * (guide §12.5), so the frame loop must stay awake until it has settled.
+   */
+  const releasing = useDragStore((s) => s.release !== null);
   const jobActive = useJobStore(
     (s) => s.status === "running" || s.status === "queued",
   );
@@ -106,7 +120,7 @@ export default function SceneCanvas() {
    * animation asking for frames. The animated components invalidate themselves,
    * so the frame loop can sleep.
    */
-  const frameloop = dragging || jobActive ? "always" : "demand";
+  const frameloop = dragging || releasing || jobActive ? "always" : "demand";
 
   return (
     <Canvas
@@ -138,7 +152,7 @@ export default function SceneCanvas() {
         <Stage theme={theme} reducedMotion={reducedMotion} />
       </PerformanceGate>
       <DragLayer />
-      <DragGhost theme={theme} />
+      <DragGhost theme={theme} reducedMotion={reducedMotion} />
       <Camera dragging={dragging} />
       <LabelProjector />
     </Canvas>
@@ -151,11 +165,35 @@ export function SceneLights({ theme }: { theme: SceneTheme }) {
    * casts the only real-time shadow, a soft cooler fill from the sky side, and
    * a rim from behind on the right to separate objects from the background.
    */
+  const ambient = useRef<AmbientLight>(null);
+  const key = useRef<DirectionalLight>(null);
+  /**
+   * While an object is carried the bench dims by about 15 percent (guide
+   * §12.3). The drop-target rings are drawn unlit, so they keep their
+   * brightness and the eye goes to them.
+   */
+  const carrying = useDragStore(
+    (s) => s.phase === "carry" || s.phase === "over-target",
+  );
+  useFrame((_, delta) => {
+    const k = 1 - Math.exp(-delta * 8);
+    const factor = carrying ? 0.85 : 1;
+    if (ambient.current) {
+      ambient.current.intensity +=
+        (theme.ambient * factor - ambient.current.intensity) * k;
+    }
+    if (key.current) {
+      key.current.intensity +=
+        (theme.key_light * factor - key.current.intensity) * k;
+    }
+  });
+
   return (
     <>
-      <ambientLight intensity={theme.ambient} />
+      <ambientLight ref={ambient} intensity={theme.ambient} />
       <hemisphereLight args={[theme.bg, theme.floor, 0.55]} />
       <directionalLight
+        ref={key}
         position={[-6, 12, 7]}
         intensity={theme.key_light}
         castShadow
@@ -185,26 +223,32 @@ export function SceneLights({ theme }: { theme: SceneTheme }) {
         color={theme.glow}
       />
       {/* Offline environment map so metal and glass have something to reflect. */}
+      {/*
+        The softbox is centred on the bench and wide enough to cover it end to
+        end. A fully metallic surface has no diffuse component — it shows only
+        what it reflects — so anything the softbox misses renders black, which
+        §12.4 rules out. The plinths at the far right are the test case.
+      */}
       <Environment key={theme.key} resolution={256} frames={1}>
         <Lightformer
           intensity={2.2}
-          position={[0, 6, 0]}
+          position={[0.9, 6, 0]}
           rotation-x={Math.PI / 2}
-          scale={[12, 12, 1]}
+          scale={[22, 14, 1]}
           color={theme.glass}
         />
         <Lightformer
           intensity={1.4}
-          position={[-6, 2, 2]}
+          position={[-8, 2, 2]}
           rotation-y={Math.PI / 2}
-          scale={[8, 4, 1]}
+          scale={[10, 5, 1]}
           color={theme.glow}
         />
         <Lightformer
           intensity={1.1}
-          position={[6, 3, -2]}
+          position={[9, 3, -2]}
           rotation-y={-Math.PI / 2}
-          scale={[8, 4, 1]}
+          scale={[10, 5, 1]}
           color={theme.accent}
         />
       </Environment>
@@ -355,6 +399,15 @@ function Stage({
   );
   const selectedCandidate = useSelectionStore((s) => s.selectedCandidateId);
   const cutaway = useSelectionStore((s) => s.cutaway);
+  const pantryItems = useSceneStore((s) => s.pantryItems);
+  /**
+   * `useShallow` keeps the selector's array identity stable; a fresh array on
+   * every call makes `useSyncExternalStore` loop.
+   */
+  const draftIdList = useFormulationStore(
+    useShallow((s) => s.draft.map((l) => l.ingredient_id)),
+  );
+  const draftIds = useMemo(() => new Set(draftIdList), [draftIdList]);
   const [flows, setFlows] = useState<Flow[]>([]);
   /** On-demand rendering: keep asking for frames while a pour is in flight. */
   useInvalidateWhile(flows.length > 0);
@@ -379,16 +432,54 @@ function Stage({
     [validated],
   );
 
-  // Play a pour-in cue for ingredients that newly appear in the validated snapshot.
+  /**
+   * Ingredients poured in by dragging pour at the moment of the drop, so cause
+   * and effect are not separated by the debounced validation round-trip. The
+   * blend inside the vessel still waits for the validated snapshot; only this
+   * decorative cue is immediate.
+   */
+  const poured = useRef<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (reducedMotion) return;
+    return useDragStore.subscribe((state, prev) => {
+      const release = state.release;
+      if (!release || release === prev.release) return;
+      if (release.outcome !== "drop" || release.kind === "candidate") return;
+      if (
+        useDragStore.getState().target !== "vessel" &&
+        prev.target !== "vessel"
+      ) {
+        return;
+      }
+      poured.current.set(release.id, Date.now());
+      const index = useFormulationStore
+        .getState()
+        .draft.findIndex((l) => l.ingredient_id === release.id);
+      setFlows((f) => [
+        ...f,
+        {
+          key: `${release.id}-${release.startedAt}`,
+          from: [release.from.x, release.from.y, release.from.z],
+          color: cropColor(theme, index < 0 ? 0 : index),
+        },
+      ]);
+    });
+  }, [reducedMotion, theme]);
+
+  // Ingredients added any other way (the picker's Add button, the table, a
+  // restored version) pour when they first appear in the validated snapshot.
   useEffect(() => {
     if (reducedMotion) return;
     return useFormulationStore.subscribe((state, prev) => {
       const before = new Set(prev.validated?.lines.map((l) => l.ingredient_id));
       if (!prev.validated) return; // first snapshot: no pour-in
       const now = state.validated?.lines ?? [];
+      const recent = Date.now() - 3000;
       const added = now
         .map((l, index) => ({ l, index }))
-        .filter(({ l }) => !before.has(l.ingredient_id));
+        .filter(({ l }) => !before.has(l.ingredient_id))
+        // Skip anything a drop has just poured, so it never pours twice.
+        .filter(({ l }) => (poured.current.get(l.ingredient_id) ?? 0) < recent);
       if (added.length === 0) return;
       setFlows((f) => [
         ...f,
@@ -437,6 +528,16 @@ function Stage({
     <group>
       {/* Floor with a soft vignette; the grid was removed (guide §12.4). */}
       <Floor theme={theme} />
+      {/* The bench everything stands on, and the shelf crops are dragged from
+          (guide §12.2). Its sockets position the drop targets. */}
+      <Bench theme={theme} />
+      <PantryShelf
+        items={pantryItems}
+        inDraft={draftIds}
+        theme={theme}
+        reducedMotion={reducedMotion}
+      />
+      <DropTargetRings theme={theme} />
       <ContactShadows
         position={[2, 0.02, 0]}
         scale={26}
@@ -471,7 +572,6 @@ function Stage({
           theme={theme}
           reducedMotion={reducedMotion}
         />
-        <DropRing theme={theme} />
       </group>
 
       {lines.map((line, index) => {

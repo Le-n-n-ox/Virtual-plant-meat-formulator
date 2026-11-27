@@ -19,7 +19,7 @@ export function ModelLimitations({ modelId }: { modelId: string }) {
   if (loading) return <Skeleton className="h-12 w-full" />;
   if (error) {
     return (
-      <p className="text-xs text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         Model limitations could not be loaded ({errorMessage(error)}).
       </p>
     );
@@ -33,14 +33,14 @@ export function ModelLimitations({ modelId }: { modelId: string }) {
       : [];
   if (items.length === 0) {
     return (
-      <p className="text-xs text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         No limitations were recorded for this model.
       </p>
     );
   }
 
   return (
-    <div className="rounded-lg border border-warning/60 bg-warning/10 p-2 text-xs">
+    <div className="rounded-lg border border-warning/60 bg-warning/10 p-2 text-caption">
       <p className="flex items-center gap-1 font-medium">
         <TriangleAlertIcon className="size-3.5 text-warning" aria-hidden />
         Model limitations

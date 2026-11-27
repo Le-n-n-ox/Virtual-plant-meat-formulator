@@ -5,14 +5,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import { JobStatusBadge } from "@/components/jobs/job-status";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
   TableCell,
+  TableEmpty,
   TableHead,
   TableHeader,
   TableRow,
+  TableSkeleton,
 } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { listFormulations } from "@/lib/api/formulations";
@@ -25,6 +26,8 @@ import {
 } from "@/lib/format";
 
 const PAGE_SIZE = 20;
+/** Job, Type, Formulation, Status, Created, Finished and Duration. */
+const COLUMNS = 7;
 
 const STATUS_OPTIONS = [
   "queued",
@@ -74,7 +77,7 @@ export function toQueryString(p: JobsParams): string {
 }
 
 const SELECT_CLASS =
-  "h-8 rounded-lg border bg-background px-2 text-sm max-w-52";
+  "h-8 rounded-lg border bg-background px-2 text-small max-w-52";
 
 export function JobList() {
   const searchParams = useSearchParams();
@@ -129,8 +132,8 @@ export function JobList() {
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-4 sm:p-6 lg:p-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Job history</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-h1">Job history</h1>
+        <p className="text-small text-muted-foreground">
           Calculations and predictions you have started. The address bar carries
           the filters, so a view can be shared and restored on reload.
         </p>
@@ -192,33 +195,16 @@ export function JobList() {
       </div>
 
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {errorMessage(error)}
         </p>
-      ) : loading ? (
-        <Skeleton className="h-48 w-full" />
-      ) : data && data.items.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          <p>
-            {hasFilters
-              ? "No jobs match these filters."
-              : "No jobs yet. Run a calculation from a formulation workspace."}
-          </p>
-          {hasFilters && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-3"
-              onClick={() =>
-                push({ status: "", type: "", formulation: "", page: 1 })
-              }
-            >
-              Clear filters
-            </Button>
-          )}
-        </div>
       ) : (
-        <Table>
+        /*
+         * The header stays through the loading and empty states so the columns
+         * the filters act on are always on screen, and it is pinned because a
+         * page holds 20 jobs.
+         */
+        <Table stickyHeader striped>
           <TableHeader>
             <TableRow>
               <TableHead>Job</TableHead>
@@ -227,60 +213,96 @@ export function JobList() {
               <TableHead>Status</TableHead>
               <TableHead>Created</TableHead>
               <TableHead>Finished</TableHead>
-              <TableHead className="text-right">Duration</TableHead>
+              <TableHead numeric>Duration</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
-            {data?.items.map((j) => (
-              <TableRow key={j.id}>
-                <TableCell>
-                  <Link
-                    href={`/jobs/${j.id}`}
-                    className="font-mono text-xs text-primary underline underline-offset-4"
-                  >
-                    {j.id.slice(-8)}
-                  </Link>
-                </TableCell>
-                <TableCell>{humanizeKey(String(j.type))}</TableCell>
-                <TableCell>
-                  {j.formulation ? (
-                    <>
-                      <Link
-                        href={`/formulations/${j.formulation.id}`}
-                        className="underline underline-offset-4"
-                      >
-                        {j.formulation.name}
-                      </Link>{" "}
-                      <span className="text-xs text-muted-foreground">
-                        v{j.formulation.version}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
+          {loading ? (
+            <TableSkeleton columns={COLUMNS} />
+          ) : (
+            <TableBody>
+              {data?.items.length === 0 ? (
+                <TableEmpty colSpan={COLUMNS}>
+                  <p>
+                    {hasFilters
+                      ? "No jobs match these filters."
+                      : "No jobs yet. Run a calculation from a formulation workspace."}
+                  </p>
+                  {hasFilters && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-3"
+                      onClick={() =>
+                        push({
+                          status: "",
+                          type: "",
+                          formulation: "",
+                          page: 1,
+                        })
+                      }
+                    >
+                      Clear filters
+                    </Button>
                   )}
-                </TableCell>
-                <TableCell>
-                  <JobStatusBadge status={j.status} />
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatDateTime(j.created_at)}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatDateTime(j.finished_at)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatDuration(j.duration_ms)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
+                </TableEmpty>
+              ) : (
+                data?.items.map((j) => (
+                  <TableRow key={j.id}>
+                    <TableCell>
+                      <Link
+                        href={`/jobs/${j.id}`}
+                        className="font-mono text-caption text-primary underline underline-offset-4"
+                      >
+                        {j.id.slice(-8)}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{humanizeKey(String(j.type))}</TableCell>
+                    <TableCell>
+                      {j.formulation ? (
+                        <>
+                          <Link
+                            href={`/formulations/${j.formulation.id}`}
+                            className="underline underline-offset-4"
+                          >
+                            {j.formulation.name}
+                          </Link>{" "}
+                          <span className="text-caption text-muted-foreground">
+                            v{j.formulation.version}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <JobStatusBadge status={j.status} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDateTime(j.created_at)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDateTime(j.finished_at)}
+                    </TableCell>
+                    {/*
+                     * A job that has not finished has no duration to report,
+                     * and `formatDuration` prints a dash for it rather than a
+                     * zero that would read as "took no time".
+                     */}
+                    <TableCell numeric>
+                      {formatDuration(j.duration_ms)}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          )}
         </Table>
       )}
 
       {data && data.total > data.page_size && (
         <nav
           aria-label="Pagination"
-          className="flex items-center justify-between text-sm"
+          className="flex items-center justify-between text-small"
         >
           <span className="text-muted-foreground">
             Page {data.page} of {pages} · {data.total} jobs

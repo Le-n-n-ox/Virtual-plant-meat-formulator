@@ -2,25 +2,55 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
-import { Group, MathUtils } from "three";
+import { Group, MathUtils, type MeshBasicMaterial } from "three";
 import { useDragStore } from "@/stores/dragStore";
 import { useFormulationStore } from "@/stores/formulationStore";
+import { useInvalidateWhile } from "../hooks/useInvalidateWhile";
+import { CropModel } from "../objects/CropModel";
 import { cropColor, type SceneTheme } from "../theme/sceneTheme";
-import { tiltForVelocity } from "./dragMath";
+import { CARRY_TOP, tiltForVelocity } from "./dragMath";
+import { sceneDropTargets } from "./dropTargets";
+import {
+  DROP_SETTLE_MS,
+  REJECT_SHAKE_MS,
+  RETURN_MS,
+  blobShadow,
+  clamp01,
+  easeOut,
+  returnArc,
+  settleScaleXZ,
+  settleScaleY,
+  shakeOffset,
+  snapToward,
+} from "./releaseAnimation";
 
-/** Lift above the carry plane while an object is carried. */
-const CARRY_LIFT = 0.35;
 const CARRY_SCALE = 1.05;
 
 /**
- * The object under the pointer during a drag: raised, scaled, with a blob
- * shadow and a small tilt towards the direction of travel. Rendered only while
- * the pointer is inside the canvas; outside it the HTML chip represents the
- * drag instead.
+ * The object under the pointer during a drag (guide §12.3, §12.5): the real
+ * container-and-crop model, raised and scaled, pulled gently toward the socket
+ * of whatever it is over, tilting into its direction of travel, above a blob
+ * shadow that shrinks and fades as it rises.
+ *
+ * On release it keeps animating for a moment after the drag state has ended:
+ * a dropped object settles into the socket with a squash, a cancelled one
+ * returns along a low arc, and a rejected one shakes first. The drag store
+ * holds that release and clears it when the animation has had its time.
+ *
+ * Rendered only while the pointer is inside the canvas; outside it the HTML
+ * chip represents the drag instead.
  */
-export function DragGhost({ theme }: { theme: SceneTheme }) {
+export function DragGhost({
+  theme,
+  reducedMotion,
+}: {
+  theme: SceneTheme;
+  reducedMotion: boolean;
+}) {
   const group = useRef<Group>(null);
+  const inner = useRef<Group>(null);
   const shadow = useRef<Group>(null);
+  const shadowMaterial = useRef<MeshBasicMaterial>(null);
   const previous = useRef<{ x: number; z: number } | null>(null);
 
   const phase = useDragStore((s) => s.phase);
@@ -29,74 +59,177 @@ export function DragGhost({ theme }: { theme: SceneTheme }) {
   const kind = useDragStore((s) => s.kind);
   const id = useDragStore((s) => s.id);
   const target = useDragStore((s) => s.target);
+  const release = useDragStore((s) => s.release);
+  const catalog = useFormulationStore((s) => s.catalog);
   const validated = useFormulationStore((s) => s.validated);
+
+  const carrying =
+    (phase === "carry" || phase === "over-target") &&
+    inCanvas &&
+    world !== null;
+  /** A release only animates in the canvas, and never under reduced motion. */
+  const releasing = release !== null && !reducedMotion && inCanvas;
+  const visible = carrying || releasing;
+
+  // The release animation runs after the pointer is up, so it has to keep
+  // asking for frames itself: the canvas sleeps as soon as the drag ends.
+  useInvalidateWhile(releasing);
 
   useFrame((_, delta) => {
     const g = group.current;
-    if (!g) return;
-    const visible =
-      inCanvas && world !== null
-        ? phase === "carry" || phase === "over-target"
-        : false;
+    const innerGroup = inner.current;
+    if (!g || !innerGroup) return;
     g.visible = visible;
-    if (!visible || !world) return;
+    if (!visible) {
+      previous.current = null;
+      return;
+    }
+
+    const k = reducedMotion ? 1 : 1 - Math.exp(-delta * 14);
+
+    /** Keeps the blob shadow under the object, shrinking as it rises. */
+    const updateShadow = (height: number) => {
+      const s = shadow.current;
+      if (!s) return;
+      const blob = blobShadow(Math.max(0, height), CARRY_TOP);
+      s.position.set(g.position.x, 0.02, g.position.z);
+      s.scale.setScalar(blob.scale);
+      if (shadowMaterial.current) {
+        shadowMaterial.current.opacity = blob.opacity;
+      }
+    };
+
+    if (releasing && release) {
+      // --- after release: settle, return arc, or shake then return ---
+      const elapsed =
+        (typeof performance !== "undefined" ? performance.now() : Date.now()) -
+        release.startedAt;
+
+      if (release.outcome === "drop") {
+        const t = clamp01(elapsed / DROP_SETTLE_MS);
+        const e = easeOut(Math.min(1, t * 1.6));
+        g.position.set(
+          release.from.x + (release.to.x - release.from.x) * e,
+          release.from.y + (release.to.y - release.from.y) * e,
+          release.from.z + (release.to.z - release.from.z) * e,
+        );
+        innerGroup.scale.set(
+          settleScaleXZ(t),
+          settleScaleY(t),
+          settleScaleXZ(t),
+        );
+        g.rotation.z = 0;
+      } else {
+        const shakeFor = release.outcome === "reject" ? REJECT_SHAKE_MS : 0;
+        if (elapsed < shakeFor) {
+          const t = clamp01(elapsed / shakeFor);
+          g.position.set(
+            release.from.x + shakeOffset(t),
+            release.from.y,
+            release.from.z,
+          );
+          g.rotation.z = shakeOffset(t) * 0.6;
+        } else {
+          const t = clamp01((elapsed - shakeFor) / RETURN_MS);
+          const p = returnArc(t, release.from, release.to);
+          g.position.set(p.x, p.y, p.z);
+          g.rotation.z = 0;
+        }
+        innerGroup.scale.setScalar(MathUtils.lerp(innerGroup.scale.x, 1, k));
+      }
+
+      updateShadow(g.position.y);
+      return;
+    }
+
+    if (!world) return;
+
+    // --- carrying: follow the pointer, pulled toward a target's socket ---
+    const targets = sceneDropTargets({ kind });
+    let point = { x: world.x, z: world.z };
+    if (target) {
+      const match = targets
+        .filter((t) => t.id === target)
+        .map((t) => ({
+          t,
+          d: Math.hypot(world.x - t.x, world.z - t.z),
+        }))
+        .sort((a, b) => a.d - b.d)[0];
+      if (match) {
+        point = snapToward(
+          point,
+          { x: match.t.x, z: match.t.z },
+          match.d,
+          match.t.radius ?? 0.9,
+        );
+      }
+    }
 
     const vx = previous.current
-      ? (world.x - previous.current.x) / Math.max(delta, 1 / 240)
+      ? (point.x - previous.current.x) / Math.max(delta, 1 / 240)
       : 0;
-    previous.current = { x: world.x, z: world.z };
+    previous.current = { x: point.x, z: point.z };
 
-    const k = 1 - Math.exp(-delta * 12);
-    g.position.x = MathUtils.lerp(g.position.x, world.x, k);
-    g.position.z = MathUtils.lerp(g.position.z, world.z, k);
-    g.position.y = MathUtils.lerp(g.position.y, CARRY_LIFT, k);
-    g.rotation.z = MathUtils.lerp(g.rotation.z, -tiltForVelocity(vx), k);
+    g.position.x = MathUtils.lerp(g.position.x, point.x, k);
+    g.position.z = MathUtils.lerp(g.position.z, point.z, k);
+    g.position.y = MathUtils.lerp(g.position.y, CARRY_TOP, k);
+    g.rotation.z = reducedMotion
+      ? 0
+      : MathUtils.lerp(g.rotation.z, -tiltForVelocity(vx), k);
     const scale = target ? CARRY_SCALE * 1.04 : CARRY_SCALE;
-    g.scale.setScalar(MathUtils.lerp(g.scale.x, scale, k));
-    if (shadow.current) {
-      // The shadow stays on the floor and softens while the object is lifted.
-      shadow.current.position.set(g.position.x, 0.02, g.position.z);
-      shadow.current.scale.setScalar(
-        MathUtils.lerp(shadow.current.scale.x, 0.8, k),
-      );
-    }
+    innerGroup.scale.setScalar(MathUtils.lerp(innerGroup.scale.x, scale, k));
+    updateShadow(g.position.y);
   });
 
-  if (!inCanvas || !world) return null;
+  if (!visible) return null;
 
+  const ingredient = catalog[id];
   const index = validated?.lines.findIndex((l) => l.ingredient_id === id) ?? -1;
-  const color =
-    kind === "candidate"
-      ? theme.product
-      : index >= 0
-        ? cropColor(theme, index)
-        : theme.accent;
+  const identity = index >= 0 ? cropColor(theme, index) : theme.accent;
 
   return (
     <>
       <group ref={shadow}>
         <mesh rotation={[-Math.PI / 2, 0, 0]}>
-          <circleGeometry args={[0.7, 32]} />
+          <circleGeometry args={[0.62, 32]} />
           <meshBasicMaterial
+            ref={shadowMaterial}
             color={theme.line}
             transparent
-            opacity={0.16}
+            opacity={0.22}
             depthWrite={false}
           />
         </mesh>
       </group>
-      <group ref={group} position={[world.x, CARRY_LIFT, world.z]}>
-        {kind === "candidate" ? (
-          <mesh castShadow>
-            <boxGeometry args={[1.1, 0.7, 1.1]} />
-            <meshStandardMaterial color={color} roughness={0.55} />
-          </mesh>
-        ) : (
-          <mesh castShadow>
-            <cylinderGeometry args={[0.5, 0.55, 1.1, 32]} />
-            <meshStandardMaterial color={color} roughness={0.75} />
-          </mesh>
-        )}
+      <group ref={group}>
+        <group ref={inner}>
+          {kind === "candidate" ? (
+            <mesh castShadow position={[0, 0.3, 0]}>
+              <boxGeometry args={[1.1, 0.42, 1.1]} />
+              <meshStandardMaterial color={theme.product} roughness={0.55} />
+            </mesh>
+          ) : (
+            <>
+              <CropModel
+                form={ingredient?.form}
+                crop={ingredient?.crop}
+                theme={theme}
+              />
+              {/* The identity colour that ties this crop to its bin, table row
+                  and vessel ribbon, as a band around the container's foot. */}
+              <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
+                <ringGeometry args={[0.34, 0.42, 36]} />
+                <meshBasicMaterial
+                  color={identity}
+                  transparent
+                  opacity={0.9}
+                  toneMapped={false}
+                  depthWrite={false}
+                />
+              </mesh>
+            </>
+          )}
+        </group>
       </group>
     </>
   );

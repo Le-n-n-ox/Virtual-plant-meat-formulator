@@ -5,6 +5,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { cn } from "cn";
 
 import { Button } from "@/components/ui/button";
+import { useMotion } from "@/lib/motion";
 import { XIcon } from "lucide-react";
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
@@ -23,17 +24,27 @@ function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
+/*
+ * The open/close timing comes from the shared motion tokens as an inline
+ * style, not from a `duration-*` class: a class can only answer the media
+ * query through `motion-reduce:`, and the preferences store's "Reduce" setting
+ * has to win too. Under reduced motion the duration is zero, so the dialog
+ * appears and disappears without any movement.
+ */
 function DialogOverlay({
   className,
+  style,
   ...props
 }: DialogPrimitive.Backdrop.Props) {
+  const motionTokens = useMotion();
   return (
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-black/10 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className,
       )}
+      style={{ ...motionTokens.enterStyle, ...style }}
       {...props}
     />
   );
@@ -42,20 +53,23 @@ function DialogOverlay({
 function DialogContent({
   className,
   children,
+  style,
   showCloseButton = true,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
 }) {
+  const motionTokens = useMotion();
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-small text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className,
         )}
+        style={{ ...motionTokens.enterStyle, ...style }}
         {...props}
       >
         {children}
@@ -120,10 +134,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn(
-        "font-heading text-base leading-none font-medium",
-        className,
-      )}
+      className={cn("font-heading text-h4", className)}
       {...props}
     />
   );
@@ -137,7 +148,7 @@ function DialogDescription({
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn(
-        "text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
+        "text-small text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
         className,
       )}
       {...props}

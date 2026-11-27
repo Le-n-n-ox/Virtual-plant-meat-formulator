@@ -45,8 +45,8 @@ export function TargetsPanel({
       className="flex flex-col gap-3 rounded-lg border p-3"
     >
       <div>
-        <h2 className="text-sm font-medium">Targets</h2>
-        <p className="text-xs text-muted-foreground">
+        <h2 className="text-h4">Targets</h2>
+        <p className="text-caption text-muted-foreground">
           Saved with the formulation and used as the starting point on the
           Optimize tab.
         </p>
@@ -89,18 +89,21 @@ export function TargetsPanel({
       <div className="flex flex-col gap-1.5">
         <Label>Key amino acids (mg per g protein)</Label>
         {nutrients.error ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             Could not load the amino acid list.
           </p>
         ) : aminoAcids.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             No amino acids are defined.
           </p>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
             {aminoAcids.map((n) => (
               <div key={n.key} className="flex items-center gap-2">
-                <Label htmlFor={`target-${n.key}`} className="flex-1 text-xs">
+                <Label
+                  htmlFor={`target-${n.key}`}
+                  className="flex-1 text-caption"
+                >
                   {n.name}
                 </Label>
                 <Input
@@ -108,7 +111,7 @@ export function TargetsPanel({
                   type="number"
                   min={0}
                   step="any"
-                  className="h-7 w-24 tabular-nums"
+                  className="h-7 w-24 font-numeric"
                   value={values[n.key] ?? ""}
                   onChange={(e) => onValue(n.key, e.target.value)}
                 />
@@ -119,7 +122,7 @@ export function TargetsPanel({
       </div>
 
       {error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {error}
         </p>
       )}

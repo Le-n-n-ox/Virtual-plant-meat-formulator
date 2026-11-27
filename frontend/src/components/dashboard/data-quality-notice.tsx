@@ -32,13 +32,13 @@ export function DataQualityNotice() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2">
           <TriangleAlertIcon className="size-4 text-warning" aria-hidden /> Data
           quality
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-small text-muted-foreground">
           <span className="font-medium text-foreground">
             {formatNumber(estimated)}
           </span>{" "}
@@ -49,7 +49,7 @@ export function DataQualityNotice() {
         </p>
         <Link
           href="/ingredients"
-          className="mt-2 inline-block text-sm text-primary underline underline-offset-4"
+          className="mt-2 inline-block text-small text-primary underline underline-offset-4"
         >
           Browse the catalogue and its quality flags
         </Link>

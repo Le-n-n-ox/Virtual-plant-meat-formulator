@@ -25,6 +25,25 @@ class Settings(BaseSettings):
     database_url: str = (
         "postgresql+psycopg://postgres:devpassword@localhost:5432/virtual_plant_meat_formulator"
     )
+
+    # Connection pool. These defaults are deliberately small: a hosted pooler
+    # caps how many clients may connect at once (Supabase's session mode allows
+    # 15), and every process that opens an engine — the API and each worker —
+    # spends from that one budget. The previous values (10 + 20 overflow) let a
+    # single process ask for 30, which exhausted the pooler and left migrations
+    # unable to connect at all.
+    db_pool_size: int = 3
+    db_max_overflow: int = 2
+    db_pool_recycle_seconds: int = 300
+
+    # Migrations run against this URL when set, otherwise `database_url`.
+    # Alembic needs a real session: it holds DDL in one transaction and locks
+    # its version table, which a transaction-mode pooler does not guarantee to
+    # keep on one server connection. So the app can use transaction mode (port
+    # 6543) while migrations keep using session mode (5432). It only ever needs
+    # one connection, briefly, and already uses NullPool.
+    migrate_database_url: str | None = None
+
     redis_url: str = "redis://localhost:6379/0"
     job_runner: Literal["inline", "celery"] = "inline"
     event_bus: Literal["memory", "redis"] = "memory"

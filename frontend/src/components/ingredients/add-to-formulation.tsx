@@ -90,18 +90,18 @@ export function AddToFormulation({ ingredient }: { ingredient: Ingredient }) {
         </DialogHeader>
 
         {error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-small text-destructive">
             {error}
           </p>
         )}
         {listError ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-small text-destructive">
             {errorMessage(listError)}
           </p>
         ) : loading ? (
           <Skeleton className="h-40 w-full" />
         ) : !data || data.items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-small text-muted-foreground">
             You have no formulations yet. Create one from the formulations page.
           </p>
         ) : (
@@ -116,13 +116,13 @@ export function AddToFormulation({ ingredient }: { ingredient: Ingredient }) {
                 >
                   <span className="min-w-0">
                     <span className="block truncate">{f.name}</span>
-                    <span className="block text-xs text-muted-foreground">
+                    <span className="block text-caption text-muted-foreground">
                       v{f.current_version} · updated{" "}
                       {formatDateTime(f.updated_at)}
                     </span>
                   </span>
                   {busy === f.id && (
-                    <span className="ml-2 shrink-0 text-xs">Adding…</span>
+                    <span className="ml-2 shrink-0 text-caption">Adding…</span>
                   )}
                 </Button>
               </li>

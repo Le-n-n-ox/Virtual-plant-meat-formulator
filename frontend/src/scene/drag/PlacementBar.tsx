@@ -52,7 +52,7 @@ export function PlacementBar() {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-auto absolute bottom-2 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border bg-popover/95 px-3 py-1.5 text-xs shadow-lg backdrop-blur"
+      className="pointer-events-auto absolute bottom-2 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border bg-popover/95 px-3 py-1.5 text-caption shadow-lg backdrop-blur"
     >
       <CircleDotIcon aria-hidden className="size-3.5 text-primary" />
       <span className="max-w-48 truncate font-medium">{item.label} held</span>

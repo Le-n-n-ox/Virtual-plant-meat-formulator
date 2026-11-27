@@ -16,6 +16,9 @@
  *   2. status tokens: success / warning / info / idle (always paired with text)
  *   3. scene tokens (--scene-*): read by the 3D renderer and the 2D fallback.
  *      Numbers such as --scene-ambient are light intensities, not colours.
+ *   4. type scale tokens (--text-*): one place for every size in the app.
+ *      Type is theme-independent, so these live in @theme and not in the
+ *      per-theme blocks (tests/themes.test.ts compares the per-theme sets).
  */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="lagoon"], [data-theme="ember"], [data-theme="dark"] *, [data-theme="lagoon"] *, [data-theme="ember"] *));
 
@@ -24,7 +27,8 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  /* Headings have their own face; src/app/layout.tsx records why. */
+  --font-heading: var(--font-display);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -71,6 +75,61 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+ * Type scale
+ * ----------
+ * Eight steps, each one a `text-*` utility (text-h1, text-body, text-caption
+ * ...). Use these instead of Tailwind's text-xs/sm/base ladder: the step names
+ * say what a piece of text *is*, so the same decision cannot be made three
+ * different ways on three pages, and the line-height travels with the size.
+ *
+ * Sizes assume the 16 px root. Headings carry their own weight and negative
+ * tracking because that, plus the display face applied to h1-h6 below, is what
+ * makes the hierarchy readable at the small end — a panel heading has to be
+ * recognisable at 16 px, two steps away from the page title.
+ *
+ * 14 px (--text-small) is the floor for body copy, which includes every error,
+ * warning and status message — those are the sentences a user most needs to
+ * read. --text-caption is 12 px and is reserved for labels, units, counts and
+ * other short meta that sits beside a value, never for a paragraph.
+ */
+@theme {
+  --text-display: 3rem; /* 48px — landing hero only */
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.03em;
+  --text-display--font-weight: 600;
+
+  --text-h1: 1.875rem; /* 30px — the page title, one per page */
+  --text-h1--line-height: 1.2;
+  --text-h1--letter-spacing: -0.025em;
+  --text-h1--font-weight: 600;
+
+  --text-h2: 1.5rem; /* 24px — major section inside a page */
+  --text-h2--line-height: 1.25;
+  --text-h2--letter-spacing: -0.02em;
+  --text-h2--font-weight: 600;
+
+  --text-h3: 1.125rem; /* 18px — panel or tab title */
+  --text-h3--line-height: 1.35;
+  --text-h3--letter-spacing: -0.015em;
+  --text-h3--font-weight: 600;
+
+  --text-h4: 1rem; /* 16px — card title, block heading inside a panel */
+  --text-h4--line-height: 1.4;
+  --text-h4--letter-spacing: -0.01em;
+  --text-h4--font-weight: 600;
+
+  --text-body: 1rem; /* 16px — prose, dialog copy, empty states */
+  --text-body--line-height: 1.6;
+
+  --text-small: 0.875rem; /* 14px — dense UI: tables, forms, chips */
+  --text-small--line-height: 1.45;
+
+  --text-caption: 0.75rem; /* 12px — labels, units, meta. Never a sentence */
+  --text-caption--line-height: 1.35;
+  --text-caption--letter-spacing: 0.01em;
 }
 
 /* ---------- Shared by all light-mode themes ---------- */
@@ -414,15 +473,76 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-body text-foreground;
   }
   html {
     @apply font-sans;
     scroll-behavior: smooth;
   }
+  /*
+   * The display face and the heading weight come from the element, not from
+   * the call site, so a heading cannot lose its voice by being given only a
+   * size token, or none at all. Size stays explicit, because the element does
+   * not imply the step: an <h2> inside a dense panel is text-h4, while an
+   * <h2> that opens a page is text-h2.
+   */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading font-semibold;
+  }
   section[id],
   div[id] {
     scroll-margin-top: 5.5rem;
+  }
+}
+
+/*
+ * Figures that are read against each other — a percentage column, nutrient
+ * values, a job duration, the same field across two candidates — go in the
+ * mono face with tabular figures, so digits share one advance width and the
+ * decimal points line up down the column. Geist's proportional figures do not,
+ * which is what makes a scanned column of them look ragged. Use this utility
+ * rather than a bare `tabular-nums`: one class is the whole decision, and it
+ * is the marker for "this number is compared, not just displayed". Prose that
+ * happens to contain a number stays in the sans face.
+ */
+@utility font-numeric {
+  @apply font-mono tabular-nums;
+}
+
+/*
+ * Focus indicator for controls that have no border of their own to light up —
+ * cards, tiles, nav rows, theme swatches.
+ *
+ * WCAG 2.2 1.4.11 asks for at least 3:1 between a focus indicator and what it
+ * sits on. A soft `ring-ring/50` alone measures 1.8 to 3.4:1 across the six
+ * themes, so it fails in five of them; the solid `border-ring` that button,
+ * input and badge already carry passes everywhere. This draws that solid ring
+ * as the indicator and keeps a faint halo outside it as decoration, so the part
+ * doing the accessibility work is at full strength.
+ *
+ * `:has(:focus-visible)` covers the common shape here of a label or tile
+ * wrapping the real radio or checkbox. Override the colour per context with
+ * `[--focus-ring-color:var(--color-sidebar-ring)]`, so each surface keeps its
+ * own tone rather than forcing one accent everywhere.
+ */
+@utility focus-ring {
+  &:focus-visible,
+  &:has(:focus-visible) {
+    /*
+     * `outline` rather than a stack of box-shadows on purpose. A two-stop
+     * shadow needs `color-mix()` for the faint outer halo, and the CSS
+     * minifier flattens a `color-mix()` wrapping a `var()` down to the solid
+     * colour — which silently turned a 2 px ring with a halo into a 5 px slab.
+     * An outline cannot be flattened that way, takes no part in layout, and
+     * follows the element's border radius.
+     */
+    outline: 2px solid var(--focus-ring-color, var(--color-ring));
+    outline-offset: 2px;
   }
 }
 
@@ -577,6 +697,18 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* The in-app motion preference (Settings > Motion > Reduce) applied to a
+   subtree, for components that animate through CSS rather than Motion and so
+   cannot read the store themselves. */
+[data-reduce-motion="true"],
+[data-reduce-motion="true"] *,
+[data-reduce-motion="true"] *::before,
+[data-reduce-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }
 
 /* Indeterminate progress sweep (decorative; never implies a percentage). */

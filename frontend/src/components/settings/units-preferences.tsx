@@ -21,13 +21,13 @@ function Choice<T extends string>({
 }) {
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="mb-2 text-sm font-medium">{label}</legend>
+      <legend className="mb-2 text-small font-medium">{label}</legend>
       <div className="grid gap-2 sm:grid-cols-2">
         {options.map((o) => (
           <label
             key={o.value}
             className={cn(
-              "flex cursor-pointer flex-col gap-0.5 rounded-lg border p-3 text-sm has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+              "focus-ring flex cursor-pointer flex-col gap-0.5 rounded-lg border p-3 text-small",
               value === o.value
                 ? "border-primary bg-accent/50"
                 : "hover:bg-muted/50",
@@ -42,7 +42,7 @@ function Choice<T extends string>({
               onChange={() => onChange(o.value)}
             />
             <span className="font-medium">{o.label}</span>
-            <span className="text-xs text-muted-foreground">{o.hint}</span>
+            <span className="text-caption text-muted-foreground">{o.hint}</span>
           </label>
         ))}
       </div>
@@ -66,7 +66,7 @@ export function UnitsPreferences() {
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="text-xs text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         Display only. Values sent to and stored from the backend stay in
         canonical units (mg per g protein, kcal, grams per 100 g).
       </p>

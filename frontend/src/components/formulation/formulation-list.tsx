@@ -70,10 +70,8 @@ export function FormulationList() {
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 p-4 sm:p-6 lg:p-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Formulations
-          </h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-h1">Formulations</h1>
+          <p className="text-small text-muted-foreground">
             Your saved blends. Open one to edit, validate and run calculations.
           </p>
         </div>
@@ -100,7 +98,7 @@ export function FormulationList() {
             className="pl-8"
           />
         </div>
-        <label className="flex items-center gap-1.5 text-sm">
+        <label className="flex items-center gap-1.5 text-small">
           <input
             type="checkbox"
             checked={showArchived}
@@ -114,13 +112,13 @@ export function FormulationList() {
       </div>
 
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {errorMessage(error)}
         </p>
       ) : loading ? (
         <Skeleton className="h-48 w-full" />
       ) : data && data.items.length === 0 ? (
-        <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-lg border border-dashed p-8 text-center text-small text-muted-foreground">
           {q
             ? "No formulations match your search."
             : showArchived
@@ -149,7 +147,7 @@ export function FormulationList() {
                     {f.name}
                   </Link>
                   {f.archived && (
-                    <span className="ml-2 text-xs text-muted-foreground">
+                    <span className="ml-2 text-caption text-muted-foreground">
                       archived
                     </span>
                   )}
@@ -163,7 +161,7 @@ export function FormulationList() {
                   {f.last_job ? (
                     <span className="flex items-center gap-2">
                       <JobStatusBadge status={f.last_job.status} />
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-caption text-muted-foreground">
                         {humanizeKey(String(f.last_job.type))}
                       </span>
                     </span>
@@ -190,7 +188,7 @@ export function FormulationList() {
       {data && data.total > data.page_size && (
         <nav
           aria-label="Pagination"
-          className="flex items-center justify-between text-sm"
+          className="flex items-center justify-between text-small"
         >
           <span className="text-muted-foreground">
             Page {data.page} of {pages} · {data.total} formulations
@@ -298,7 +296,7 @@ function RowActions({
       </Button>
 
       {error && (
-        <span role="alert" className="text-xs text-destructive">
+        <span role="alert" className="text-small text-destructive">
           {error}
         </span>
       )}
@@ -398,7 +396,7 @@ export function NewFormulationDialog({
             <Label htmlFor="new-template">Start from (optional)</Label>
             <select
               id="new-template"
-              className="h-9 rounded-lg border bg-background px-2 text-sm"
+              className="h-9 rounded-lg border bg-background px-2 text-small"
               value={templateId}
               onChange={(e) => setTemplateId(e.target.value)}
               disabled={pending}
@@ -411,13 +409,13 @@ export function NewFormulationDialog({
               ))}
             </select>
             {templateError && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-caption text-muted-foreground">
                 Could not list formulations to copy from.
               </p>
             )}
           </div>
           {error && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-small text-destructive">
               {error}
             </p>
           )}

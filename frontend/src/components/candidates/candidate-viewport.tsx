@@ -47,7 +47,7 @@ export function CandidateViewport({
   const reducedMotion = useReducedMotionPreference();
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-muted-foreground">
+      <span className="text-caption font-medium text-muted-foreground">
         Candidate {label}
       </span>
       <div className="h-64 overflow-hidden rounded-lg border">

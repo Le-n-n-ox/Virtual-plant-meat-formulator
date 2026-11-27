@@ -4,10 +4,13 @@ import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { type InstancedMesh, Object3D } from "three";
 
-const COUNT = 34;
-const DURATION = 1.3;
+/** Grains in one pour (guide §12.5: 60 to 100, instanced). */
+const COUNT = 72;
+const DURATION = 1.1;
 const dummy = new Object3D();
 const OFFSETS = Array.from({ length: COUNT }, (_, i) => (i / COUNT) * 0.5);
+/** Height the grains disappear at: the mixing vessel's rim. */
+const RIM_HEIGHT = 1.25;
 
 interface IngredientFlowProps {
   from: [number, number, number];
@@ -41,7 +44,10 @@ export function IngredientFlow({
       );
       const x = from[0] + (to[0] - from[0]) * t;
       const z = from[2] + (to[2] - from[2]) * t;
-      const y = 1.5 + Math.sin(Math.PI * t) * 1.5 - t * 0.5;
+      // Falls from wherever the pour started to the vessel rim, with a small
+      // arc so the grains read as tipped in rather than teleported.
+      const start = Math.max(from[1], 1.2);
+      const y = start + (RIM_HEIGHT - start) * t + Math.sin(Math.PI * t) * 0.85;
       const s = t <= 0 || t >= 1 ? 0 : 0.055 + 0.05 * Math.sin(Math.PI * t);
       dummy.position.set(
         x + Math.sin(i * 12.9) * 0.1,

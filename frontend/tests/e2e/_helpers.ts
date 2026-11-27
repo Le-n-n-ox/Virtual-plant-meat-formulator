@@ -77,6 +77,9 @@ export function savedPreferences(patch: Record<string, unknown>): string {
       aminoAcidUnit: "mg",
       energyUnit: "kcal",
       proteinUnit: "g_per_100g",
+      // The sidebar's collapse state is not here: it lives in the
+      // `sidebar_state` cookie that `SidebarProvider` owns, so a spec that
+      // needs a collapsed rail sets that cookie instead.
       ...patch,
     },
     version: 1,

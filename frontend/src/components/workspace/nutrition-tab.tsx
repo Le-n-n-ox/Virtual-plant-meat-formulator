@@ -81,7 +81,7 @@ export function NutritionTab() {
     return <Skeleton className="h-48 w-full" />;
   if (!ready) {
     return (
-      <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+      <p className="rounded-lg border border-dashed p-4 text-small text-muted-foreground">
         Save the formulation first: calculations run on a saved version.
       </p>
     );
@@ -103,9 +103,9 @@ export function NutritionTab() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold">
+        <h1 className="text-h3">
           Nutrition and amino acids{" "}
-          <span className="text-sm font-normal text-muted-foreground">
+          <span className="text-small font-normal text-muted-foreground">
             v{version}
           </span>
         </h1>
@@ -121,7 +121,7 @@ export function NutritionTab() {
 
       {!result && query.loading && <Skeleton className="h-48 w-full" />}
       {!result && notFound && !running && (
-        <div className="rounded-lg border border-dashed p-6 text-center text-sm">
+        <div className="rounded-lg border border-dashed p-6 text-center text-small">
           <p className="font-medium">
             No nutrition result for this version yet
           </p>
@@ -135,7 +135,7 @@ export function NutritionTab() {
         </div>
       )}
       {!result && query.error && !notFound && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {errorMessage(query.error)}
         </p>
       )}
@@ -144,7 +144,7 @@ export function NutritionTab() {
         <>
           <NutritionResults result={result} />
           {result.amino_acids && <AminoAcidTable block={result.amino_acids} />}
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             Provenance: calculation {result.calc_version}
             {jobId ? `, job ${jobId}` : ""}
             {result.finished_at
@@ -171,8 +171,8 @@ function AminoAcidTable({ block }: { block: AminoAcidBlock }) {
   const scores = new Map(block.scores.map((s) => [s.key, s.score]));
   return (
     <section aria-label="Amino acid detail" className="flex flex-col gap-2">
-      <h2 className="text-sm font-medium">Amino acids per g protein</h2>
-      <p className="text-xs text-muted-foreground">
+      <h2 className="text-h4">Amino acids per g protein</h2>
+      <p className="text-caption text-muted-foreground">
         Scored against {block.reference_pattern.name} (FAO{" "}
         {block.reference_pattern.version}) by the {block.method} method. Values
         are from the calculation; amino acids without reported data are shown as
@@ -195,19 +195,19 @@ function AminoAcidTable({ block }: { block: AminoAcidBlock }) {
                 <TableCell>
                   {humanizeKey(row.key)}
                   {limiting && (
-                    <span className="ml-2 text-xs font-medium text-warning">
+                    <span className="ml-2 text-caption font-medium text-warning">
                       limiting
                     </span>
                   )}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-right font-numeric">
                   {row.value === null ? (
                     <span className="text-muted-foreground">missing</span>
                   ) : (
                     formatNumber(row.value)
                   )}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="text-right font-numeric">
                   {score === null || score === undefined ? (
                     <span className="text-muted-foreground">missing</span>
                   ) : (
