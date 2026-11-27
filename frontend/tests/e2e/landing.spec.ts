@@ -197,14 +197,14 @@ test("every landing-page link resolves", async ({ page }) => {
 });
 
 /*
- * Known open failure at 360px, left strict on purpose. The site header's
- * right-hand cluster — theme switcher, "Open workspace", menu toggle — is wider
- * than the header's content box on a 360px screen and pushes the document two
- * pixels sideways. It is not this page's content: /methodology shares the same
- * header and none of these sections, and overflows by the same two pixels,
- * while /login, which has no header, does not. The fix belongs in
- * components/landing/site-header.tsx; relaxing the bound to 362 here would only
- * hide it, and the requirement is no sideways scroll at all.
+ * This was a known open failure at 360px: the site header's right-hand cluster
+ * — theme switcher, "Open workspace", menu toggle — was wider than the header's
+ * content box and pushed the document two pixels sideways on every page that
+ * uses the header, /methodology included. It is fixed in
+ * components/landing/site-header.tsx: the brand may shrink and truncates, the
+ * cluster may not shrink, and below `sm` the sign-in pair moves out of the row
+ * and into the menu panel. The bound stays strict — the requirement is no
+ * sideways scroll at all, not a tolerance.
  */
 for (const width of WIDTHS) {
   test(`no horizontal scroll at ${width}px`, async ({ page }) => {

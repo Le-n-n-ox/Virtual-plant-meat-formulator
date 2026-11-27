@@ -1,7 +1,6 @@
 import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { stubMatchMedia } from "./_matchMedia";
 
 /**
  * Navigation below `lg`: the workspace sidebar as a sheet opened from the top
@@ -46,15 +45,25 @@ const TOUCH_TARGET = ["min-h-11", "min-w-11", "lg:min-h-0", "lg:min-w-0"];
 const TOUCH_ROW = ["min-h-11", "lg:min-h-0"];
 
 /**
- * `useIsMobile` decides between the fixed column and the sheet from
- * `window.innerWidth`, so a width is the one piece of layout a test must set.
- * jsdom defines it as a read-only accessor, hence the redefinition.
+ * A viewport width, as the one piece of layout jsdom can be told about.
+ *
+ * This suite stubs `matchMedia` itself rather than calling the shared
+ * `stubMatchMedia`, because the width is the subject here: `useIsMobile` asks
+ * for `(max-width: 1023px)` and chooses the sheet or the fixed column from the
+ * answer, while `useMotion` asks the same object about reduced motion, which
+ * stays off.
  */
 function atWidth(width: number) {
-  Object.defineProperty(window, "innerWidth", {
-    configurable: true,
-    writable: true,
-    value: width,
+  vi.stubGlobal("matchMedia", (media: string) => {
+    const maxWidth = /max-width:\s*(\d+)px/.exec(media);
+    return {
+      media,
+      matches: maxWidth ? width <= Number(maxWidth[1]) : false,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    };
   });
 }
 
@@ -94,7 +103,6 @@ class StubIntersectionObserver {
 }
 
 beforeEach(() => {
-  stubMatchMedia();
   atWidth(PHONE);
   notifyIntersection = undefined;
   vi.stubGlobal("IntersectionObserver", StubIntersectionObserver);
@@ -103,7 +111,6 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
-  atWidth(1024);
 });
 
 describe("the workspace navigation sheet", () => {
@@ -112,13 +119,15 @@ describe("the workspace navigation sheet", () => {
     renderWorkspaceChrome();
 
     // The sheet is the only nav below lg, so the trigger has to report whether
-    // it is showing.
-    expect(trigger()).toHaveAttribute("aria-expanded", "false");
+    // it is showing. It is held by reference across the click: the open sheet
+    // is modal, which takes the rest of the document out of the a11y tree.
+    const toggle = trigger();
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("navigation", { name: "Main" })).toBeNull();
 
-    await user.click(trigger());
+    await user.click(toggle);
 
-    expect(trigger()).toHaveAttribute("aria-expanded", "true");
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
     const nav = await screen.findByRole("navigation", { name: "Main" });
     expect(within(nav).getAllByRole("link")).toHaveLength(8);
     expect(
@@ -168,6 +177,19 @@ describe("the workspace navigation sheet", () => {
     await user.click(screen.getByRole("button", { name: "Close navigation" }));
 
     expect(trigger()).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("gets out of the way once a row has been tapped", async () => {
+    const user = userEvent.setup();
+    renderWorkspaceChrome();
+    const toggle = trigger();
+    await user.click(toggle);
+
+    await user.click(screen.getByRole("link", { name: "Jobs" }));
+
+    // On desktop the nav stays put; a sheet that covered the page it had just
+    // navigated to would have to be dismissed by hand every time.
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
   });
 
   for (const width of [360, PHONE, 768]) {

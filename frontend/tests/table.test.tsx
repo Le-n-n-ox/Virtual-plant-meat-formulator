@@ -207,6 +207,223 @@ describe("striped and sticky options", () => {
   });
 });
 
+/**
+ * `stackBelow` is the narrow-screen layout: below its breakpoint every row
+ * becomes a card of labelled lines, so a five-column table is readable on a
+ * phone without dragging it left and right. These pin the shape of that card,
+ * that the column labels never leak into a value, that the scrollport and the
+ * sticky window wait for the breakpoint, and that a table which did not ask for
+ * any of it is untouched.
+ */
+describe("stacked rows below a breakpoint", () => {
+  function renderStacked(props: Parameters<typeof Table>[0] = {}) {
+    return render(
+      <Table stackBelow="lg" {...props}>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Ingredient</TableHead>
+            <TableHead numeric>Protein (g/100 g)</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell>Cowpea leaves</TableCell>
+            <TableCell numeric label="Protein (g/100 g)">
+              23.5
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>,
+    );
+  }
+
+  it("makes a card of each row and drops the header its labels replace", () => {
+    const { container } = renderStacked();
+
+    const table = container.querySelector('[data-slot="table"]');
+    expect(table).toHaveAttribute("data-stack", "lg");
+    expect(table).toHaveClass("max-lg:block");
+    expect(container.querySelector('[data-slot="table-header"]')).toHaveClass(
+      "max-lg:hidden",
+    );
+    expect(container.querySelector('[data-slot="table-body"]')).toHaveClass(
+      "max-lg:flex",
+      "max-lg:flex-col",
+      "max-lg:gap-3",
+    );
+
+    const [, row] = screen.getAllByRole("row");
+    expect(row).toHaveClass(
+      "max-lg:block",
+      "max-lg:rounded-lg",
+      "max-lg:border",
+      "max-lg:p-3",
+    );
+  });
+
+  it("leaves the last card a border, which a table row would not need", () => {
+    const { container } = renderStacked();
+
+    const body = container.querySelector('[data-slot="table-body"]');
+    expect(body).toHaveClass("lg:[&_tr:last-child]:border-0");
+    expect(body).not.toHaveClass("[&_tr:last-child]:border-0");
+  });
+
+  it("names a value with its column without making the name part of it", () => {
+    renderStacked();
+
+    const cell = screen.getByRole("cell", { name: "23.5" });
+    expect(cell).toHaveAttribute("data-label", "Protein (g/100 g)");
+    expect(cell.className).toContain(
+      "max-lg:before:content-[attr(data-label)]",
+    );
+    expect(cell).toHaveClass("max-lg:flex", "max-lg:justify-between");
+    // The label is drawn from the attribute, so the cell's text is the value.
+    expect(cell.textContent).toBe("23.5");
+    expect(cell).toHaveClass("font-numeric");
+  });
+
+  it("keeps the identifying column as the card's first line", () => {
+    renderStacked();
+
+    const cell = screen.getByRole("cell", { name: "Cowpea leaves" });
+    expect(cell).not.toHaveAttribute("data-label");
+    expect(cell).toHaveClass("max-lg:block", "max-lg:text-body");
+    expect(cell.className).not.toContain("before:content");
+  });
+
+  it("wraps a long value rather than widening the card past the screen", () => {
+    renderStacked();
+
+    expect(screen.getByRole("cell", { name: "23.5" })).toHaveClass(
+      "max-lg:whitespace-normal",
+      "max-lg:break-words",
+    );
+  });
+
+  it("restates the roles that display:block would otherwise drop", () => {
+    const { container } = renderStacked();
+
+    expect(container.querySelector('[data-slot="table"]')).toHaveAttribute(
+      "role",
+      "table",
+    );
+    expect(container.querySelector('[data-slot="table-body"]')).toHaveAttribute(
+      "role",
+      "rowgroup",
+    );
+    const [, row] = screen.getAllByRole("row");
+    expect(row).toHaveAttribute("role", "row");
+    expect(screen.getByRole("cell", { name: "23.5" })).toHaveAttribute(
+      "role",
+      "cell",
+    );
+    expect(
+      screen.getByRole("columnheader", { name: "Ingredient" }),
+    ).toHaveAttribute("role", "columnheader");
+  });
+
+  it("waits for the breakpoint before it scrolls or pins anything", () => {
+    const { container } = renderStacked({ stickyHeader: true });
+
+    const wrapper = container.querySelector('[data-slot="table-container"]');
+    expect(wrapper).toHaveClass(
+      "lg:overflow-x-auto",
+      "lg:overflow-y-auto",
+      "lg:overscroll-contain",
+    );
+    expect(wrapper).not.toHaveClass("overflow-x-auto", "overflow-y-auto");
+    // No inner 32rem scroll region inside the page's own scroll on a phone.
+    const classes = wrapper?.className.split(" ") ?? [];
+    expect(classes).toContain("lg:max-h-[var(--table-max-height,32rem)]");
+    expect(classes).not.toContain("max-h-[var(--table-max-height,32rem)]");
+  });
+
+  it("keeps the empty state a plain message rather than a card", () => {
+    const { container } = render(
+      <Table stackBelow="lg">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Ingredient</TableHead>
+            <TableHead>Form</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableEmpty colSpan={2}>
+            <p>No ingredients match these filters.</p>
+          </TableEmpty>
+        </TableBody>
+      </Table>,
+    );
+
+    const cell = screen.getByRole("cell");
+    expect(cell).toHaveAttribute("colspan", "2");
+    expect(cell).toHaveClass("max-lg:block", "p-8", "text-center");
+    expect(cell.className).not.toContain("rounded-lg");
+    expect(container.querySelector('[data-slot="table-empty"]')).toHaveClass(
+      "max-lg:block",
+    );
+  });
+
+  it("loads into the same cards the rows will arrive in", () => {
+    const { container } = render(
+      <Table stackBelow="lg">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Ingredient</TableHead>
+            <TableHead>Form</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableSkeleton columns={2} rows={2} />
+      </Table>,
+    );
+
+    const body = container.querySelector('[data-slot="table-skeleton"]');
+    expect(body).toHaveClass("max-lg:flex", "max-lg:flex-col");
+    const rows = container.querySelectorAll(
+      '[data-slot="table-skeleton"] > tr',
+    );
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row).toHaveClass("max-lg:rounded-lg", "max-lg:border");
+      expect(row).toHaveAttribute("role", "row");
+    }
+    expect(screen.getAllByRole("cell")).toHaveLength(4);
+  });
+
+  it("leaves a table that never stacks exactly as it was", () => {
+    const { container } = render(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Ingredient</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell>Cowpea leaves</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>,
+    );
+
+    const table = container.querySelector('[data-slot="table"]');
+    expect(table).not.toHaveAttribute("data-stack");
+    expect(table).not.toHaveAttribute("role");
+    expect(
+      container.querySelector('[data-slot="table-container"]'),
+    ).toHaveClass("overflow-x-auto");
+    expect(container.querySelector('[data-slot="table-body"]')).toHaveClass(
+      "[&_tr:last-child]:border-0",
+    );
+
+    const cell = screen.getByRole("cell");
+    expect(cell).toHaveClass("whitespace-nowrap");
+    expect(cell).not.toHaveAttribute("data-label");
+    expect(cell.className).not.toContain("max-lg:");
+  });
+});
+
 describe("TableSortableHead", () => {
   const onSortChange = vi.fn();
 
@@ -396,6 +613,49 @@ describe("the catalogue on the new pieces", () => {
 
     const cell = await screen.findByRole("cell", { name: "23.5" });
     expect(cell).toHaveClass("text-right", "font-numeric");
+  });
+
+  it("still names it missing once the row is a card, and never prints a zero", async () => {
+    getIngredientFacets.mockResolvedValue(facets);
+    listIngredients.mockResolvedValue(row(null));
+    renderWithProviders(<IngredientCatalogue />);
+
+    const cell = await screen.findByRole("cell", { name: NOT_REPORTED });
+    expect(cell).toHaveAttribute("data-label", "Protein (g/100 g)");
+    expect(cell.textContent).toBe(NOT_REPORTED);
+    expect(cell.textContent).not.toMatch(/\d/);
+
+    // The rest of the card must not fill the gap with a zero either.
+    const card = cell.closest('[data-slot="table-row"]');
+    expect(card).toHaveClass("max-lg:rounded-lg");
+    expect(card?.textContent).not.toMatch(/\b0\b/);
+  });
+
+  it("labels every value in the card but the ingredient's own name", async () => {
+    getIngredientFacets.mockResolvedValue(facets);
+    listIngredients.mockResolvedValue(row(23.5));
+    renderWithProviders(<IngredientCatalogue />);
+
+    await screen.findByRole("cell", { name: "23.5" });
+    expect(
+      screen.getAllByRole("cell").map((c) => c.getAttribute("data-label")),
+    ).toEqual([null, "Form", "Protein (g/100 g)", "Data", "Source"]);
+  });
+
+  it("offers the sort beside the filters, where a card has no header to click", async () => {
+    const user = userEvent.setup();
+    getIngredientFacets.mockResolvedValue(facets);
+    listIngredients.mockResolvedValue(row(23.5));
+    renderWithProviders(<IngredientCatalogue />);
+
+    const sort = await screen.findByLabelText("Sort ingredients");
+    expect(sort).toHaveClass("lg:hidden");
+    expect(sort).toHaveValue("common_name");
+
+    await user.selectOptions(sort, "-protein");
+    expect(replace).toHaveBeenCalledWith("/ingredients?sort=-protein", {
+      scroll: false,
+    });
   });
 
   it("keeps the columns on screen when nothing matches the filters", async () => {

@@ -87,9 +87,10 @@ export function AppSidebar() {
   return (
     <Sidebar
       collapsible="icon"
-      // The width change is a CSS transition, so the OS `prefers-reduced-motion`
-      // is already honoured in globals.css. This carries the app's own
-      // Settings > Motion > Reduce choice through to the same rule.
+      // Everything that moves in here is a CSS transition — the rail's width,
+      // a row's padding, a hover colour — and globals.css already zeroes those
+      // for the OS `prefers-reduced-motion`. This hands the same rule the app's
+      // own Settings > Motion > Reduce choice, which no media query can see.
       data-reduce-motion={reducedMotion ? "true" : undefined}
     >
       <SidebarHeader>

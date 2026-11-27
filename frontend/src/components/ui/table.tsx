@@ -82,6 +82,11 @@ const TableContext = React.createContext<TableContextValue>({
  * names as written: a template such as `max-${breakpoint}:block` compiles to
  * nothing at all. Keeping them in one table is also the only way to read the
  * layout as a layout.
+ *
+ * There is no slot for the footer or the caption: no table in the app renders
+ * a `tfoot` or a `TableCaption`, and guessing at the card shape of something
+ * nothing exercises would be untested code. A call site that needs one adds
+ * its slot here first.
  */
 interface TableStackClasses {
   /** The horizontal scrollport, which is only needed once this is a table again. */

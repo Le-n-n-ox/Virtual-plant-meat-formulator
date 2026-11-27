@@ -34,6 +34,7 @@ vi.mock("@/components/ui/skeleton", () => ({
 }));
 
 import { IngredientDetailView } from "@/components/ingredients/ingredient-detail";
+import { NOT_REPORTED } from "@/lib/format";
 
 // "Add to formulation" opens a dialog, whose open/close timing comes from the
 // shared motion tokens; those read the reduced-motion media query.
@@ -95,6 +96,47 @@ describe("IngredientDetailView", () => {
     expect(proteinRow?.textContent).toContain("—");
     const fatRow = rows.find((r) => r.textContent?.includes("Fat"));
     expect(fatRow?.textContent).toContain("2.1–3.4");
+  });
+
+  /*
+   * Below `md` the nutrient table stacks into one card per nutrient (see
+   * `stackBelow` in the table primitive), so the display rules have to survive
+   * the move: the value keeps its unit, and a value the source never reported
+   * still reads "not reported" rather than a fabricated zero.
+   */
+  it("stacks each nutrient into labelled lines and keeps the units", async () => {
+    getIngredient.mockResolvedValue({
+      ...base,
+      nutrients: [nutrient()],
+      amino_acids: [],
+    });
+    renderWithProviders(<IngredientDetailView />);
+
+    const value = await screen.findByRole("cell", { name: "23.5 g" });
+    expect(value).toHaveAttribute("data-label", "Value");
+    expect(value).toHaveClass("max-md:flex", "font-numeric");
+
+    const name = screen.getByRole("cell", { name: "Protein" });
+    expect(name).not.toHaveAttribute("data-label");
+    expect(name).toHaveClass("max-md:block", "max-md:text-body");
+  });
+
+  it("still names an unreported value as missing in the stacked layout", async () => {
+    getIngredient.mockResolvedValue({
+      ...base,
+      nutrients: [nutrient({ key: "fat", name: "Fat", value: null })],
+      amino_acids: [],
+    });
+    renderWithProviders(<IngredientDetailView />);
+
+    const value = await screen.findByRole("cell", { name: NOT_REPORTED });
+    expect(value).toHaveAttribute("data-label", "Value");
+    expect(value.textContent).toBe(NOT_REPORTED);
+    expect(value.textContent).not.toMatch(/\d/);
+
+    const card = value.closest('[data-slot="table-row"]');
+    expect(card).toHaveClass("max-md:rounded-lg");
+    expect(card?.textContent).not.toMatch(/\b0\b/);
   });
 
   it("warns by name when amino acids are missing", async () => {
