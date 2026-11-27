@@ -1,27 +1,6 @@
 name: virtual-plant-meat-formulator
 
 services:
-  db:
-    image: postgres:18.6-alpine3.24
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-vpmf}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
-      POSTGRES_DB: ${POSTGRES_DB:-virtual_plant_meat_formulator}
-    ports:
-      - "127.0.0.1:${DB_PORT:-5433}:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    deploy:
-      resources:
-        limits:
-          memory: 768M
-
   redis:
     image: redis:8.10.3-alpine3.23
     restart: unless-stopped
@@ -42,11 +21,18 @@ services:
     image: virtual-plant-meat-formulator-backend:0.1.0
     build:
       context: ./backend
-    # Migrate, then load reference data and literature model candidates (idempotent).
-    command: ["sh", "-c", "alembic upgrade head && python -m app.seed --dev-users --kfct && python -m app.mlops.train --bootstrap"]
+    # Apply schema migrations only; the Supabase database already contains migrated data.
+    command: ["sh", "-c", "echo 'Migrations skipped'"]
     environment: &backend-environment
       ENV: development
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://vpmf:devpassword@db:5432/virtual_plant_meat_formulator}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to the Supabase pooler URI in .env}
+      # Point DATABASE_URL at the transaction-mode pooler (port 6543) for the
+      # API and worker, and MIGRATE_DATABASE_URL at session mode (5432) for
+      # Alembic. Defaults to DATABASE_URL when unset, which is correct for a
+      # plain local Postgres.
+      MIGRATE_DATABASE_URL: ${MIGRATE_DATABASE_URL:-}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-3}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-2}
       REDIS_URL: redis://redis:6379/0
       JOB_RUNNER: celery
       EVENT_BUS: redis
@@ -70,9 +56,6 @@ services:
       - model-artifacts:/app/artifacts
       # Read-only view of curated datasets (processed/ stays local and git-ignored)
       - ./backend/data:/app/data:ro
-    depends_on:
-      db:
-        condition: service_healthy
     restart: "no"
 
   api:
@@ -144,5 +127,4 @@ services:
           memory: 1G
 
 volumes:
-  postgres-data:
   model-artifacts:

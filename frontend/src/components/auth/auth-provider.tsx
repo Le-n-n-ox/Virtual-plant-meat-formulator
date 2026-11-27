@@ -86,11 +86,15 @@ export function AuthGuard({ children }: { children: ReactNode }) {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-3 p-8">
         {unreachable ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-small text-destructive">
             Could not verify your session. Is the API running?
           </p>
         ) : (
-          <Skeleton className="h-24 w-72" aria-label="Checking your session" />
+          <Skeleton
+            className="h-24 w-72"
+            role="status"
+            aria-label="Checking your session"
+          />
         )}
       </div>
     );

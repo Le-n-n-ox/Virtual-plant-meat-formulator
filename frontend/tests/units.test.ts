@@ -5,14 +5,18 @@ import {
   convertMass,
   convertMoistureBasis,
   convertToDryMatter,
+  displayNutrient,
+  displayNutrientValue,
   dryMatterFraction,
   formatMass,
   formatValue,
   isMassUnit,
   isValidMoisturePercent,
   moistureBasisLabel,
+  nutrientKind,
   roundTo,
   toKilograms,
+  type UnitPreferences,
 } from "@/lib/units";
 
 describe("mass units", () => {
@@ -68,5 +72,84 @@ describe("moisture basis", () => {
     expect(moistureBasisLabel("as-is")).toBe("As-is");
     expect(moistureBasisLabel("dry-matter")).toBe("Dry matter");
     expect(moistureBasisLabel("custom")).toBe("custom");
+  });
+});
+
+const PREFS: UnitPreferences = {
+  aminoAcidUnit: "mg",
+  energyUnit: "kcal",
+  proteinUnit: "g_per_100g",
+};
+
+describe("nutrientKind", () => {
+  it("classifies protein, energy and amino acids", () => {
+    expect(nutrientKind("protein")).toBe("protein");
+    expect(nutrientKind("energy_kcal")).toBe("energy");
+    expect(nutrientKind("energy_kj")).toBe("energy");
+    expect(nutrientKind("fat")).toBe("other");
+  });
+});
+
+describe("display units", () => {
+  it("leaves values alone when the preference matches the stored unit", () => {
+    expect(displayNutrient(12, "kcal", "energy", PREFS)).toEqual({
+      value: 12,
+      unit: "kcal",
+    });
+    expect(
+      displayNutrient(55, "mg_per_g_protein", "amino_acid", PREFS),
+    ).toEqual({ value: 55, unit: "mg_per_g_protein" });
+    expect(displayNutrient(20, "g", "protein", PREFS)).toEqual({
+      value: 20,
+      unit: "g",
+    });
+  });
+
+  it("converts energy between kcal and kJ", () => {
+    expect(
+      displayNutrient(100, "kcal", "energy", { ...PREFS, energyUnit: "kJ" }),
+    ).toEqual({ value: 418.4, unit: "kJ" });
+    expect(
+      displayNutrient(418.4, "kJ", "energy", { ...PREFS, energyUnit: "kcal" }),
+    ).toEqual({ value: 100, unit: "kcal" });
+  });
+
+  it("converts amino acids between mg and g", () => {
+    expect(
+      displayNutrient(55, "mg_per_g_protein", "amino_acid", {
+        ...PREFS,
+        aminoAcidUnit: "g",
+      }),
+    ).toEqual({ value: 0.055, unit: "g/g protein" });
+    expect(displayNutrient(0.055, "g", "amino_acid", PREFS)).toEqual({
+      value: 55,
+      unit: "mg",
+    });
+    expect(displayNutrient(55000, "ug", "amino_acid", PREFS)).toEqual({
+      value: 55,
+      unit: "mg",
+    });
+  });
+
+  it("labels protein as a percentage without changing the number", () => {
+    expect(
+      displayNutrient(20, "g", "protein", { ...PREFS, proteinUnit: "percent" }),
+    ).toEqual({ value: 20, unit: "%" });
+  });
+
+  it("does not apply amino-acid or energy rules to other nutrients", () => {
+    expect(
+      displayNutrient(5, "mg", "other", { ...PREFS, aminoAcidUnit: "g" }),
+    ).toEqual({ value: 5, unit: "mg" });
+    expect(
+      displayNutrient(5, "kcal", "other", { ...PREFS, energyUnit: "kJ" }),
+    ).toEqual({ value: 5, unit: "kcal" });
+  });
+
+  it("keeps missing values missing rather than converting them", () => {
+    expect(displayNutrientValue(null, "kcal", "energy", PREFS)).toBeNull();
+    expect(
+      displayNutrientValue(Number.NaN, "kcal", "energy", PREFS),
+    ).toBeNull();
   });
 });

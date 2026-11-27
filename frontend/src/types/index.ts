@@ -1,120 +1,140 @@
-export type JobType = "nutrition" | "texture_prediction" | "optimization";
-export type JobStatus =
-  "queued" | "running" | "completed" | "failed" | "cancelled";
+import { z } from "zod";
+import {
+  aminoAcidBlockSchema,
+  aminoAcidPatternSchema,
+  assistantExplanationSchema,
+  assistantStatusSchema,
+  candidateSceneSchema,
+  candidateSchema,
+  compareResponseSchema,
+  currentUserSchema,
+  exportFormatSchema,
+  facetEntrySchema,
+  formulationLineSchema,
+  formulationListItemSchema,
+  formulationSchema,
+  formulationVersionSummarySchema,
+  healthResponseSchema,
+  ingredientDetailSchema,
+  ingredientFacetsSchema,
+  ingredientListItemSchema,
+  ingredientSourceSchema,
+  jobCreatedSchema,
+  jobEventNameSchema,
+  jobEventSchema,
+  jobListItemSchema,
+  jobStatusResponseSchema,
+  jobStatusSchema,
+  jobTypeSchema,
+  loginResponseSchema,
+  modelDetailSchema,
+  modelListItemSchema,
+  modelMetaSchema,
+  nearestEvidenceSchema,
+  nutrientDefinitionSchema,
+  nutrientValueSchema,
+  nutritionResultSchema,
+  pagedMetaSchema,
+  resultWarningSchema,
+  streamTokenSchema,
+  texturePredictionSchema,
+  textureResultSchema,
+  validationResultSchema,
+} from "@/lib/validation/schemas";
 
-export interface Ingredient {
-  id: string;
-  scientific_name: string | null;
-  common_name: string;
-  variety?: string | null;
-  crop?: string | null;
-  food_group?: string | null;
-  moisture_percent?: number | null;
-  quality_flag?: string;
-  form:
-    "raw" | "cooked" | "soaked" | "fermented" | "roasted" | "flour" | string;
-  origin?: string;
-  moisture_basis: string;
-  nutrients: NutrientValue[];
-  amino_acids: NutrientValue[];
-  source: {
-    id?: string;
-    name: string;
-    method?: string | null;
-    date?: string | null;
-    license_status: string;
-    citation?: string | null;
-    license_notes?: string | null;
-    url?: string | null;
-  };
-}
+/**
+ * The backend contract is written once, as Zod schemas in
+ * `lib/validation/schemas.ts`. Every response type below is derived from those
+ * schemas with `z.infer`, so the validated runtime value and the compile-time
+ * type cannot drift apart. Do not hand-write a response type here — change the
+ * schema instead.
+ *
+ * A few types have no schema because they describe requests or local UI state
+ * rather than a response; they are marked below.
+ */
 
-export interface NutrientValue {
-  key: string; // e.g. "protein", "lysine"
-  name?: string; // display name, present on ingredient records
-  value: number | null; // null = not reported, never 0
-  unit: string;
-  flag: "analytical" | "estimated" | "calculated"; // from backend guide §14
-  range?: [number, number];
-  reason?: string; // from backend guide §14
-  missing_ingredient_ids?: string[]; // from backend guide §14
-  contains_estimated?: boolean; // from backend guide §14
-}
+// ---- Shared ----
 
-export interface FormulationLine {
-  ingredient_id: string;
-  percent: number; // percent of total mass
-}
+export type JobType = z.infer<typeof jobTypeSchema>;
+export type JobStatus = z.infer<typeof jobStatusSchema>;
+export type JobEventName = z.infer<typeof jobEventNameSchema>;
+export type JobEvent = z.infer<typeof jobEventSchema>;
 
-export interface Formulation {
-  id: string;
-  name: string;
-  version: number;
-  lines: FormulationLine[];
-  targets?: Record<string, number>;
-  updated_at: string;
-  description?: string | null;
-  current_version?: number;
-  note?: string | null;
-  content_hash?: string;
-  archived?: boolean;
-  created_at?: string;
-}
+export type NutrientValue = z.infer<typeof nutrientValueSchema>;
+export type IngredientSource = z.infer<typeof ingredientSourceSchema>;
 
-export interface ValidationResult {
-  valid: boolean;
-  total_percent: number;
-  issues: ValidationIssue[];
-}
+/** The TypeScript face of `pagedSchema`; `items` is the generic part. */
+export type Paged<T> = z.infer<typeof pagedMetaSchema> & { items: T[] };
 
-export interface JobEvent {
-  job_id: string;
-  event: JobEventName;
-  status: JobStatus;
-  stage: string; // e.g. "texture_prediction"
-  stage_label: string; // e.g. "Predicting texture"
-  progress_percent: number | null; // null = indeterminate; never faked
-  message?: string;
-  candidate_id: string | null;
-  timestamp: string; // ISO 8601, UTC
-  seq?: number; // from backend guide §14
-  completed?: number; // from backend guide §14
-  total?: number; // from backend guide §14
-  details?: Record<string, unknown>; // from backend guide §14
-}
+// ---- Ingredients ----
 
-export type JobEventName =
-  | "stage.updated"
-  | "progress.updated"
-  | "warning.raised"
-  | "candidate.ready"
-  | "result.ready"
-  | "job.completed"
-  | "job.failed"
-  | "job.cancelled";
+export type IngredientListItem = z.infer<typeof ingredientListItemSchema>;
+export type IngredientDetail = z.infer<typeof ingredientDetailSchema>;
+/** The full ingredient record. `IngredientDetail` is the same contract. */
+export type Ingredient = IngredientDetail;
+export type FacetEntry = z.infer<typeof facetEntrySchema>;
+export type IngredientFacets = z.infer<typeof ingredientFacetsSchema>;
+export type NutrientDefinition = z.infer<typeof nutrientDefinitionSchema>;
+export type AminoAcidPattern = z.infer<typeof aminoAcidPatternSchema>;
 
-export interface ModelMeta {
-  id: string;
-  target: string;
-  algorithm: string;
-  version: string;
-  training_set_size: number;
-  holdout_metric?: { name: string; value: number };
-}
+// ---- Formulations ----
 
-export interface Prediction {
-  target: string; // e.g. "hardness"
-  value: number;
-  unit: string;
-  interval?: [number, number]; // prediction interval, when available
-  model: ModelMeta;
-}
+export type FormulationLine = z.infer<typeof formulationLineSchema>;
+export type Formulation = z.infer<typeof formulationSchema>;
+export type FormulationListItem = z.infer<typeof formulationListItemSchema>;
+export type ValidationResult = z.infer<typeof validationResultSchema>;
+export type ValidationIssue = ValidationResult["issues"][number];
+export type FormulationVersionSummary = z.infer<
+  typeof formulationVersionSummarySchema
+>;
 
-export interface HealthResponse {
-  status: "ok";
-  version: string;
-}
+// ---- Jobs ----
 
+export type JobCreated = z.infer<typeof jobCreatedSchema>;
+export type JobListItem = z.infer<typeof jobListItemSchema>;
+export type JobStatusResponse = z.infer<typeof jobStatusResponseSchema>;
+export type StreamToken = z.infer<typeof streamTokenSchema>;
+
+// ---- Auth ----
+
+export type LoginResponse = z.infer<typeof loginResponseSchema>;
+export type CurrentUser = z.infer<typeof currentUserSchema>;
+
+// ---- Results ----
+
+export type AminoAcidBlock = z.infer<typeof aminoAcidBlockSchema>;
+export type NutritionResult = z.infer<typeof nutritionResultSchema>;
+export type TextureResult = z.infer<typeof textureResultSchema>;
+export type TexturePrediction = z.infer<typeof texturePredictionSchema>;
+export type NearestEvidence = z.infer<typeof nearestEvidenceSchema>;
+export type ResultWarning = z.infer<typeof resultWarningSchema>;
+export type ModelMeta = z.infer<typeof modelMetaSchema>;
+
+// ---- Candidates ----
+
+export type CandidateScene = z.infer<typeof candidateSceneSchema>;
+export type Candidate = z.infer<typeof candidateSchema>;
+export type CompareResponse = z.infer<typeof compareResponseSchema>;
+
+// ---- Models ----
+
+export type ModelListItem = z.infer<typeof modelListItemSchema>;
+export type ModelDetail = z.infer<typeof modelDetailSchema>;
+
+// ---- System ----
+
+export type HealthResponse = z.infer<typeof healthResponseSchema>;
+export type ExportFormat = z.infer<typeof exportFormatSchema>;
+export type AssistantStatus = z.infer<typeof assistantStatusSchema>;
+export type AssistantExplanation = z.infer<typeof assistantExplanationSchema>;
+
+// ---- No schema: requests and local UI state ----
+
+/**
+ * Error codes the backend puts in an `ApiError` body. There is no response
+ * schema for them because the client builds this union from the documented
+ * list, not from a parsed payload.
+ */
 export type ApiErrorCode =
   | "bad_request"
   | "unauthenticated"
@@ -134,201 +154,10 @@ export type ApiErrorCode =
   | "dependency_unavailable"
   | "result_not_ready";
 
-export interface Paged<T> {
-  items: T[];
-  total: number;
-  page: number;
-  page_size: number;
-}
-
-export interface JobCreated {
-  job_id: string;
-  type: JobType | string;
-  status: JobStatus;
-  formulation_id: string;
-  formulation_version: number;
-  created_at: string;
-}
-
-export interface JobStatusResponse {
-  id: string;
-  type: JobType | string;
-  status: JobStatus;
-  stage: string | null;
-  stage_label: string | null;
-  progress_percent: number | null;
-  message: string | null;
-  cancel_requested: boolean;
-  formulation_id: string;
-  formulation_version: number;
-  error: {
-    code?: string;
-    message?: string;
-    details?: Record<string, unknown>;
-  } | null;
-  candidate_ids: string[];
-  result_available: boolean;
-  last_event_seq: number;
-  created_at: string;
-  started_at: string | null;
-  finished_at: string | null;
-  data_versions: Record<string, string>;
-  model_ids: string[];
-  calc_version: string | null;
-  seed: number | null;
-}
-
-export interface StreamToken {
-  token: string;
-  expires_at: string;
-}
-
-export interface IngredientListItem {
-  id: string;
-  common_name: string;
-  scientific_name: string | null;
-  variety?: string | null;
-  crop?: string | null;
-  form: string;
-  moisture_basis: string;
-  source: { id: string; name: string };
-  quality_flag: "analytical" | "estimated" | string;
-  protein_g_per_100g: number | null;
-  has_amino_acids: boolean;
-}
-
-export interface IngredientDetail extends Ingredient {
-  functional_properties?: {
-    key: string;
-    value: number | string | null;
-    unit?: string;
-  }[];
-  price?: { value: number; currency: string; per: string } | null;
-  dataset_version?: string;
-}
-
-export interface ValidationIssue {
-  ingredient_id?: string;
-  code: string;
-  message: string;
-}
-
-export interface FormulationVersionSummary {
-  version: number;
-  created_at: string;
-  created_by: string | null;
-  note: string | null;
-  content_hash: string;
-}
-
-export interface CandidateScene {
-  visual_basis: "illustrative" | "calibrated" | string;
-  variables: {
-    key: string;
-    derived_from_model: string | null;
-    validated: boolean;
-  }[];
-}
-
-export interface ResultWarning {
-  code?: string;
-  message: string;
-  details?: Record<string, unknown>;
-}
-
-export interface TexturePrediction extends Prediction {
-  interval_level?: number;
-  in_domain?: boolean;
-  domain?: Record<string, unknown>;
-  evidence_basis?: string;
-  reason?: string;
-  missing_features?: string[];
-  /** Closest published sample groups, shown for comparison when out of domain. */
-  nearest_evidence?: NearestEvidence[];
-}
-
-export interface NearestEvidence {
-  group: string;
-  distance?: number | null;
-  n_samples?: number;
-  measured_min?: number;
-  measured_max?: number;
-  unit?: string;
-  source?: string;
-}
-
+/** A feature value outside the model's applicability domain. */
 export interface DomainViolation {
   feature: string;
   value: number;
   min: number;
   max: number;
-}
-
-export interface Candidate {
-  id: string;
-  job_id: string;
-  formulation_id: string;
-  rank: number;
-  pareto: boolean;
-  lines: FormulationLine[];
-  metrics: Record<string, unknown>;
-  predictions: TexturePrediction[];
-  model_ids: string[];
-  scene: CandidateScene;
-  warnings?: ResultWarning[];
-  from_cancelled_job?: boolean;
-  promoted_formulation_id?: string | null;
-}
-
-export interface CompareResponse {
-  items: Candidate[];
-  differences: {
-    metric: string;
-    unit: string | null;
-    a: number | string | null;
-    b: number | string | null;
-    delta: number | null;
-  }[];
-}
-
-export interface AminoAcidBlock {
-  per_g_protein_mg: { key: string; value: number | null }[];
-  reference_pattern: { id: string; name: string; version: string };
-  scores: { key: string; score: number | null }[];
-  limiting_amino_acid: string | null;
-  score: number | null;
-  method: string;
-  complete: boolean;
-  missing: string[];
-}
-
-export interface NutritionResult {
-  basis: string;
-  nutrients: NutrientValue[];
-  amino_acids: AminoAcidBlock | null;
-  calc_version: string;
-  data_versions: Record<string, string>;
-  job_id?: string;
-  formulation_version?: number;
-  finished_at?: string;
-}
-
-export interface TextureResult {
-  predictions: TexturePrediction[];
-  warnings: ResultWarning[];
-  process?: Record<string, unknown>;
-}
-
-export interface ModelDetail extends ModelMeta {
-  status: "approved" | "candidate" | "retired" | string;
-  dataset_version?: string;
-  approved_at?: string | null;
-  unit?: string;
-  interval_level?: number;
-  limitations: string[] | string;
-  feature_schema: Record<string, unknown>;
-  applicability_domain: Record<string, unknown>;
-  holdout_metrics: Record<string, number>;
-  training_sources?: unknown[];
-  is_test_model?: boolean;
 }

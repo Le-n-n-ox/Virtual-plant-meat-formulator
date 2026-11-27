@@ -92,7 +92,7 @@ export function JobProgress({
       className="flex flex-col gap-2 rounded-lg border p-3"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium">
+        <h2 className="text-h4">
           {humanizeKey(s.jobType)} job:{" "}
           <span className="text-muted-foreground">{s.status}</span>
         </h2>
@@ -131,7 +131,7 @@ export function JobProgress({
         </div>
       )}
       {s.message && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-small text-muted-foreground">
           {s.message}
           {running && s.progressPercent !== null
             ? ` (${Math.round(s.progressPercent)}%)`
@@ -139,19 +139,19 @@ export function JobProgress({
         </p>
       )}
       {stages.length === 0 ? (
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <p className="flex items-center gap-1.5 text-small text-muted-foreground">
           <CircleDashedIcon className="size-3.5" aria-hidden /> Waiting for the
           worker to start ({s.connection})
         </p>
       ) : (
-        <ol className="flex flex-col gap-1 text-sm">
+        <ol className="flex flex-col gap-1 text-small">
           {stages.map(([stage, status]) => {
             const Icon = ICONS[status];
             return (
               <li key={stage} className="flex items-center gap-2">
                 <Icon aria-hidden className={STAGE_CLASS[status]} />
                 <span>{s.stageLabels[stage] ?? humanizeKey(stage)}</span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-caption text-muted-foreground">
                   {STAGE_TEXT[status]}
                 </span>
               </li>
@@ -160,7 +160,7 @@ export function JobProgress({
         </ol>
       )}
       {s.warnings.length > 0 && (
-        <ul className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+        <ul className="flex flex-col gap-0.5 text-small text-muted-foreground">
           {s.warnings.map((w, i) => (
             <li key={`${w.timestamp}-${i}`} className="flex items-start gap-1">
               <AlertTriangleIcon
@@ -173,7 +173,7 @@ export function JobProgress({
         </ul>
       )}
       {cancelError && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {cancelError}
         </p>
       )}

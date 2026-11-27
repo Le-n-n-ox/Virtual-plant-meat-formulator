@@ -2,8 +2,9 @@
 
 import { PlayIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { CandidateScatter } from "@/components/candidates/candidate-scatter";
 import { JobProgress } from "@/components/jobs/job-progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import { useApiQuery } from "@/hooks/use-api-query";
 import { useIngredientNames } from "@/hooks/use-ingredient-names";
 import { useSavedVersion } from "@/hooks/use-saved-version";
 import { getJob, type OptimizationParams } from "@/lib/api/jobs";
+import { listCandidates } from "@/lib/api/candidates";
 import { listNutrients, type NutrientDefinition } from "@/lib/api/ingredients";
 import { humanizeKey } from "@/lib/format";
 import { runJob } from "@/lib/jobs/job-runner";
@@ -69,16 +71,16 @@ const OBJECTIVE_TARGETS = [
 ];
 
 const selectClass =
-  "h-8 rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+  "h-8 rounded-lg border border-input bg-transparent px-2 text-small outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 interface ObjectiveRow {
-  key: number;
+  key: string;
   target: string;
   direction: Direction;
   value: string;
 }
 interface LimitRow {
-  key: number;
+  key: string;
   kind: "min" | "max";
   nutrient: string;
   value: string;
@@ -91,6 +93,10 @@ interface BoundDraft {
 }
 
 const DEFAULT_BOUND: BoundDraft = { min: "0", max: "100", excluded: false };
+
+/** Row keys only need to be unique inside the form, so a plain counter is enough. */
+let rowKey = 0;
+const newKey = () => `row-${(rowKey += 1)}`;
 
 function num(text: string): number | undefined {
   if (text.trim() === "") return undefined;
@@ -122,11 +128,9 @@ export function OptimizeTab() {
     })),
   );
 
-  const keyRef = useRef(1);
-  const newKey = () => keyRef.current++;
   const [objectives, setObjectives] = useState<ObjectiveRow[]>([
     {
-      key: 0,
+      key: newKey(),
       target: "protein_g_per_100g",
       direction: "maximize",
       value: "",
@@ -142,10 +146,63 @@ export function OptimizeTab() {
   const [nCandidates, setNCandidates] = useState("5");
   const [seed, setSeed] = useState("");
   const [policy, setPolicy] = useState<"warn" | "drop">("warn");
+  /**
+   * The formulation's saved targets are the starting point (guide §5 page 6).
+   * Applied once per saved version, so editing them here does not fight the
+   * panel that owns them.
+   */
+  const targetSeed = useMemo(() => {
+    if (!ready) return null;
+    const t = useFormulationStore.getState().targets ?? {};
+
+    const objectives: ObjectiveRow[] = [];
+    if (t.protein_g_per_100g !== undefined) {
+      objectives.push({
+        key: newKey(),
+        target: "protein_g_per_100g",
+        direction: "target",
+        value: String(t.protein_g_per_100g),
+      });
+    }
+    if (objectives.length === 0) {
+      objectives.push({
+        key: newKey(),
+        target: "protein_g_per_100g",
+        direction: "maximize",
+        value: "",
+      });
+    }
+
+    return {
+      version,
+      objectives,
+      limits: Object.entries(t)
+        .filter(
+          ([key]) => key !== "protein_g_per_100g" && key !== "cost_ceiling",
+        )
+        .map(([key, value]) => ({
+          key: newKey(),
+          kind: "min" as const,
+          nutrient: key,
+          value: String(value),
+          unit: "mg_per_g_protein",
+        })),
+      cost: t.cost_ceiling === undefined ? null : String(t.cost_ceiling),
+    };
+  }, [ready, version]);
+
+  const [appliedSeed, setAppliedSeed] = useState<number | null>(null);
+  if (targetSeed && appliedSeed !== version) {
+    setAppliedSeed(version);
+    setObjectives(targetSeed.objectives);
+    setLimits(targetSeed.limits);
+    if (targetSeed.cost !== null) setCostValue(targetSeed.cost);
+  }
+
   const [formError, setFormError] = useState<string | null>(null);
   const [startError, setStartError] = useState<StartErrorInfo | null>(null);
 
-  const nutrients = useApiQuery("nutrients", listNutrients, ready);
+  const nutrients = useApiQuery(["nutrients"], listNutrients, ready);
   const nutrientList: NutrientDefinition[] = Array.isArray(nutrients.data)
     ? nutrients.data
     : (nutrients.data?.items ?? []);
@@ -156,12 +213,22 @@ export function OptimizeTab() {
 
   const isOptimization = jobType === "optimization";
   const running = activeJobId !== null && isOptimization && !isTerminal(status);
+  const finished = isOptimization && activeJobId !== null && isTerminal(status);
   const failedJobId =
     isOptimization && status === "failed" ? activeJobId : null;
   const failure = useApiQuery(
-    `opt-fail|${failedJobId}`,
+    ["jobs", failedJobId],
     async () => describeJobError((await getJob(failedJobId ?? "")).error),
     failedJobId !== null,
+  );
+  const scatter = useApiQuery(
+    ["candidates", { formulationId: id, jobId: activeJobId }],
+    () =>
+      listCandidates(id, {
+        job_id: activeJobId ?? undefined,
+        page_size: 100,
+      }),
+    finished,
   );
   const hasTexture = objectives.some(
     (o) => OBJECTIVE_TARGETS.find((t) => t.id === o.target)?.texture,
@@ -304,13 +371,11 @@ export function OptimizeTab() {
     return <Skeleton className="h-48 w-full" />;
   if (!ready) {
     return (
-      <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+      <p className="rounded-lg border border-dashed p-4 text-small text-muted-foreground">
         Save the formulation first: optimization runs on a saved version.
       </p>
     );
   }
-
-  const finished = isOptimization && activeJobId && isTerminal(status);
 
   return (
     <form
@@ -319,13 +384,13 @@ export function OptimizeTab() {
       aria-label="Optimize"
     >
       <div>
-        <h1 className="text-lg font-semibold">
+        <h1 className="text-h3">
           Optimize{" "}
-          <span className="text-sm font-normal text-muted-foreground">
+          <span className="text-small font-normal text-muted-foreground">
             v{version}
           </span>
         </h1>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           Searches for ingredient mixes that meet your objectives and limits.
           Texture objectives use literature-derived estimates and need process
           conditions.
@@ -440,8 +505,8 @@ export function OptimizeTab() {
         </Section>
 
         <Section title="Ingredient limits (% of mass)">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-muted-foreground">
+          <table className="w-full text-small">
+            <thead className="text-left text-caption text-muted-foreground">
               <tr>
                 <th className="py-1 font-medium">Ingredient</th>
                 <th className="w-20 py-1 font-medium">Min %</th>
@@ -462,7 +527,7 @@ export function OptimizeTab() {
                     <td className="py-1 pr-2">
                       {name}
                       {extra && (
-                        <span className="ml-1 text-xs text-muted-foreground">
+                        <span className="ml-1 text-caption text-muted-foreground">
                           (added)
                         </span>
                       )}
@@ -479,7 +544,7 @@ export function OptimizeTab() {
                         onChange={(e) =>
                           patchBound(ingredientId, { min: e.target.value })
                         }
-                        className="h-7 tabular-nums"
+                        className="h-7 font-numeric"
                       />
                     </td>
                     <td className="py-1 pr-1">
@@ -494,7 +559,7 @@ export function OptimizeTab() {
                         onChange={(e) =>
                           patchBound(ingredientId, { max: e.target.value })
                         }
-                        className="h-7 tabular-nums"
+                        className="h-7 font-numeric"
                       />
                     </td>
                     <td className="py-1">
@@ -531,7 +596,7 @@ export function OptimizeTab() {
               })}
             </tbody>
           </table>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             Add ingredients from the catalogue to let the search use them too.
           </p>
           <CatalogueSearch
@@ -645,7 +710,7 @@ export function OptimizeTab() {
             );
           })}
           {nutrients.error && (
-            <p role="alert" className="text-xs text-destructive">
+            <p role="alert" className="text-small text-destructive">
               Could not load the nutrient list.
             </p>
           )}
@@ -756,7 +821,7 @@ export function OptimizeTab() {
       </fieldset>
 
       {formError && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {formError}
         </p>
       )}
@@ -770,28 +835,32 @@ export function OptimizeTab() {
       {startError && <ErrorBlock error={startError} />}
       {failedJobId && failure.data && <ErrorBlock error={failure.data} />}
       {finished && status === "completed" && (
-        <p className="rounded-lg border border-success/60 bg-success/5 p-3 text-sm">
+        <p className="rounded-lg border border-success/60 bg-success/5 p-3 text-small">
           Optimization finished with {candidateIds.length} candidate
           {candidateIds.length === 1 ? "" : "s"}.{" "}
           <Link
             href={`/formulations/${id}/candidates?job_id=${activeJobId}`}
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            className="font-medium text-primary underline underline-offset-4"
           >
             View candidates
           </Link>
         </p>
       )}
       {finished && status === "cancelled" && (
-        <p className="rounded-lg border p-3 text-sm">
+        <p className="rounded-lg border p-3 text-small">
           Optimization cancelled. Candidates stored before cancelling stay
           readable.{" "}
           <Link
             href={`/formulations/${id}/candidates?job_id=${activeJobId}`}
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            className="font-medium text-primary underline underline-offset-4"
           >
             View candidates
           </Link>
         </p>
+      )}
+
+      {scatter.data && scatter.data.items.length > 0 && (
+        <CandidateScatter candidates={scatter.data.items} />
       )}
     </form>
   );
@@ -806,7 +875,7 @@ function Section({
 }) {
   return (
     <section className="flex flex-col gap-2 rounded-lg border p-3">
-      <h2 className="text-sm font-medium">{title}</h2>
+      <h2 className="text-h4">{title}</h2>
       {children}
     </section>
   );

@@ -124,9 +124,9 @@ export function TextureDialog({
             </div>
           </div>
           <fieldset className="flex flex-col gap-1.5">
-            <legend className="mb-1 text-sm font-medium">Targets</legend>
+            <legend className="mb-1 text-small font-medium">Targets</legend>
             {TARGETS.map((t) => (
-              <label key={t.id} className="flex items-center gap-2 text-sm">
+              <label key={t.id} className="flex items-center gap-2 text-small">
                 <input
                   type="checkbox"
                   checked={targets.includes(t.id)}
@@ -143,7 +143,7 @@ export function TextureDialog({
             ))}
           </fieldset>
           {error && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-small text-destructive">
               {error}
             </p>
           )}

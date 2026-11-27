@@ -35,8 +35,8 @@ export function LoginForm() {
     <>
       <Brand />
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-h1">Sign in</h1>
+        <p className="text-small text-muted-foreground">
           Use your workspace account to continue.
         </p>
       </div>
@@ -64,7 +64,7 @@ export function LoginForm() {
           />
         </div>
         {error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-small text-destructive">
             {error}
           </p>
         )}

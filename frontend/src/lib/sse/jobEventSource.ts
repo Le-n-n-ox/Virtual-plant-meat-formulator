@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "@/lib/api/client";
 import { getJob, getStreamToken } from "@/lib/api/jobs";
+import { jobEventSchema } from "@/lib/validation/schemas";
 import type { JobEvent, JobEventName } from "@/types";
 
 export const JOB_EVENT_NAMES: JobEventName[] = [
@@ -66,6 +67,14 @@ export function openJobEventStream(
       options.onError?.(error);
       return;
     }
+    // Never apply an event the backend would not have sent; a malformed one is
+    // dropped and reported rather than corrupting the job state.
+    const parsed = jobEventSchema.safeParse(event);
+    if (!parsed.success) {
+      options.onError?.(parsed.error);
+      return;
+    }
+    event = parsed.data as JobEvent;
     if (typeof event.seq === "number") {
       if (event.seq <= lastSeq) return; // stale or duplicate
       lastSeq = event.seq;
@@ -127,23 +136,4 @@ export function openJobEventStream(
   void connect();
 
   return { close: finish };
-}
-
-/** Legacy helpers kept for compatibility. */
-let active: JobEventStream | null = null;
-let activeListener: ((event: JobEvent) => void) | null = null;
-
-export function connect(
-  jobId: string,
-  onEvent: (event: JobEvent) => void = () => undefined,
-): void {
-  disconnect();
-  activeListener = onEvent;
-  active = openJobEventStream(jobId, { onEvent: activeListener });
-}
-
-export function disconnect(): void {
-  active?.close();
-  active = null;
-  activeListener = null;
 }

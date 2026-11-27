@@ -1,0 +1,68 @@
+[
+  {
+    "job_id": "job_1",
+    "seq": 1,
+    "event": "stage.updated",
+    "status": "running",
+    "stage": "validating",
+    "stage_label": "Validating",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:01:00Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 2,
+    "event": "stage.updated",
+    "status": "running",
+    "stage": "building_features",
+    "stage_label": "Building features",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:01:01Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 3,
+    "event": "stage.updated",
+    "status": "running",
+    "stage": "checking_domain",
+    "stage_label": "Checking domain",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:01:02Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 4,
+    "event": "stage.updated",
+    "status": "running",
+    "stage": "predicting",
+    "stage_label": "Predicting texture",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:01:03Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 5,
+    "event": "result.ready",
+    "status": "running",
+    "stage": "predicting",
+    "stage_label": "Predicting texture",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:01:04Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 6,
+    "event": "job.completed",
+    "status": "completed",
+    "stage": "storing",
+    "stage_label": "Storing result",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:01:05Z"
+  }
+]

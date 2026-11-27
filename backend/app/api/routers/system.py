@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import create_engine, text
+from sqlalchemy.pool import NullPool
 
 from app.api.errors import ApiError
 from app.config import Settings, get_settings
@@ -14,7 +15,9 @@ router = APIRouter(tags=["system"])
 
 def _check_database(database_url: str) -> None:
     """Open a short-lived connection and issue a minimal database query."""
-    engine = create_engine(database_url, pool_pre_ping=True)
+    # NullPool: a health check must not keep a client slot on the pooler after
+    # it answers, and must not compete with the request pool for one.
+    engine = create_engine(database_url, pool_pre_ping=True, poolclass=NullPool)
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))

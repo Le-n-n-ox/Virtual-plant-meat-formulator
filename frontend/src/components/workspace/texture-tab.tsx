@@ -95,7 +95,7 @@ export function TextureTab() {
       ? activeJobId
       : "";
   const query = useApiQuery(
-    `texture|${id}|${finishedJob}`,
+    ["results", "texture", { formulationId: id, finishedJob }],
     () => loadLatestTexture(id),
     ready,
   );
@@ -135,7 +135,7 @@ export function TextureTab() {
     return <Skeleton className="h-48 w-full" />;
   if (!ready) {
     return (
-      <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+      <p className="rounded-lg border border-dashed p-4 text-small text-muted-foreground">
         Save the formulation first: calculations run on a saved version.
       </p>
     );
@@ -149,9 +149,9 @@ export function TextureTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">
+      <h1 className="text-h3">
         Texture prediction{" "}
-        <span className="text-sm font-normal text-muted-foreground">
+        <span className="text-small font-normal text-muted-foreground">
           v{version}
         </span>
       </h1>
@@ -161,8 +161,8 @@ export function TextureTab() {
         className="flex flex-col gap-3 rounded-lg border p-3"
         aria-label="Predict texture"
       >
-        <h2 className="text-sm font-medium">Predict texture</h2>
-        <p className="text-xs text-muted-foreground">
+        <h2 className="text-h4">Predict texture</h2>
+        <p className="text-caption text-muted-foreground">
           Process conditions are model inputs. The result is a
           literature-derived estimate, not a measurement.
         </p>
@@ -175,7 +175,7 @@ export function TextureTab() {
         <fieldset className="flex flex-wrap gap-4">
           <legend className="sr-only">Targets</legend>
           {TARGETS.map((t) => (
-            <label key={t.id} className="flex items-center gap-2 text-sm">
+            <label key={t.id} className="flex items-center gap-2 text-small">
               <input
                 type="checkbox"
                 checked={targets.includes(t.id)}
@@ -192,7 +192,7 @@ export function TextureTab() {
           ))}
         </fieldset>
         {formError && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-small text-destructive">
             {formError}
           </p>
         )}
@@ -209,12 +209,12 @@ export function TextureTab() {
 
       {query.loading && <Skeleton className="h-40 w-full" />}
       {query.error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {errorMessage(query.error)}
         </p>
       )}
       {!query.loading && !query.error && !latest && (
-        <div className="rounded-lg border border-dashed p-6 text-center text-sm">
+        <div className="rounded-lg border border-dashed p-6 text-center text-small">
           <p className="font-medium">No texture prediction yet</p>
           <p className="mt-1 text-muted-foreground">
             Enter the process conditions above and run a prediction.
@@ -259,14 +259,14 @@ function LatestTexture({
     : [];
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2 text-caption text-muted-foreground">
         <Badge variant="secondary">Formulation v{jobVersion}</Badge>
         <span>
           Job {jobId}, finished {formatDateTime(finishedAt)}
         </span>
       </div>
       {jobVersion !== currentVersion && (
-        <p className="rounded-lg border border-warning/70 bg-warning/10 p-2 text-xs">
+        <p className="rounded-lg border border-warning/70 bg-warning/10 p-2 text-caption">
           This prediction was made for version {jobVersion}; the current saved
           version is {currentVersion}. Run a new prediction to see the current
           one.
@@ -274,16 +274,16 @@ function LatestTexture({
       )}
       <TextureResults result={payload} />
 
-      <section aria-label="Process conditions used" className="text-sm">
-        <h2 className="mb-1 text-sm font-medium">Process conditions used</h2>
+      <section aria-label="Process conditions used" className="text-small">
+        <h2 className="mb-1 text-h4">Process conditions used</h2>
         {Object.keys(process).length === 0 ? (
-          <p className="text-xs text-muted-foreground">not reported</p>
+          <p className="text-caption text-muted-foreground">not reported</p>
         ) : (
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-xs">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-caption">
             {Object.entries(process).map(([k, v]) => (
               <div key={k} className="contents">
                 <dt className="text-muted-foreground">{humanizeKey(k)}</dt>
-                <dd className="tabular-nums">
+                <dd className="font-numeric">
                   {typeof v === "number" ? formatNumber(v) : JSON.stringify(v)}
                 </dd>
               </div>
@@ -294,14 +294,14 @@ function LatestTexture({
 
       {composition.length > 0 && (
         <section aria-label="Composition features used">
-          <h2 className="mb-1 text-sm font-medium">
+          <h2 className="mb-1 text-h4">
             Composition features used (g per 100 g)
           </h2>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-xs">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-caption">
             {composition.map(([k, v]) => (
               <div key={k} className="contents">
                 <dt className="text-muted-foreground">{humanizeKey(k)}</dt>
-                <dd className="tabular-nums">
+                <dd className="font-numeric">
                   {v === null ? (
                     <span className="text-muted-foreground">missing</span>
                   ) : (
@@ -314,14 +314,14 @@ function LatestTexture({
         </section>
       )}
 
-      <section aria-label="Models used" className="text-xs">
-        <h2 className="mb-1 text-sm font-medium">Models</h2>
+      <section aria-label="Models used" className="text-caption">
+        <h2 className="mb-1 text-h4">Models</h2>
         <ul className="flex flex-col gap-0.5">
           {[...models.values()].map((m) => (
             <li key={m.id}>
               <Link
                 href="/models"
-                className="text-primary underline-offset-4 hover:underline"
+                className="text-primary underline underline-offset-4"
               >
                 {humanizeKey(m.target)}: {m.algorithm} v{m.version}
               </Link>{" "}

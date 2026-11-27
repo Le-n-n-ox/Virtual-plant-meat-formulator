@@ -111,7 +111,8 @@ test("build, validate, save and calculate nutrition for a real blend", async ({
   await expect(nutrition).toContainText("Protein");
   await expect(nutrition).toContainText("kcal"); // energy is reported, not missing
   await expect(nutrition).toContainText("AAS");
-  await expect(nutrition).not.toContainText("DIAAS");
+  // The score must never be presented as DIAAS; the chart says so explicitly.
+  await expect(nutrition).toContainText(/not DIAAS/i);
 });
 
 test("an out-of-range blend gets no texture number", async ({ page }) => {

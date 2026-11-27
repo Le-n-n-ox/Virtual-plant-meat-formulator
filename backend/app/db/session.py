@@ -25,7 +25,32 @@ def build_engine(url: str) -> Engine:
             cursor.close()
 
         return engine
-    return create_engine(url, pool_pre_ping=True, pool_size=10, max_overflow=20)
+    settings = get_settings()
+    kwargs: dict[str, object] = {
+        "pool_pre_ping": True,
+        "pool_size": settings.db_pool_size,
+        "max_overflow": settings.db_max_overflow,
+        # Return connections to the pooler instead of holding them for the
+        # life of the process, so an idle API does not occupy client slots.
+        "pool_recycle": settings.db_pool_recycle_seconds,
+    }
+    if _is_transaction_pooler(url):
+        # Supabase's transaction-mode pooler (port 6543) multiplexes many
+        # clients onto few server connections, which is what lets the API and
+        # worker share a small pool. It cannot carry server-side prepared
+        # statements across transactions, so psycopg must stop making them:
+        # without this, queries fail with "prepared statement does not exist".
+        kwargs["connect_args"] = {"prepare_threshold": None}
+    return create_engine(url, **kwargs)
+
+
+# Supabase exposes session mode on 5432 (one server connection per client,
+# capped at pool_size: 15) and transaction mode on 6543.
+TRANSACTION_POOLER_PORT = ":6543"
+
+
+def _is_transaction_pooler(url: str) -> bool:
+    return TRANSACTION_POOLER_PORT in url
 
 
 @lru_cache

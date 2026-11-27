@@ -1,55 +1,39 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-
-interface Settled<T> {
-  key: string;
-  data: T | null;
-  error: Error | null;
-}
+import { useQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
 
 /**
- * Runs `fetcher` whenever `key` changes (the key must encode every input the
- * fetcher uses). `loading` is derived, so there is no synchronous state write
- * inside the effect.
+ * The app's data hook, over TanStack Query.
+ *
+ * The return shape is unchanged so the call sites keep working: `data`, `error`,
+ * `loading` and `reload`. What changes is the machinery — the cache, background
+ * refetch and key-based invalidation now come from the query client instead of a
+ * per-component `useState`.
+ *
+ * `key` must start with the resource name (for example `["formulations", id]`)
+ * so `lib/query/invalidator.tsx` can invalidate a whole resource by prefix.
  */
 export function useApiQuery<T>(
-  key: string,
+  key: unknown[],
   fetcher: () => Promise<T>,
   enabled = true,
 ) {
-  const [nonce, setNonce] = useState(0);
-  const [settled, setSettled] = useState<Settled<T> | null>(null);
-  const fullKey = `${key}#${nonce}`;
+  const { data, error, isPending, refetch } = useQuery<T>({
+    queryKey: key,
+    queryFn: fetcher,
+    enabled,
+  });
 
-  useEffect(() => {
-    if (!enabled) return;
-    let active = true;
-    fetcher()
-      .then((data) => {
-        if (active) setSettled({ key: fullKey, data, error: null });
-      })
-      .catch((error: unknown) => {
-        if (active)
-          setSettled({
-            key: fullKey,
-            data: null,
-            error: error instanceof Error ? error : new Error(String(error)),
-          });
-      });
-    return () => {
-      active = false;
-    };
-    // The caller encodes fetcher inputs in `key`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fullKey, enabled]);
+  /** Forces a fresh fetch, as before. Prefer invalidating by resource. */
+  const reload = useCallback(() => void refetch(), [refetch]);
 
-  const reload = useCallback(() => setNonce((n) => n + 1), []);
-  const current = settled?.key === fullKey ? settled : null;
   return {
-    data: current?.data ?? null,
-    error: current?.error ?? null,
-    loading: enabled && current === null,
+    data: data ?? null,
+    error: error ?? null,
+    // `isPending` is true until the first data lands, and stays true while the
+    // query is disabled — the explicit guard keeps the old meaning.
+    loading: enabled && isPending,
     reload,
   };
 }

@@ -1,5 +1,22 @@
-import type { IngredientDetail, IngredientListItem, Paged } from "@/types";
+import type {
+  AminoAcidPattern,
+  FacetEntry,
+  IngredientDetail,
+  IngredientFacets,
+  IngredientListItem,
+  NutrientDefinition,
+  Paged,
+} from "@/types";
 import { buildQuery, requestJson } from "./client";
+import {
+  ingredientDetailSchema,
+  ingredientFacetsSchema,
+  ingredientListItemSchema,
+  listOrPaged,
+  nutrientDefinitionSchema,
+  aminoAcidPatternSchema,
+  pagedSchema,
+} from "@/lib/validation/schemas";
 
 export interface IngredientListParams {
   q?: string;
@@ -15,58 +32,57 @@ export interface IngredientListParams {
   page_size?: number;
 }
 
-export interface FacetEntry {
-  value?: string;
-  id?: string;
-  name?: string;
-  count: number;
-}
-
-export interface IngredientFacets {
-  crops: FacetEntry[];
-  forms: FacetEntry[];
-  sources: FacetEntry[];
-}
-
-export interface NutrientDefinition {
-  key: string;
-  name: string;
-  unit: string;
-  kind: string;
-}
-
-export interface AminoAcidPattern {
-  id: string;
-  name: string;
-  version?: string;
-  is_default?: boolean;
-  [key: string]: unknown;
-}
+export type {
+  AminoAcidPattern,
+  FacetEntry,
+  IngredientFacets,
+  NutrientDefinition,
+};
 
 export function listIngredients(
   params: IngredientListParams = {},
 ): Promise<Paged<IngredientListItem>> {
-  return requestJson(`/api/ingredients${buildQuery({ ...params })}`);
+  return requestJson(
+    `/api/ingredients${buildQuery({ ...params })}`,
+    undefined,
+    pagedSchema(ingredientListItemSchema),
+  );
 }
 
 export function getIngredient(id: string): Promise<IngredientDetail> {
-  return requestJson(`/api/ingredients/${encodeURIComponent(id)}`);
+  return requestJson(
+    `/api/ingredients/${encodeURIComponent(id)}`,
+    undefined,
+    ingredientDetailSchema,
+  );
 }
 
 export function getIngredientFacets(): Promise<IngredientFacets> {
-  return requestJson("/api/ingredients/facets");
+  return requestJson(
+    "/api/ingredients/facets",
+    undefined,
+    ingredientFacetsSchema,
+  );
 }
 
 export function listNutrients(): Promise<
   NutrientDefinition[] | { items: NutrientDefinition[] }
 > {
-  return requestJson("/api/nutrients");
+  return requestJson(
+    "/api/nutrients",
+    undefined,
+    listOrPaged(nutrientDefinitionSchema),
+  );
 }
 
 export function listAminoAcidPatterns(): Promise<
   AminoAcidPattern[] | { items: AminoAcidPattern[] }
 > {
-  return requestJson("/api/amino-acid-patterns");
+  return requestJson(
+    "/api/amino-acid-patterns",
+    undefined,
+    listOrPaged(aminoAcidPatternSchema),
+  );
 }
 
 export const ingredientsApi = {

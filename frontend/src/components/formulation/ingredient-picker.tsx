@@ -9,6 +9,8 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getIngredient, listIngredients } from "@/lib/api/ingredients";
 import { errorMessage, formatNumber, NOT_REPORTED } from "@/lib/format";
 import { useFormulationStore } from "@/stores/formulationStore";
+import { usePlacementStore } from "@/stores/placementStore";
+import { startPointerDrag } from "@/scene/drag/startPointerDrag";
 
 /** Searches the real ingredient catalogue and adds the chosen record to the draft. */
 export function IngredientPicker({ takenIds }: { takenIds: string[] }) {
@@ -19,7 +21,7 @@ export function IngredientPicker({ takenIds }: { takenIds: string[] }) {
   const enabled = q.length >= 2;
 
   const { data, error, loading } = useApiQuery(
-    `pick|${q}`,
+    ["ingredients", { q, page_size: 8, exclude_animal_groups: true }],
     () => listIngredients({ q, page_size: 8, exclude_animal_groups: true }),
     enabled,
   );
@@ -54,25 +56,27 @@ export function IngredientPicker({ takenIds }: { takenIds: string[] }) {
         />
       </div>
       {!enabled && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           Type at least two characters to search the catalogue.
         </p>
       )}
       {enabled && error && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {errorMessage(error)}
         </p>
       )}
       {addError && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {addError}
         </p>
       )}
       {enabled && loading && (
-        <p className="text-xs text-muted-foreground">Searching…</p>
+        <p className="text-caption text-muted-foreground">Searching…</p>
       )}
       {enabled && data && data.items.length === 0 && (
-        <p className="text-xs text-muted-foreground">No ingredients found.</p>
+        <p className="text-caption text-muted-foreground">
+          No ingredients found.
+        </p>
       )}
       {enabled && data && data.items.length > 0 && (
         <ul className="divide-y rounded-lg border">
@@ -83,9 +87,25 @@ export function IngredientPicker({ takenIds }: { takenIds: string[] }) {
                 key={i.id}
                 className="flex items-center justify-between gap-2 px-2.5 py-1.5"
               >
-                <div className="min-w-0 text-sm">
+                <div
+                  className="min-w-0 flex-1 cursor-grab text-small active:cursor-grabbing"
+                  onPointerDown={startPointerDrag({
+                    kind: "ingredient",
+                    id: i.id,
+                    label: i.common_name,
+                    source: "picker",
+                  })}
+                  onClick={() =>
+                    usePlacementStore.getState().hold({
+                      kind: "ingredient",
+                      id: i.id,
+                      label: i.common_name,
+                    })
+                  }
+                  title="Drag into the scene, or click to pick up and place"
+                >
                   <p className="truncate font-medium">{i.common_name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="truncate text-caption text-muted-foreground">
                     {i.form} · protein{" "}
                     {i.protein_g_per_100g === null
                       ? NOT_REPORTED

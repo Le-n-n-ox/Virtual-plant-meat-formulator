@@ -1,5 +1,6 @@
 import type {
   JobCreated,
+  JobListItem,
   JobStatus,
   JobStatusResponse,
   JobType,
@@ -7,6 +8,15 @@ import type {
   StreamToken,
 } from "@/types";
 import { buildQuery, jsonInit, requestJson } from "./client";
+import type { z } from "zod";
+import {
+  cancelResponseSchema,
+  jobCreatedSchema,
+  jobListItemSchema,
+  jobStatusResponseSchema,
+  pagedSchema,
+  streamTokenSchema,
+} from "@/lib/validation/schemas";
 
 export interface NutritionJobParams {
   amino_acid_pattern_id?: string;
@@ -58,17 +68,7 @@ export type StartJobBody =
   | { type: "texture_prediction"; version?: number; params: TextureJobParams }
   | { type: "optimization"; version?: number; params: OptimizationParams };
 
-export interface JobListItem {
-  id: string;
-  type: JobType | string;
-  formulation: { id: string; name: string; version: number };
-  status: JobStatus;
-  stage_label: string | null;
-  created_at: string;
-  started_at: string | null;
-  finished_at: string | null;
-  duration_ms: number | null;
-}
+export type { JobListItem };
 
 export interface TrainModelBody {
   target: string;
@@ -92,6 +92,7 @@ export function startJob(
         ? { "Idempotency-Key": options.idempotencyKey }
         : undefined,
     ),
+    jobCreatedSchema,
   );
 }
 
@@ -110,27 +111,44 @@ export function listJobs(
       ...rest,
       status: Array.isArray(status) ? status.join(",") : status,
     })}`,
+    undefined,
+    pagedSchema(jobListItemSchema),
   );
 }
 
 export function getJob(id: string): Promise<JobStatusResponse> {
-  return requestJson(base(id));
+  return requestJson(base(id), undefined, jobStatusResponseSchema);
 }
 
 export function getStreamToken(id: string): Promise<StreamToken> {
-  return requestJson(`${base(id)}/stream-token`, { method: "POST" });
+  return requestJson(
+    `${base(id)}/stream-token`,
+    { method: "POST" },
+    streamTokenSchema,
+  );
 }
 
-export function getJobResult<T = unknown>(id: string): Promise<T> {
-  return requestJson(`${base(id)}/result`);
+export function getJobResult<T = unknown>(
+  id: string,
+  schema?: z.ZodType<unknown>,
+): Promise<T> {
+  return requestJson(`${base(id)}/result`, undefined, schema);
 }
 
 export function cancelJob(id: string): Promise<{ accepted: boolean }> {
-  return requestJson(`${base(id)}/cancel`, { method: "POST" });
+  return requestJson(
+    `${base(id)}/cancel`,
+    { method: "POST" },
+    cancelResponseSchema,
+  );
 }
 
 export function trainModel(body: TrainModelBody): Promise<JobCreated> {
-  return requestJson("/api/admin/models/train", jsonInit("POST", body));
+  return requestJson(
+    "/api/admin/models/train",
+    jsonInit("POST", body),
+    jobCreatedSchema,
+  );
 }
 
 export const jobsApi = {

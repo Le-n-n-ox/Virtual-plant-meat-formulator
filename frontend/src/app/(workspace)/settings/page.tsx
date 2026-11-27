@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DisplayPreferences } from "@/components/settings/display-preferences";
+import { UnitsPreferences } from "@/components/settings/units-preferences";
 import { ThemePicker } from "@/components/theme/theme-picker";
 import {
   Card,
@@ -15,8 +16,10 @@ export default function SettingsPage() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">Stored on this device.</p>
+        <h1 className="text-h1">Settings</h1>
+        <p className="text-small text-muted-foreground">
+          Stored on this device.
+        </p>
       </header>
       <Card>
         <CardHeader>
@@ -28,6 +31,18 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <ThemePicker />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Units</CardTitle>
+          <CardDescription>
+            How values are shown. The stored and calculated values are
+            unchanged.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <UnitsPreferences />
         </CardContent>
       </Card>
       <Card>

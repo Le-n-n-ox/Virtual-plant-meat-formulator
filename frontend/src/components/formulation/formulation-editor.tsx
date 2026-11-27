@@ -6,13 +6,15 @@ import {
   PlayIcon,
   SaveIcon,
   SquareIcon,
+  TargetIcon,
   Trash2Icon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { IngredientPicker } from "@/components/formulation/ingredient-picker";
+import { TargetsPanel } from "@/components/formulation/targets-panel";
 import { TextureDialog } from "@/components/formulation/texture-dialog";
 import { ExplainPanel } from "@/components/assistant/explain-panel";
 import { NutritionResults } from "@/components/results/nutrition-results";
@@ -26,6 +28,8 @@ import { saveFormulation } from "@/lib/api/formulations";
 import { cancelJob, type ProcessConditions } from "@/lib/api/jobs";
 import { describeRunError, runJob } from "@/lib/jobs/job-runner";
 import { errorMessage } from "@/lib/format";
+import { useInvalidateResource } from "@/lib/query/invalidate";
+import { useUnsavedChangesGuard } from "@/lib/unsaved-changes";
 import { cn } from "@/lib/utils";
 import { cropVar } from "@/scene/theme/sceneTheme";
 import { useFormulationStore } from "@/stores/formulationStore";
@@ -46,12 +50,15 @@ function sameLines(a: FormulationLine[], b: FormulationLine[]): boolean {
 
 export function FormulationEditor() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const invalidate = useInvalidateResource();
   const {
     name,
     version,
     draft,
     savedLines,
     catalog,
+    targets: savedTargets,
     validated,
     loadState,
     loadError,
@@ -62,6 +69,7 @@ export function FormulationEditor() {
       draft: s.draft,
       savedLines: s.savedLines,
       catalog: s.catalog,
+      targets: s.targets,
       validated: s.validated,
       loadState: s.loadState,
       loadError: s.loadError,
@@ -83,14 +91,44 @@ export function FormulationEditor() {
   const [textureOpen, setTextureOpen] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
 
+  /**
+   * Targets are edited as text so a half-typed number is not lost, then parsed
+   * on save. Seeded from the saved formulation when this screen mounts.
+   */
+  const [targetText, setTargetText] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      Object.entries(useFormulationStore.getState().targets).map(([k, v]) => [
+        k,
+        String(v),
+      ]),
+    ),
+  );
+  const [currency, setCurrency] = useState("KES");
+  const [targetsError, setTargetsError] = useState<string | null>(null);
+
+  const dirty = !sameLines(draft, savedLines);
+
+  /**
+   * Leaving with unsaved edits is confirmed: the browser prompt covers closing
+   * or reloading, the History wrapper covers links and Back within the app.
+   */
+  useUnsavedChangesGuard(
+    dirty,
+    "You have unsaved changes to this formulation. Leave anyway?",
+  );
+
   if (loadState === "loading" || loadState === "idle") {
     return (
-      <Skeleton className="h-64 w-full" aria-label="Loading formulation" />
+      <Skeleton
+        className="h-64 w-full"
+        role="status"
+        aria-label="Loading formulation"
+      />
     );
   }
   if (loadState === "error") {
     return (
-      <p role="alert" className="text-sm text-destructive">
+      <p role="alert" className="text-small text-destructive">
         {loadError ?? "Could not load this formulation."}
       </p>
     );
@@ -99,24 +137,57 @@ export function FormulationEditor() {
   const result = validated?.result;
   const revisionMatches = validated?.lines === draft;
   const valid = Boolean(revisionMatches && result?.valid);
-  const dirty = !sameLines(draft, savedLines);
   const total = draft.reduce(
     (s, l) => s + (Number.isFinite(l.percent) ? l.percent : 0),
     0,
   );
   const canRun = version > 0 && !dirty;
 
+  const targetsDirty =
+    Object.entries(targetText).filter(([, v]) => v.trim() !== "").length !==
+      Object.keys(savedTargets).length ||
+    Object.entries(targetText).some(([k, v]) => Number(v) !== savedTargets[k]);
+
+  /** Parses the text fields into the numeric record the API stores. */
+  function buildTargets(): {
+    targets?: Record<string, number>;
+    error?: string;
+  } {
+    const next: Record<string, number> = {};
+    for (const [key, text] of Object.entries(targetText)) {
+      if (text.trim() === "") continue;
+      const value = Number(text);
+      if (!Number.isFinite(value) || value < 0) {
+        return {
+          error: "Targets must be numbers of 0 or more.",
+        };
+      }
+      next[key] = value;
+    }
+    return { targets: next };
+  }
+
   async function save() {
     setSaving(true);
     setSaveError(null);
+    setTargetsError(null);
     setConflict(false);
+    const built = buildTargets();
+    if (built.error) {
+      setTargetsError(built.error);
+      setSaving(false);
+      return;
+    }
     try {
       const saved = await saveFormulation(id, {
         base_version: version,
         lines: draft,
+        targets: built.targets,
       });
       useFormulationStore.getState().markSaved(saved);
       useResultStore.getState().clear();
+      invalidate("formulations");
+      invalidate("results");
     } catch (error) {
       if (error instanceof ApiError && error.code === "version_conflict") {
         setConflict(true);
@@ -153,7 +224,7 @@ export function FormulationEditor() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-lg font-semibold">{name}</h1>
+        <h1 className="text-h3">{name}</h1>
         <Badge variant="secondary">
           {version === 0 ? "Not saved yet" : `v${version}`}
         </Badge>
@@ -170,12 +241,12 @@ export function FormulationEditor() {
 
       <section aria-label="Ingredients" className="flex flex-col gap-3">
         {draft.length === 0 ? (
-          <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+          <p className="rounded-lg border border-dashed p-4 text-center text-small text-muted-foreground">
             No ingredients yet. Search the catalogue below to add some.
           </p>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-muted-foreground">
+          <table className="w-full text-small">
+            <thead className="text-left text-caption text-muted-foreground">
               <tr>
                 <th className="py-1 font-medium">Ingredient</th>
                 <th className="py-1 font-medium">Form</th>
@@ -216,7 +287,7 @@ export function FormulationEditor() {
                       {issues.map((x) => (
                         <p
                           key={x.code + x.message}
-                          className="mt-0.5 pl-4.5 text-xs text-destructive"
+                          className="mt-0.5 pl-4.5 text-small text-destructive"
                         >
                           {x.message}
                         </p>
@@ -245,7 +316,7 @@ export function FormulationEditor() {
                               : Number(e.target.value),
                           )
                         }
-                        className="h-7 tabular-nums"
+                        className="h-7 font-numeric"
                       />
                     </td>
                     <td className="py-1.5 text-right">
@@ -284,6 +355,17 @@ export function FormulationEditor() {
         }
       />
 
+      <TargetsPanel
+        values={targetText}
+        currency={currency}
+        dirty={targetsDirty}
+        saving={saving}
+        error={targetsError}
+        onValue={(key, value) => setTargetText((t) => ({ ...t, [key]: value }))}
+        onCurrency={setCurrency}
+        onSave={() => void save()}
+      />
+
       <section aria-label="Save" className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -293,20 +375,20 @@ export function FormulationEditor() {
             <SaveIcon aria-hidden /> {saving ? "Saving…" : "Save"}
           </Button>
           {!valid && dirty && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-caption text-muted-foreground">
               Fix the issues above to save.
             </span>
           )}
         </div>
         {saveError && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-small text-destructive">
             {saveError}
           </p>
         )}
         {conflict && (
           <div
             role="alert"
-            className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/70 bg-warning/10 p-3 text-sm"
+            className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/70 bg-warning/10 p-3 text-small"
           >
             <TriangleAlertIcon className="size-4 text-warning" aria-hidden />
             <span>
@@ -333,6 +415,7 @@ export function FormulationEditor() {
         startError={startError}
         onNutrition={() => void startNutrition()}
         onTexture={() => setTextureOpen(true)}
+        onOptimize={() => router.push(`/formulations/${id}/optimize`)}
       />
       <TextureDialog
         open={textureOpen}
@@ -359,7 +442,7 @@ function TotalsBar({
   return (
     <div
       className={cn(
-        "rounded-lg border p-3 text-sm",
+        "rounded-lg border p-3 text-small",
         pending
           ? "border-border"
           : valid
@@ -377,7 +460,7 @@ function TotalsBar({
           )}
           Total {rounded}%
         </span>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-caption text-muted-foreground">
           {pending
             ? "Validating…"
             : valid
@@ -398,7 +481,7 @@ function TotalsBar({
         />
       </div>
       {!pending && messages.length > 0 && (
-        <ul className="mt-2 list-disc pl-4 text-xs text-muted-foreground">
+        <ul className="mt-2 list-disc pl-4 text-caption text-muted-foreground">
           {messages.map((m) => (
             <li key={m}>{m}</li>
           ))}
@@ -414,12 +497,14 @@ function JobSection({
   startError,
   onNutrition,
   onTexture,
+  onOptimize,
 }: {
   canRun: boolean;
   dirty: boolean;
   startError: string | null;
   onNutrition: () => void;
   onTexture: () => void;
+  onOptimize: () => void;
 }) {
   const { status, activeJobId, message } = useJobStore(
     useShallow((s) => ({
@@ -446,8 +531,8 @@ function JobSection({
       aria-label="Calculations"
       className="flex flex-col gap-2 rounded-lg border p-3"
     >
-      <h2 className="text-sm font-medium">Calculations</h2>
-      <p className="text-xs text-muted-foreground">
+      <h2 className="text-h4">Calculations</h2>
+      <p className="text-caption text-muted-foreground">
         Jobs run on the saved version
         {dirty ? " — save your changes first." : "."}
       </p>
@@ -466,6 +551,14 @@ function JobSection({
         <Button
           size="sm"
           variant="outline"
+          disabled={!canRun || running}
+          onClick={onOptimize}
+        >
+          <TargetIcon aria-hidden /> Optimize
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
           disabled={!running}
           onClick={() => void cancel()}
         >
@@ -473,10 +566,10 @@ function JobSection({
         </Button>
       </div>
       {running && message && (
-        <p className="text-xs text-muted-foreground">{message}</p>
+        <p className="text-caption text-muted-foreground">{message}</p>
       )}
       {(startError || cancelError) && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {startError ?? cancelError}
         </p>
       )}
@@ -508,7 +601,7 @@ function Results() {
   if (loading) return <Skeleton className="h-24 w-full" />;
   if (error) {
     return (
-      <p role="alert" className="text-sm text-destructive">
+      <p role="alert" className="text-small text-destructive">
         {describeRunError(error.code, error.message)}
       </p>
     );

@@ -101,7 +101,7 @@ export function JobProgress({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "space-y-1.5 rounded-lg border bg-popover/90 p-2.5 text-xs shadow-sm backdrop-blur",
+        "space-y-1.5 rounded-lg border bg-popover/90 p-2.5 text-caption shadow-sm backdrop-blur",
         className,
       )}
     >
@@ -118,7 +118,7 @@ export function JobProgress({ className }: { className?: string }) {
           />
           {meta.label}
           {job.progress !== null && running && (
-            <span className="tabular-nums">· {Math.round(job.progress)}%</span>
+            <span className="font-numeric">· {Math.round(job.progress)}%</span>
           )}
         </span>
       </div>

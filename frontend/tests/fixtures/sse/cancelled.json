@@ -1,0 +1,37 @@
+[
+  {
+    "job_id": "job_1",
+    "seq": 1,
+    "event": "stage.updated",
+    "status": "running",
+    "stage": "validating",
+    "stage_label": "Validating",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:05:00Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 2,
+    "event": "stage.updated",
+    "status": "running",
+    "stage": "searching",
+    "stage_label": "Searching formulations",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:05:01Z",
+    "completed": 1,
+    "total": 4
+  },
+  {
+    "job_id": "job_1",
+    "seq": 3,
+    "event": "job.cancelled",
+    "status": "cancelled",
+    "stage": "searching",
+    "stage_label": "Searching formulations",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:05:02Z"
+  }
+]

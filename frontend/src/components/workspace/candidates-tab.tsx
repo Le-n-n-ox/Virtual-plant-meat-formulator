@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BoxIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   GitCompareIcon,
@@ -8,8 +9,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence, motion } from "motion/react";
 import { Fragment, useState } from "react";
 import { ExplainPanel } from "@/components/assistant/explain-panel";
+import { ModelBadge } from "@/components/models/model-badge";
 import { intervalOf } from "@/components/results/texture-results";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +29,9 @@ import {
   humanizeKey,
   NOT_REPORTED,
 } from "@/lib/format";
+import { useMotion } from "@/lib/motion";
+import { useInvalidateResource } from "@/lib/query/invalidate";
+import { useSelectionStore } from "@/stores/selectionStore";
 import type { Candidate, TexturePrediction } from "@/types";
 
 const KNOWN_METRICS = new Set([
@@ -59,6 +65,7 @@ export function costOf(
 export function CandidatesTab() {
   const { id, loadState } = useSavedVersion();
   const router = useRouter();
+  const invalidate = useInvalidateResource();
   const search = useSearchParams();
   const jobId = search.get("job_id") ?? "";
   const [paretoOnly, setParetoOnly] = useState(false);
@@ -66,17 +73,20 @@ export function CandidatesTab() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [promoting, setPromoting] = useState<string | null>(null);
   const [promoteError, setPromoteError] = useState<string | null>(null);
+  const motionTokens = useMotion();
 
-  const jobs = useApiQuery(`opt-jobs|${id}`, () =>
-    listJobs({
-      formulation_id: id,
-      type: "optimization",
-      status: ["completed", "cancelled", "failed"],
-      page_size: 50,
-    }),
+  const jobs = useApiQuery(
+    ["jobs", { formulation_id: id, type: "optimization" }],
+    () =>
+      listJobs({
+        formulation_id: id,
+        type: "optimization",
+        status: ["completed", "cancelled", "failed"],
+        page_size: 50,
+      }),
   );
   const candidates = useApiQuery(
-    `candidates|${id}|${jobId}|${paretoOnly}`,
+    ["candidates", { formulationId: id, jobId, paretoOnly }],
     () =>
       listCandidates(id, {
         job_id: jobId || undefined,
@@ -114,6 +124,8 @@ export function CandidatesTab() {
     setPromoteError(null);
     try {
       const created = await promoteCandidate(candidateId);
+      invalidate("candidates");
+      invalidate("formulations");
       router.push(`/formulations/${created.id}`);
     } catch (error) {
       setPromoteError(errorMessage(error));
@@ -126,16 +138,16 @@ export function CandidatesTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">Candidates</h1>
+      <h1 className="text-h3">Candidates</h1>
 
       <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-small">
           Optimization job
           <select
             aria-label="Filter by optimization job"
             value={jobId}
             onChange={(e) => setJob(e.target.value)}
-            className="h-8 max-w-56 rounded-lg border border-input bg-transparent px-2 text-sm dark:bg-input/30"
+            className="h-8 max-w-56 rounded-lg border border-input bg-transparent px-2 text-small dark:bg-input/30"
           >
             <option value="">All jobs</option>
             {jobId && !jobs.data?.items.some((j) => j.id === jobId) && (
@@ -149,7 +161,7 @@ export function CandidatesTab() {
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-small">
           <input
             type="checkbox"
             checked={paretoOnly}
@@ -168,24 +180,24 @@ export function CandidatesTab() {
       </div>
 
       {promoteError && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {promoteError}
         </p>
       )}
       {candidates.loading && <Skeleton className="h-40 w-full" />}
       {candidates.error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {errorMessage(candidates.error)}
         </p>
       )}
       {!candidates.loading && !candidates.error && items.length === 0 && (
-        <div className="rounded-lg border border-dashed p-6 text-center text-sm">
+        <div className="rounded-lg border border-dashed p-6 text-center text-small">
           <p className="font-medium">No candidates</p>
           <p className="mt-1 text-muted-foreground">
             Run an optimization from the{" "}
             <Link
               href={`/formulations/${id}/optimize`}
-              className="text-primary underline-offset-4 hover:underline"
+              className="text-primary underline underline-offset-4"
             >
               Optimize tab
             </Link>{" "}
@@ -196,8 +208,8 @@ export function CandidatesTab() {
 
       {items.length > 0 && (
         <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full min-w-[560px] text-sm">
-            <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+          <table className="w-full min-w-[560px] text-small">
+            <thead className="bg-muted/40 text-left text-caption text-muted-foreground">
               <tr>
                 <th className="w-8 p-2">
                   <span className="sr-only">Select</span>
@@ -236,7 +248,7 @@ export function CandidatesTab() {
                       </td>
                       <td className="p-2">
                         <div className="flex flex-col items-start gap-1">
-                          <span className="font-medium tabular-nums">
+                          <span className="font-medium font-numeric">
                             #{c.rank}
                           </span>
                           {c.pareto && <Badge>Pareto</Badge>}
@@ -261,41 +273,41 @@ export function CandidatesTab() {
                         </div>
                       </td>
                       <td className="p-2">
-                        <ul className="text-xs">
+                        <ul className="text-caption">
                           {c.lines.map((l) => (
                             <li key={l.ingredient_id}>
                               {nameOf(l.ingredient_id)}{" "}
-                              <span className="tabular-nums text-muted-foreground">
+                              <span className="font-numeric text-muted-foreground">
                                 {formatNumber(l.percent)}%
                               </span>
                             </li>
                           ))}
                         </ul>
                       </td>
-                      <td className="p-2 text-xs">
+                      <td className="p-2 text-caption">
                         <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
                           <dt className="text-muted-foreground">Protein</dt>
-                          <dd className="tabular-nums">
+                          <dd className="font-numeric">
                             {protein === null
                               ? NOT_REPORTED
                               : `${formatNumber(protein)} g/100 g`}
                           </dd>
                           <dt className="text-muted-foreground">AAS</dt>
-                          <dd className="tabular-nums">
+                          <dd className="font-numeric">
                             {aas === null ? "missing" : formatNumber(aas)}
                             {typeof limiting === "string" && limiting
                               ? ` (limiting: ${humanizeKey(limiting)})`
                               : ""}
                           </dd>
                           <dt className="text-muted-foreground">Cost</dt>
-                          <dd className="tabular-nums">
+                          <dd className="font-numeric">
                             {cost
                               ? `${formatNumber(cost.value)} ${cost.currency}/kg`
                               : NOT_REPORTED}
                           </dd>
                         </dl>
                       </td>
-                      <td className="p-2 text-xs">
+                      <td className="p-2 text-caption">
                         {c.predictions.length === 0 ? (
                           <span className="text-muted-foreground">
                             none requested
@@ -320,17 +332,44 @@ export function CandidatesTab() {
                         </Button>
                       </td>
                     </tr>
-                    {open && (
-                      <tr className="border-t bg-muted/20">
-                        <td colSpan={6} className="p-3">
-                          <CandidateDetail
-                            candidate={c}
-                            promoting={promoting === c.id}
-                            onPromote={() => void promote(c.id)}
-                          />
-                        </td>
-                      </tr>
-                    )}
+                    {/*
+                     * The detail row grows and shrinks on the shared entrance
+                     * token, which is also what keeps it on screen long
+                     * enough to animate out. A table row cannot be given a
+                     * height, so the height belongs to the block inside the
+                     * cell. With reduced motion both durations are zero and
+                     * the row appears and disappears outright.
+                     */}
+                    <AnimatePresence initial={false}>
+                      {open && (
+                        <motion.tr
+                          key={`${c.id}-detail`}
+                          className="border-t bg-muted/20"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={motionTokens.enter}
+                        >
+                          <td colSpan={6} className="p-0">
+                            <motion.div
+                              className="overflow-hidden"
+                              initial={{ height: 0 }}
+                              animate={{ height: "auto" }}
+                              exit={{ height: 0 }}
+                              transition={motionTokens.enter}
+                            >
+                              <div className="p-3">
+                                <CandidateDetail
+                                  candidate={c}
+                                  promoting={promoting === c.id}
+                                  onPromote={() => void promote(c.id)}
+                                />
+                              </div>
+                            </motion.div>
+                          </td>
+                        </motion.tr>
+                      )}
+                    </AnimatePresence>
                   </Fragment>
                 );
               })}
@@ -339,7 +378,7 @@ export function CandidatesTab() {
         </div>
       )}
       {candidates.data && candidates.data.total > items.length && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           Showing {items.length} of {candidates.data.total} candidates.
         </p>
       )}
@@ -356,7 +395,7 @@ export function PredictionLine({ p }: { p: TexturePrediction }) {
       {value === null || value === undefined ? (
         <span className="text-muted-foreground">no supported estimate</span>
       ) : (
-        <span className="tabular-nums">
+        <span className="font-numeric">
           {formatNumber(value)} {p.unit}
           {interval && (
             <span className="text-muted-foreground">
@@ -391,16 +430,29 @@ function CandidateDetail({
       !c.predictions.some((p) => p.target === k) &&
       typeof v === "number",
   );
+  const selectCandidate = useSelectionStore((s) => s.selectCandidate);
+  const models = new Map<string, TexturePrediction["model"]>();
+  for (const p of c.predictions) if (p.model) models.set(p.model.id, p.model);
+  const canCutaway =
+    c.scene.visual_basis !== "illustrative" ||
+    c.scene.variables.some((v) => v.validated);
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" disabled={promoting} onClick={onPromote}>
           {promoting ? "Promoting…" : "Promote to formulation"}
         </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => selectCandidate(c.id, c.scene)}
+        >
+          <BoxIcon aria-hidden /> Preview in 3D
+        </Button>
         {c.promoted_formulation_id && (
           <Link
             href={`/formulations/${c.promoted_formulation_id}`}
-            className="text-xs text-primary underline-offset-4 hover:underline"
+            className="text-caption text-primary underline underline-offset-4"
           >
             Already promoted: open formulation
           </Link>
@@ -412,17 +464,17 @@ function CandidateDetail({
         </Badge>
       </div>
       {extraMetrics.length > 0 && (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-caption">
           {extraMetrics.map(([k, v]) => (
             <div key={k} className="contents">
               <dt className="text-muted-foreground">{humanizeKey(k)}</dt>
-              <dd className="tabular-nums">{formatNumber(v as number)}</dd>
+              <dd className="font-numeric">{formatNumber(v as number)}</dd>
             </div>
           ))}
         </dl>
       )}
       {(c.warnings?.length ?? 0) > 0 && (
-        <ul className="flex flex-col gap-1 text-xs">
+        <ul className="flex flex-col gap-1 text-caption">
           {c.warnings?.map((w, i) => (
             <li key={i} className="flex items-start gap-1">
               <TriangleAlertIcon
@@ -441,6 +493,24 @@ function CandidateDetail({
           ))}
         </ul>
       )}
+
+      {models.size > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <h4 className="text-caption font-medium text-muted-foreground">
+            Models behind these estimates
+          </h4>
+          {[...models.values()].map((m) => (
+            <ModelBadge key={m.id} model={m} />
+          ))}
+        </div>
+      )}
+
+      <p className="text-caption text-muted-foreground">
+        {canCutaway
+          ? "This candidate carries a validated scene variable, so a cutaway view is available in the 3D scene."
+          : "The 3D visual is illustrative: no calibrated, validated variable is attached to this candidate."}
+      </p>
+
       <ExplainPanel
         target={{ kind: "candidate", id: c.id }}
         label="Explain this candidate"

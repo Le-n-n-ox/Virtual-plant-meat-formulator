@@ -3,12 +3,21 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
+/**
+ * The landing page's bands, in page order. Every `id` here must exist on the
+ * page: the nav highlights whichever one is in view, and tests/e2e walk each
+ * anchor. Sections without a pill (the stats band, the closing call to action)
+ * are deliberate — the nav is a table of contents, not a list of every anchor.
+ */
 export const SECTIONS = [
   { id: "hero", label: "Overview" },
-  { id: "principles", label: "Principles" },
   { id: "how-it-works", label: "How it works" },
-  { id: "themes", label: "Themes" },
+  { id: "who-its-for", label: "Who it is for" },
+  { id: "principles", label: "Principles" },
+  { id: "event-flow", label: "Live 3D" },
   { id: "crops", label: "Crops" },
+  { id: "provenance", label: "Data sources" },
+  { id: "themes", label: "Themes" },
 ] as const;
 
 const SECTION_IDS = SECTIONS.map((s) => s.id);
@@ -55,7 +64,7 @@ export function SectionNav() {
               href={`#${s.id}`}
               aria-current={current ? "true" : undefined}
               className={cn(
-                "relative shrink-0 rounded-full px-3 py-1.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:bg-muted",
+                "relative shrink-0 rounded-full px-3 py-1.5 text-small whitespace-nowrap transition-colors outline-none focus-visible:bg-muted",
                 current
                   ? "font-medium text-foreground"
                   : "text-muted-foreground hover:text-foreground",

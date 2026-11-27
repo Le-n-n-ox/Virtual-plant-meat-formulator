@@ -171,3 +171,80 @@ export function cropColor(theme: SceneTheme, index: number): string {
 export function cropVar(index: number): string {
   return `var(--scene-crop-${(index % CROP_TOKEN_COUNT) + 1})`;
 }
+
+/**
+ * Blender material name → the theme field that tints it (guide §12.9).
+ *
+ * `MAT_Crop` is resolved per instance (the ingredient's `--scene-crop-n`), and
+ * `MAT_Natural` is deliberately absent: the crop toppers keep their own colours.
+ */
+export const MATERIAL_TINTS: Record<string, keyof SceneTheme | null> = {
+  MAT_Bench: "floor",
+  MAT_Surface: "surface",
+  MAT_Metal: "metal",
+  MAT_Glass: "glass",
+  MAT_Dark: "line",
+  MAT_Accent: "accent",
+  MAT_Status: "active",
+  MAT_Product: "product",
+  MAT_Crop: "crops",
+  MAT_Natural: null,
+};
+
+/**
+ * Resolves the tints for one theme. `MAT_Crop` is represented by the crop list,
+ * so callers pass the specific instance colour through `applyMaterialTints`.
+ */
+export function themeMaterialTints(theme: SceneTheme): Record<string, string> {
+  const tints: Record<string, string> = {};
+  for (const [material, field] of Object.entries(MATERIAL_TINTS)) {
+    if (field === null) continue;
+    const value = theme[field];
+    if (typeof value === "string") tints[material] = value;
+    else if (Array.isArray(value)) tints[material] = value[0];
+  }
+  return tints;
+}
+
+/**
+ * Walks a loaded model once and binds each named material to the theme, so a
+ * theme switch recolours the scene without reloading any GLB. `instanceColours`
+ * overrides a material name (used for `MAT_Crop`, which is per ingredient).
+ */
+/** Strips glTF's duplicate-name suffix: `MAT_Surface.001` → `MAT_Surface`. */
+export function baseMaterialName(name: string): string {
+  return name.replace(/\.\d+$/, "");
+}
+
+export function applyMaterialTints(
+  root: object,
+  theme: SceneTheme,
+  instanceColours: Record<string, string> = {},
+): void {
+  const tints = themeMaterialTints(theme);
+  const visit = (child: unknown) => {
+    const mesh = child as {
+      isMesh?: boolean;
+      name?: string;
+      material?: unknown;
+      children?: unknown[];
+    };
+    if (mesh.isMesh) {
+      const materials = (
+        Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      ) as { name?: string; color?: { set: (value: string) => void } }[];
+      for (const material of materials) {
+        // glTF appends `.001`, `.002`, … when a material name repeats across
+        // an asset, so `MAT_Surface.001` must still match `MAT_Surface`.
+        const name = material?.name ? baseMaterialName(material.name) : null;
+        const override = name
+          ? (instanceColours[material.name as string] ?? instanceColours[name])
+          : undefined;
+        const tint = override ?? (name ? tints[name] : undefined);
+        if (tint && material?.color) material.color.set(tint);
+      }
+    }
+    for (const next of mesh.children ?? []) visit(next);
+  };
+  visit(root);
+}

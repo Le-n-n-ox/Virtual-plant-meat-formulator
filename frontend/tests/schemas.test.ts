@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ingredientListItemSchema,
   jobEventSchema,
-  paginatedSchema,
+  pagedSchema,
   validationResultSchema,
 } from "@/lib/validation/schemas";
 
@@ -30,7 +30,7 @@ describe("response schemas", () => {
   });
 
   it("validates a paginated envelope", () => {
-    const schema = paginatedSchema(ingredientListItemSchema);
+    const schema = pagedSchema(ingredientListItemSchema);
     const parsed = schema.safeParse({
       items: [ingredient],
       total: 1,

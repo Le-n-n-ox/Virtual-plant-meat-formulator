@@ -1,0 +1,58 @@
+[
+  {
+    "job_id": "job_1",
+    "seq": 1,
+    "event": "stage.updated",
+    "status": "running",
+    "stage": "validating",
+    "stage_label": "Validating",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:03:00Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 2,
+    "event": "stage.updated",
+    "status": "running",
+    "stage": "calculating",
+    "stage_label": "Calculating nutrition",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:03:01Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 3,
+    "event": "warning.raised",
+    "status": "running",
+    "stage": "calculating",
+    "stage_label": "Calculating nutrition",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:03:02Z",
+    "message": "One ingredient has estimated data."
+  },
+  {
+    "job_id": "job_1",
+    "seq": 4,
+    "event": "result.ready",
+    "status": "running",
+    "stage": "calculating",
+    "stage_label": "Calculating nutrition",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:03:03Z"
+  },
+  {
+    "job_id": "job_1",
+    "seq": 5,
+    "event": "job.completed",
+    "status": "completed",
+    "stage": "storing",
+    "stage_label": "Storing result",
+    "progress_percent": null,
+    "candidate_id": null,
+    "timestamp": "2026-11-19T09:03:04Z"
+  }
+]

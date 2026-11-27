@@ -7,7 +7,11 @@ from app.config import get_settings
 from app.db.models import Base
 
 config = context.config
-config.set_main_option("sqlalchemy.url", get_settings().database_url.replace("%", "%%"))
+# Prefer the dedicated migration URL (session-mode pooler) when one is set;
+# see `Settings.migrate_database_url`.
+_settings = get_settings()
+_migration_url = _settings.migrate_database_url or _settings.database_url
+config.set_main_option("sqlalchemy.url", _migration_url.replace("%", "%%"))
 target_metadata = Base.metadata
 
 

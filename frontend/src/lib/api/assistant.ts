@@ -1,23 +1,16 @@
 import { jsonInit, requestJson } from "./client";
-
-export interface AssistantStatus {
-  configured: boolean;
-  model: string | null;
-  role: "explanation_only";
-}
-
-export interface AssistantExplanation {
-  text: string;
-  model: string;
-  generated_at: string;
-  disclaimer: string;
-  numbers_check: { unverified_numbers: string[]; passed: boolean };
-}
+import {
+  assistantExplanationSchema,
+  assistantStatusSchema,
+} from "@/lib/validation/schemas";
+import type { AssistantExplanation, AssistantStatus } from "@/types";
 
 type ExplainBody = { question?: string };
 
+export type { AssistantExplanation, AssistantStatus };
+
 export function getAssistantStatus(): Promise<AssistantStatus> {
-  return requestJson("/api/assistant/status");
+  return requestJson("/api/assistant/status", undefined, assistantStatusSchema);
 }
 
 export function explainJob(
@@ -27,6 +20,7 @@ export function explainJob(
   return requestJson(
     `/api/jobs/${encodeURIComponent(jobId)}/explain`,
     jsonInit("POST", body),
+    assistantExplanationSchema,
   );
 }
 
@@ -37,6 +31,7 @@ export function explainCandidate(
   return requestJson(
     `/api/candidates/${encodeURIComponent(id)}/explain`,
     jsonInit("POST", body),
+    assistantExplanationSchema,
   );
 }
 
@@ -47,6 +42,7 @@ export function explainModel(
   return requestJson(
     `/api/models/${encodeURIComponent(id)}/explain`,
     jsonInit("POST", body),
+    assistantExplanationSchema,
   );
 }
 

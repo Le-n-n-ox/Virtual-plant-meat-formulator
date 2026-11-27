@@ -29,8 +29,8 @@ export function BackendStatus() {
 
   return (
     <section aria-live="polite" className="rounded-md border p-4">
-      <h2 className="font-medium">Backend status</h2>
-      <p className="text-sm text-muted-foreground">
+      <h2 className="text-h4">Backend status</h2>
+      <p className="text-small text-muted-foreground">
         {status === "connected" && `connected (version ${version})`}
         {status === "unreachable" && "not reachable"}
         {status === "checking" && "checking connection…"}

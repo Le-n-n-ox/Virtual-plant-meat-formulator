@@ -1,9 +1,17 @@
 "use client";
 
-import { BoxIcon, InfoIcon, RotateCcwIcon, SquareIcon } from "lucide-react";
+import {
+  BoxIcon,
+  InfoIcon,
+  MinusIcon,
+  PlusIcon,
+  RotateCcwIcon,
+  SquareIcon,
+  XIcon,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import { motion } from "motion/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { JobProgress } from "@/components/jobs/job-status";
 import { Badge } from "@/components/ui/badge";
@@ -14,10 +22,16 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getIngredient } from "@/lib/api/ingredients";
-import { getIngredientDragId, isIngredientDrag } from "@/lib/dnd";
 import { cn } from "@/lib/utils";
+import { useDragStore } from "@/stores/dragStore";
 import { useFormulationStore } from "@/stores/formulationStore";
+import { usePlacementStore } from "@/stores/placementStore";
+import { usePercentStep } from "./drag/usePercentDrag";
+import { stepPercent } from "./drag/percentDrag";
+import { DragChip, DragGhost2D } from "./drag/DragChip";
+import { Pantry, ReturnTray } from "./drag/Pantry";
+import { placeHeld } from "./drag/actions";
+import { PlacementBar } from "./drag/PlacementBar";
 import { useJobStore } from "@/stores/jobStore";
 import { usePreferencesStore } from "@/stores/preferencesStore";
 import { useSceneStore } from "@/stores/sceneStore";
@@ -26,7 +40,11 @@ import { SceneErrorBoundary } from "./SceneErrorBoundary";
 import { SceneLabels } from "./SceneLabels";
 import { Workspace2D } from "./fallback/Workspace2D";
 import { useResolvedView } from "./hooks/useSceneEnvironment";
-import { PROCESS_STATIONS, STAGE_STATUS_TEXT } from "./stations";
+import {
+  PROCESS_STATIONS,
+  STAGE_STATUS_TEXT,
+  stationStatuses,
+} from "./stations";
 import { cropVar } from "./theme/sceneTheme";
 
 const SceneCanvas = dynamic(() => import("./SceneCanvas"), {
@@ -40,8 +58,8 @@ const SceneCanvas = dynamic(() => import("./SceneCanvas"), {
 
 /**
  * Scene panel used by the formulation workspace: 3D canvas (or 2D fallback),
- * toolbar, live status overlay, a drop target for ingredients, and a
- * keyboard-accessible mirror of every selectable object.
+ * toolbar, live status overlay, a drop target for ingredients, a keyboard
+ * mirror of every selectable object, and an ingredient detail card.
  */
 export function WorkspaceScene({ className }: { className?: string }) {
   const { view, reason } = useResolvedView();
@@ -49,38 +67,31 @@ export function WorkspaceScene({ className }: { className?: string }) {
   const setViewMode = usePreferencesStore((s) => s.setViewMode);
   const resetCamera = useSceneStore((s) => s.requestCameraReset);
   const jobStatus = useJobStore((s) => s.status);
+  const selectedCandidateId = useSelectionStore((s) => s.selectedCandidateId);
+  const candidateScene = useSelectionStore((s) => s.candidateScene);
+  const cutaway = useSelectionStore((s) => s.cutaway);
+  const setCutaway = useSelectionStore((s) => s.setCutaway);
   const is3D = view === "3d";
-
-  const [dropActive, setDropActive] = useState(false);
-  const [dropError, setDropError] = useState<string | null>(null);
-  const dragDepth = useRef(0);
-
-  /** Drop anywhere on the scene adds the dragged crop to the formulation. */
-  async function handleSceneDrop(event: React.DragEvent) {
-    event.preventDefault();
-    dragDepth.current = 0;
-    setDropActive(false);
-    const id = getIngredientDragId(event);
-    if (!id) return;
-    const store = useFormulationStore.getState();
-    if (store.draft.some((line) => line.ingredient_id === id)) {
-      setDropError(null);
-      return;
-    }
-    try {
-      const ingredient = store.catalog[id] ?? (await getIngredient(id));
-      useFormulationStore.getState().addIngredient(ingredient);
-      setDropError(null);
-    } catch {
-      setDropError("That ingredient could not be loaded.");
-    }
-  }
+  /**
+   * A cutaway may only be offered when the candidate carries a variable that a
+   * calibrated model actually produced and validated; otherwise the view stays
+   * labelled illustrative.
+   */
+  const canCutaway =
+    candidateScene !== null &&
+    (candidateScene.visual_basis !== "illustrative" ||
+      candidateScene.variables.some((v) => v.validated));
 
   return (
     <section
       aria-label="Process scene"
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden rounded-xl border bg-card shadow-sm",
+        // The same surface the Card primitive draws — ring rather than border,
+        // so the scene panel's edge matches the cards it sits beside instead of
+        // being a pixel heavier. Not an actual <Card>: this is a flex column
+        // with its own overflow and min-height rules that Card's padding and
+        // spacing tokens would fight.
+        "flex min-h-0 flex-col overflow-hidden rounded-xl bg-card shadow-sm ring-1 ring-foreground/10",
         className,
       )}
     >
@@ -97,7 +108,7 @@ export function WorkspaceScene({ className }: { className?: string }) {
               "bg-muted-foreground",
           )}
         />
-        <h2 className="text-sm font-medium">Process view</h2>
+        <h2 className="text-small font-medium">Process view</h2>
         <Tooltip>
           <TooltipTrigger
             render={
@@ -113,6 +124,16 @@ export function WorkspaceScene({ className }: { className?: string }) {
             simulation.
           </TooltipContent>
         </Tooltip>
+        {selectedCandidateId && canCutaway && (
+          <label className="flex items-center gap-1.5 text-caption text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={cutaway}
+              onChange={(e) => setCutaway(e.target.checked)}
+            />
+            Cutaway view
+          </label>
+        )}
         <div className="ml-auto flex items-center gap-1">
           <div
             role="group"
@@ -133,7 +154,7 @@ export function WorkspaceScene({ className }: { className?: string }) {
                   aria-pressed={active}
                   onClick={() => setViewMode(id)}
                   className={cn(
-                    "relative z-10 flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors outline-none focus-visible:bg-muted",
+                    "relative z-10 flex items-center gap-1 rounded-md px-2 py-1 text-caption transition-colors outline-none focus-visible:bg-muted",
                     active
                       ? "text-foreground"
                       : "text-muted-foreground hover:text-foreground",
@@ -169,34 +190,13 @@ export function WorkspaceScene({ className }: { className?: string }) {
       </header>
 
       <div
-        className={cn(
-          "scene-panel relative min-h-[320px] flex-1",
-          dropActive && "ring-2 ring-primary ring-inset",
-        )}
-        onDragEnter={(e) => {
-          if (!isIngredientDrag(e)) return;
-          e.preventDefault();
-          dragDepth.current += 1;
-          setDropActive(true);
-        }}
-        onDragOver={(e) => {
-          if (!isIngredientDrag(e)) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "copy";
-        }}
-        onDragLeave={() => {
-          dragDepth.current -= 1;
-          if (dragDepth.current <= 0) {
-            dragDepth.current = 0;
-            setDropActive(false);
-          }
-        }}
-        onDrop={handleSceneDrop}
+        className="scene-panel relative min-h-[320px] flex-1"
+        id="scene-canvas-wrap"
       >
         {view === "pending" && <Skeleton className="size-full rounded-none" />}
         {view === "2d" && <Workspace2D />}
         {view === "3d" && (
-          <SceneErrorBoundary fallback={<Workspace2D />}>
+          <SceneErrorBoundary fallback={<Workspace2D />} label="3D scene">
             <SceneCanvas />
             <SceneLabels />
           </SceneErrorBoundary>
@@ -205,179 +205,294 @@ export function WorkspaceScene({ className }: { className?: string }) {
           <JobProgress className="pointer-events-auto" />
         </div>
         {reason && viewMode === "auto" && (
-          <p className="absolute top-2 left-3 rounded-md bg-popover/90 px-2 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur">
+          <p className="absolute top-2 left-3 rounded-md bg-popover/90 px-2 py-1 text-caption text-muted-foreground shadow-sm backdrop-blur">
             {reason}
           </p>
         )}
-        {is3D && !dropActive && (
-          <p className="pointer-events-none absolute top-2 left-3 hidden text-[11px] text-muted-foreground md:block">
-            Drag to orbit · scroll to zoom · click a bin to inspect · drop a
-            crop here to add it
+        {is3D && (
+          <p className="pointer-events-none absolute top-2 left-2 hidden text-caption text-muted-foreground md:block">
+            Drag to orbit · scroll or pinch to zoom · tap a bin to inspect ·
+            drag a crop from the pantry to the vessel to add it
           </p>
         )}
 
-        {dropActive && (
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-primary/10 backdrop-blur-[1px]">
-            <div className="rounded-xl border border-primary/50 bg-popover/95 px-4 py-3 text-center shadow-lg">
-              <p className="text-sm font-medium">
-                Drop to add to the formulation
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Release to place it in the scene
-              </p>
-            </div>
-          </div>
-        )}
-        {dropError && (
-          <p className="absolute top-2 right-3 rounded-md bg-destructive/15 px-2 py-1 text-xs text-destructive">
-            {dropError}
+        {selectedCandidateId && !canCutaway && (
+          <p className="pointer-events-none absolute top-10 left-3 rounded-md bg-popover/90 px-2 py-1 text-caption text-muted-foreground shadow-sm backdrop-blur">
+            Illustrative visual — no validated variable for a cutaway
           </p>
         )}
+
+        <SceneSelectionCard />
+
+        {/* Drag and drop (guide §12.3). */}
+        <Pantry />
+        <ReturnTray />
+        <PlacementBar />
+        <DragChip />
+        {view === "2d" && <DragGhost2D />}
+        <DragAnnouncer />
       </div>
 
       <SceneObjectList />
-      <SceneAnnouncer />
     </section>
   );
 }
 
-/** Keyboard/screen-reader equivalent of the clickable scene objects. */
+/** Announces every pick-up, move over a target, drop, cancel and rejection. */
+function DragAnnouncer() {
+  const announcement = useDragStore((s) => s.announcement);
+  return (
+    <div aria-live="polite" className="sr-only">
+      {announcement}
+    </div>
+  );
+}
+
+type SceneEntry =
+  | {
+      kind: "ingredient";
+      id: string;
+      label: string;
+      percent: number;
+      color: string;
+    }
+  | { kind: "candidate"; id: string; label: string };
+
+/**
+ * Keyboard and screen-reader equivalent of the clickable 3D objects. One Tab
+ * stop enters the list; arrow keys move between objects, Enter inspects, and
+ * Escape clears the selection. Every action the canvas offers is here.
+ */
 function SceneObjectList() {
   const validated = useFormulationStore((s) => s.validated);
   const catalog = useFormulationStore((s) => s.catalog);
   const [selectedId, selectIngredient] = useSelectionStore(
     useShallow((s) => [s.selectedIngredientId, s.selectIngredient]),
   );
+  const selectedCandidate = useSelectionStore((s) => s.selectedCandidateId);
+  const selectCandidate = useSelectionStore((s) => s.selectCandidate);
   const stages = useJobStore((s) => s.stages);
-  const [replaceTarget, setReplaceTarget] = useState<string | null>(null);
+  const jobType = useJobStore((s) => s.jobType);
+  const jobStatus = useJobStore((s) => s.status);
+  const currentStage = useJobStore((s) => s.currentStage);
+  const candidateIds = useJobStore((s) => s.candidateIds);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const held = usePlacementStore((s) => s.held);
+  const hold = usePlacementStore((s) => s.hold);
+  const release = usePlacementStore((s) => s.release);
+  const removeIngredient = useFormulationStore((s) => s.removeIngredient);
+  const itemsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  /** Mirror of activeIndex that updates synchronously, for key handling. */
+  const activeRef = useRef(0);
   const lines = validated?.lines ?? [];
-  const selectedIngredient = selectedId ? catalog[selectedId] : null;
-  const selectedLine = lines.find((l) => l.ingredient_id === selectedId);
-  const issue = validated?.result.issues.find(
-    (i) => i.ingredient_id === selectedId,
-  );
 
-  /** Drop on a bin chip to swap that ingredient for the dragged one. */
-  function handleReplace(event: React.DragEvent, currentId: string) {
-    event.preventDefault();
-    event.stopPropagation();
-    setReplaceTarget(null);
-    const id = getIngredientDragId(event);
-    if (!id || id === currentId) return;
+  const entries: SceneEntry[] = [
+    ...lines.map((line, index) => ({
+      kind: "ingredient" as const,
+      id: line.ingredient_id,
+      label: catalog[line.ingredient_id]?.common_name ?? line.ingredient_id,
+      percent: line.percent,
+      color: cropVar(index),
+    })),
+    ...(candidateIds.length > 0
+      ? [
+          {
+            kind: "candidate" as const,
+            id: candidateIds[candidateIds.length - 1],
+            label: "Candidate product",
+          },
+        ]
+      : []),
+  ];
 
-    const apply = (ingredient: Awaited<ReturnType<typeof getIngredient>>) => {
-      const store = useFormulationStore.getState();
-      const percent =
-        store.draft.find((line) => line.ingredient_id === currentId)?.percent ??
-        0;
-      store.removeIngredient(currentId);
-      store.addIngredient(ingredient, percent);
-    };
+  /** Clamp during render rather than syncing state in an effect. */
+  const active = Math.max(0, Math.min(activeIndex, entries.length - 1));
 
-    const knownIngredient = useFormulationStore.getState().catalog[id];
-    if (knownIngredient) {
-      apply(knownIngredient);
+  /** Move the roving tabindex and focus the newly active button. */
+  function moveTo(index: number) {
+    const next = Math.max(0, Math.min(entries.length - 1, index));
+    activeRef.current = next;
+    setActiveIndex(next);
+    itemsRef.current[next]?.focus();
+  }
+
+  function handleListKeyDown(event: React.KeyboardEvent) {
+    switch (event.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+        event.preventDefault();
+        // Arrows adjust the percentage once the bin is selected; until then
+        // they move focus through the list.
+        if (selectedId && entries[activeRef.current]?.id === selectedId) {
+          adjustFocused(1, event.shiftKey);
+        } else {
+          moveTo(activeRef.current + 1);
+        }
+        break;
+      case "ArrowLeft":
+      case "ArrowUp":
+        event.preventDefault();
+        if (selectedId && entries[activeRef.current]?.id === selectedId) {
+          adjustFocused(-1, event.shiftKey);
+        } else {
+          moveTo(activeRef.current - 1);
+        }
+        break;
+      case "Home":
+        event.preventDefault();
+        moveTo(0);
+        break;
+      case "End":
+        event.preventDefault();
+        moveTo(entries.length - 1);
+        break;
+      case "Escape":
+        event.preventDefault();
+        if (held) release();
+        selectIngredient(null);
+        selectCandidate(null);
+        break;
+      case " ":
+      case "Spacebar": {
+        event.preventDefault();
+        void togglePlace(entries[activeRef.current]);
+        break;
+      }
+      case "Delete":
+      case "Backspace": {
+        const entry = entries[activeRef.current];
+        if (!entry || entry.kind !== "ingredient") break;
+        event.preventDefault();
+        removeIngredient(entry.id);
+        if (held?.id === entry.id) release();
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  /** Arrow up/down on the focused bin, 0.5 steps, 0.1 with Shift. */
+  function adjustFocused(direction: 1 | -1, fine: boolean) {
+    const entry = entries[activeRef.current];
+    if (!entry || entry.kind !== "ingredient") return;
+    const store = useFormulationStore.getState();
+    const current =
+      store.draft.find((l) => l.ingredient_id === entry.id)?.percent ??
+      entry.percent;
+    store.setPercent(entry.id, stepPercent(current, direction, fine));
+  }
+
+  /** Space again places what is held; a different row switches the held item. */
+  async function togglePlace(entry: SceneEntry) {
+    if (entry.kind !== "ingredient") return;
+    if (!held) {
+      hold({ kind: entry.kind, id: entry.id, label: entry.label });
       return;
     }
-    void getIngredient(id)
-      .then(apply)
-      .catch(() => undefined);
+    if (held.id === entry.id) {
+      const catalog = useFormulationStore.getState().catalog;
+      await placeHeld(held, "vessel", catalog);
+      release();
+      return;
+    }
+    hold({ kind: entry.kind, id: entry.id, label: entry.label });
   }
 
   return (
     <div className="scene-scroll space-y-3 border-t p-3">
       <div>
-        <h3 className="mb-1.5 text-xs font-medium text-muted-foreground">
+        <h3 className="mb-1.5 text-caption font-medium text-muted-foreground">
           Scene objects
         </h3>
-        <ul className="flex flex-wrap gap-1.5">
-          {lines.map((line, i) => {
-            const name =
-              catalog[line.ingredient_id]?.common_name ?? line.ingredient_id;
-            const selected = selectedId === line.ingredient_id;
-            const replaceable = replaceTarget === line.ingredient_id;
-            return (
-              <li key={line.ingredient_id}>
-                <Button
-                  size="xs"
-                  variant={selected ? "secondary" : "outline"}
-                  aria-pressed={selected}
-                  aria-label={`${name}, ${line.percent} percent. Drop a crop here to replace it.`}
-                  onClick={() =>
-                    selectIngredient(selected ? null : line.ingredient_id)
-                  }
-                  onDragOver={(e) => {
-                    if (!isIngredientDrag(e)) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setReplaceTarget(line.ingredient_id);
-                  }}
-                  onDragLeave={() => setReplaceTarget(null)}
-                  onDrop={(e) => handleReplace(e, line.ingredient_id)}
-                  className={cn(replaceable && "ring-2 ring-primary")}
-                >
-                  <span
-                    aria-hidden
-                    className="size-2.5 rounded-full"
-                    style={{ background: cropVar(i) }}
-                  />
-                  Inspect {name}
-                  <span className="tabular-nums text-muted-foreground">
-                    {line.percent}%
-                  </span>
-                </Button>
-              </li>
-            );
-          })}
-          {lines.length === 0 && (
-            <li className="text-xs text-muted-foreground">
-              Drag a crop into the scene to add it.
-            </li>
-          )}
-        </ul>
+        {entries.length === 0 ? (
+          <p className="text-caption text-muted-foreground">
+            Drag a crop into the scene to add it.
+          </p>
+        ) : (
+          <ul
+            className="flex flex-wrap gap-1.5"
+            aria-label="Scene objects. Arrow keys move, Enter inspects, Space picks up and places, Delete removes, Escape clears. With a bin selected, arrow keys change its percentage."
+            onKeyDown={handleListKeyDown}
+          >
+            {entries.map((entry, index) => {
+              const selected =
+                entry.kind === "ingredient"
+                  ? selectedId === entry.id
+                  : selectedCandidate === entry.id;
+              return (
+                <li key={`${entry.kind}-${entry.id}`}>
+                  <Button
+                    ref={(el) => {
+                      itemsRef.current[index] = el;
+                    }}
+                    size="xs"
+                    variant={selected ? "secondary" : "outline"}
+                    tabIndex={index === active ? 0 : -1}
+                    aria-pressed={selected}
+                    aria-label={
+                      entry.kind === "ingredient"
+                        ? `${entry.label}, ${entry.percent} percent. Enter inspects. Space picks up then places in the vessel. Delete removes.`
+                        : `${entry.label}. Enter inspects.`
+                    }
+                    onClick={() => {
+                      if (entry.kind === "ingredient") {
+                        selectIngredient(selected ? null : entry.id);
+                      } else {
+                        selectCandidate(selected ? null : entry.id);
+                      }
+                    }}
+                    onFocus={() => {
+                      activeRef.current = index;
+                      setActiveIndex(index);
+                    }}
+                    className={cn(
+                      held?.id === entry.id && "ring-2 ring-primary",
+                    )}
+                  >
+                    {entry.kind === "ingredient" ? (
+                      <span
+                        aria-hidden
+                        className="size-2.5 rounded-full"
+                        style={{ background: entry.color }}
+                      />
+                    ) : (
+                      <BoxIcon aria-hidden className="size-3" />
+                    )}
+                    {entry.kind === "ingredient"
+                      ? `Inspect ${entry.label}`
+                      : entry.label}
+                    {entry.kind === "ingredient" && (
+                      <span className="font-numeric text-muted-foreground">
+                        {entry.percent}%
+                      </span>
+                    )}
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
-      {selectedIngredient && selectedLine && (
-        <div
-          className="scene-rise rounded-lg border bg-muted/40 p-3 text-sm"
-          aria-live="polite"
-        >
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-medium">{selectedIngredient.common_name}</p>
-              <p className="text-xs text-muted-foreground italic">
-                {selectedIngredient.scientific_name}
-              </p>
-            </div>
-            <span className="text-lg font-semibold tabular-nums">
-              {selectedLine.percent}%
-            </span>
-          </div>
-          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
-            <dt className="text-muted-foreground">Form</dt>
-            <dd>{selectedIngredient.form}</dd>
-            <dt className="text-muted-foreground">Basis</dt>
-            <dd>{selectedIngredient.moisture_basis}</dd>
-            <dt className="text-muted-foreground">Source</dt>
-            <dd>{selectedIngredient.source.name}</dd>
-            <dt className="text-muted-foreground">Licence</dt>
-            <dd>{selectedIngredient.source.license_status}</dd>
-          </dl>
-          {issue && (
-            <p className="mt-2 text-xs text-destructive">{issue.message}</p>
-          )}
-        </div>
-      )}
-
       <ul
-        className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"
+        className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-muted-foreground"
         aria-label="Stage status"
       >
         {PROCESS_STATIONS.map((s) => (
           <li key={s.id}>
             {s.label}:{" "}
             <span className="text-foreground">
-              {STAGE_STATUS_TEXT[stages[s.id] ?? "idle"]}
+              {
+                STAGE_STATUS_TEXT[
+                  stationStatuses({
+                    jobType,
+                    status: jobStatus,
+                    stages,
+                    currentStage,
+                  })[s.id] ?? "idle"
+                ]
+              }
             </span>
           </li>
         ))}
@@ -386,18 +501,140 @@ function SceneObjectList() {
   );
 }
 
-/** Announces stage changes for screen readers, e.g. "Predicting texture, running". */
-function SceneAnnouncer() {
-  const text = useJobStore((s) => {
-    if (s.status === "idle") return "";
-    const label = s.currentStage
-      ? (s.stageLabels[s.currentStage] ?? s.currentStage)
-      : "Job";
-    return `${label}, ${s.status}`;
-  });
+/**
+ * Floating ingredient card opened by clicking a bin (or its chip). Escape or
+ * the close button dismisses it and focus returns to the scene.
+ */
+function SceneSelectionCard() {
+  const catalog = useFormulationStore((s) => s.catalog);
+  const validated = useFormulationStore((s) => s.validated);
+  const selectedId = useSelectionStore((s) => s.selectedIngredientId);
+  const selectIngredient = useSelectionStore((s) => s.selectIngredient);
+  const lines = validated?.lines ?? [];
+  const ingredient = selectedId ? catalog[selectedId] : null;
+  const line = lines.find((l) => l.ingredient_id === selectedId);
+  const issue = validated?.result.issues.find(
+    (i) => i.ingredient_id === selectedId,
+  );
+  const stepPercent = usePercentStep(
+    ingredient?.id ?? "",
+    () => line?.percent ?? 0,
+  );
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (selectedId) closeRef.current?.focus();
+  }, [selectedId]);
+
+  if (!ingredient || !line) return null;
+
   return (
-    <div aria-live="polite" className="sr-only">
-      {text}
+    <div
+      role="region"
+      aria-label="Ingredient details"
+      className="scene-rise pointer-events-auto absolute top-10 right-3 z-20 w-72 max-w-[calc(100%-1.5rem)] rounded-xl border bg-popover/95 p-3 text-small shadow-lg backdrop-blur"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          selectIngredient(null);
+        }
+      }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="font-medium">{ingredient.common_name}</p>
+          {ingredient.scientific_name && (
+            <p className="text-caption text-muted-foreground italic">
+              {ingredient.scientific_name}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-h3 font-semibold font-numeric">
+            {line.percent}%
+          </span>
+          <div
+            className="flex items-center gap-0.5"
+            role="group"
+            aria-label="Percentage"
+          >
+            <Button
+              size="icon-xs"
+              variant="outline"
+              aria-label={`Decrease ${ingredient.common_name} percentage by half a percent`}
+              onClick={(e) => stepPercent(-1, e.shiftKey)}
+            >
+              <MinusIcon aria-hidden />
+            </Button>
+            <Button
+              size="icon-xs"
+              variant="outline"
+              aria-label={`Increase ${ingredient.common_name} percentage by half a percent`}
+              onClick={(e) => stepPercent(1, e.shiftKey)}
+            >
+              <PlusIcon aria-hidden />
+            </Button>
+          </div>
+          <Button
+            size="xs"
+            variant="outline"
+            onClick={() => {
+              useFormulationStore.getState().removeIngredient(ingredient.id);
+              selectIngredient(null);
+            }}
+          >
+            Remove
+          </Button>
+          <Button
+            ref={closeRef}
+            size="icon-xs"
+            variant="ghost"
+            aria-label="Close ingredient details"
+            onClick={() => selectIngredient(null)}
+          >
+            <XIcon />
+          </Button>
+        </div>
+      </div>
+
+      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-caption">
+        <dt className="text-muted-foreground">Form</dt>
+        <dd>{ingredient.form}</dd>
+        <dt className="text-muted-foreground">Basis</dt>
+        <dd>{ingredient.moisture_basis}</dd>
+        {ingredient.origin && (
+          <>
+            <dt className="text-muted-foreground">Origin</dt>
+            <dd>{ingredient.origin}</dd>
+          </>
+        )}
+        <dt className="text-muted-foreground">Source</dt>
+        <dd>{ingredient.source.name}</dd>
+        {ingredient.source.method && (
+          <>
+            <dt className="text-muted-foreground">Method</dt>
+            <dd>{ingredient.source.method}</dd>
+          </>
+        )}
+        {ingredient.source.date && (
+          <>
+            <dt className="text-muted-foreground">Collected</dt>
+            <dd>{ingredient.source.date}</dd>
+          </>
+        )}
+        <dt className="text-muted-foreground">Licence</dt>
+        <dd>{ingredient.source.license_status}</dd>
+        {ingredient.source.citation && (
+          <>
+            <dt className="text-muted-foreground">Citation</dt>
+            <dd className="line-clamp-2">{ingredient.source.citation}</dd>
+          </>
+        )}
+      </dl>
+
+      {issue && (
+        <p className="mt-2 text-caption text-destructive">{issue.message}</p>
+      )}
     </div>
   );
 }

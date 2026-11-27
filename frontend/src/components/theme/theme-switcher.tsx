@@ -17,8 +17,11 @@ import { useMounted } from "@/hooks/use-mounted";
 import { THEMES, getTheme } from "@/lib/themes";
 import { ThemeSwatch } from "./theme-swatch";
 
-/** Compact theme menu for top bars. */
-export function ThemeSwitcher() {
+/**
+ * Compact theme menu for top bars. `className` reaches the trigger, which is
+ * how the two headers that use it raise its hit area to 44px below `lg`.
+ */
+export function ThemeSwitcher({ className }: { className?: string }) {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const mounted = useMounted();
   const current = mounted ? getTheme(resolvedTheme) : undefined;
@@ -27,7 +30,12 @@ export function ThemeSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="ghost" size="sm" aria-label="Change colour theme" />
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Change colour theme"
+            className={className}
+          />
         }
       >
         {current ? (
@@ -54,7 +62,7 @@ export function ThemeSwitcher() {
                 <ThemeSwatch theme={t} className="size-4" />
                 <span className="flex flex-col">
                   <span>{t.label}</span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-caption text-muted-foreground">
                     {t.mode === "dark" ? "Dark" : "Light"}
                   </span>
                 </span>

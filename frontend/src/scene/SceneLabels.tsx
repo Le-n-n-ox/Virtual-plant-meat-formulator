@@ -7,16 +7,18 @@ import { useJobStore } from "@/stores/jobStore";
 import { useSelectionStore } from "@/stores/selectionStore";
 import { SceneLabel, SceneLabelLayer } from "./labels";
 import {
+  currentStageLabel,
   LABEL_HEIGHT,
   PROCESS_STATIONS,
   PRODUCT_POSITION,
   STAGE_STATUS_TEXT,
   STATION_X,
   binPosition,
+  stationStatuses,
 } from "./stations";
 
 const pill =
-  "rounded-lg border bg-popover/85 px-2 py-1 text-center text-[11px] leading-tight whitespace-nowrap text-popover-foreground shadow-md shadow-black/10 backdrop-blur transition-colors";
+  "rounded-lg border bg-popover/85 px-2 py-1 text-center text-caption leading-tight whitespace-nowrap text-popover-foreground shadow-md shadow-black/10 backdrop-blur transition-colors";
 
 /** DOM labels for the 3D scene, positioned by <LabelProjector/>. Same stores as the scene. */
 export function SceneLabels() {
@@ -24,14 +26,27 @@ export function SceneLabels() {
   const catalog = useFormulationStore((s) => s.catalog);
   const selectedId = useSelectionStore((s) => s.selectedIngredientId);
   const selectedCandidate = useSelectionStore((s) => s.selectedCandidateId);
-  const { stages, stageLabels, candidateIds, progress } = useJobStore(
+  const {
+    jobType,
+    status,
+    stages,
+    stageLabels,
+    currentStage,
+    candidateIds,
+    progress,
+  } = useJobStore(
     useShallow((s) => ({
+      jobType: s.jobType,
+      status: s.status,
       stages: s.stages,
       stageLabels: s.stageLabels,
+      currentStage: s.currentStage,
       candidateIds: s.candidateIds,
       progress: s.progressPercent,
     })),
   );
+  const statuses = stationStatuses({ jobType, status, stages, currentStage });
+  const stageLabel = currentStageLabel({ currentStage, stageLabels });
   const lines = validated?.lines ?? [];
   const invalid = new Set(validated?.result.issues.map((i) => i.ingredient_id));
   const candidateId = selectedCandidate ?? candidateIds.at(-1) ?? null;
@@ -66,7 +81,7 @@ export function SceneLabels() {
                 style={{ background: `var(--scene-crop-${(i % 6) + 1})` }}
               />
               <span className="font-medium">{name}</span>{" "}
-              <span className="text-muted-foreground tabular-nums">
+              <span className="text-muted-foreground font-numeric">
                 {line.percent}%
               </span>
             </div>
@@ -75,7 +90,7 @@ export function SceneLabels() {
       })}
 
       {PROCESS_STATIONS.filter((s) => s.id !== "mixing").map((station) => {
-        const status = stages[station.id];
+        const status = statuses[station.id];
         const active = status === "active";
         return (
           <SceneLabel
@@ -113,9 +128,9 @@ export function SceneLabels() {
                 {station.label}
               </div>
               <div className="text-muted-foreground">
-                {stageLabels[station.id]
-                  ? STAGE_STATUS_TEXT[status ?? "idle"]
-                  : STAGE_STATUS_TEXT[status ?? "idle"]}
+                {status === "idle"
+                  ? STAGE_STATUS_TEXT.idle
+                  : (stageLabel ?? STAGE_STATUS_TEXT[status])}
               </div>
               {active && progress !== null && (
                 <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">
